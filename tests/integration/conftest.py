@@ -14,6 +14,7 @@ from platform_neuro_flow_api.config import (
     Config,
     CORSConfig,
     PlatformAuthConfig,
+    PostgresConfig,
     ServerConfig,
 )
 
@@ -42,12 +43,14 @@ async def client() -> AsyncIterator[aiohttp.ClientSession]:
 def config_factory(
     auth_config: PlatformAuthConfig,
     cluster_name: str,
+    postgres_config: PostgresConfig,
 ) -> Callable[..., Config]:
     def _f(**kwargs: Any) -> Config:
         defaults = dict(
             server=ServerConfig(host="0.0.0.0", port=8080),
             platform_auth=auth_config,
             cors=CORSConfig(allowed_origins=["https://neu.ro"]),
+            postgres=postgres_config,
             sentry=None,
         )
         kwargs = {**defaults, **kwargs}
