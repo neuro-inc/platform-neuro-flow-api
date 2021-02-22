@@ -19,5 +19,9 @@ spec:
         backend:
           serviceName: platformneuroflowapi
           servicePort: http
+      - path: /api/docs/v1/flow
+        backend:
+          serviceName: platformneuroflowapi
+          servicePort: http
   {{- end }}
 {{- end }}

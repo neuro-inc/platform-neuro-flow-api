@@ -16,6 +16,8 @@ from aiohttp.web import (
     json_response,
     middleware,
 )
+from aiohttp.web_exceptions import HTTPNotFound, HTTPOk
+from aiohttp_apispec import docs, request_schema, setup_aiohttp_apispec
 from aiohttp_security import check_authorized
 from neuro_auth_client import AuthClient
 from neuro_auth_client.security import AuthScheme, setup_security
@@ -25,6 +27,7 @@ from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
+from .schema import SampleSchema
 from .service import Service
 
 
@@ -57,9 +60,30 @@ class NeuroFlowApiHandler:
         # TODO: add routes to handler
         app.add_routes(
             [
-                # aiohttp.web.post("", self.handle_post),
+                aiohttp.web.post("", self.sample_request),
             ]
         )
+
+    @docs(
+        tags=["sample"],
+        summary="Sample request",
+        responses={
+            HTTPOk.status_code: {
+                "description": "Sample data",
+                "schema": SampleSchema(),
+            },
+            HTTPNotFound.status_code: {"description": "Not found"},
+        },
+    )
+    @request_schema(SampleSchema())
+    async def sample_request(
+        self, request: aiohttp.web.Request
+    ) -> aiohttp.web.Response:
+        payload = await request.json()
+        instance = SampleSchema().load(payload)
+        # Do something with instance
+        resp_payload = SampleSchema().dump(instance)
+        return json_response(resp_payload, status=HTTPOk.status_code)
 
 
 @middleware
@@ -157,6 +181,20 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     app.add_subapp("/api/v1", api_v1_app)
 
     _setup_cors(app, config.cors)
+    if config.enable_docs:
+        prefix = "/api/docs/v1/flow"
+        setup_aiohttp_apispec(
+            app=app,
+            title="Neuro Flow API documentation",
+            version="v1",
+            url=f"{prefix}/swagger.json",
+            static_path=f"{prefix}/static",
+            swagger_path=f"{prefix}/ui",
+            security=[{"jwt": []}],
+            securityDefinitions={
+                "jwt": {"type": "apiKey", "name": "Authorization", "in": "header"},
+            },
+        )
 
     app.on_response_prepare.append(add_version_to_header)
 

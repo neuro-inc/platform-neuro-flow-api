@@ -33,3 +33,4 @@ class Config:
     platform_auth: PlatformAuthConfig
     cors: CORSConfig
     sentry: Optional[SentryConfig]
+    enable_docs: bool = False

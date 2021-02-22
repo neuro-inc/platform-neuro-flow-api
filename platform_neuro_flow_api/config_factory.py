@@ -15,11 +15,15 @@ class EnvironConfigFactory:
         self._environ = environ or os.environ
 
     def create(self) -> Config:
+        enable_docs = (
+            self._environ.get("NP_NEURO_FLOW_API_ENABLE_DOCS", "false") == "true"
+        )
         return Config(
             server=self._create_server(),
             platform_auth=self._create_platform_auth(),
             cors=self.create_cors(),
             sentry=self.create_sentry(),
+            enable_docs=enable_docs,
         )
 
     def _create_server(self) -> ServerConfig:

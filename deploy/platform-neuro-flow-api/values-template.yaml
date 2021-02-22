@@ -30,3 +30,4 @@ platform:
   token: {}
 
 corsOrigins:
+enableDocs: false

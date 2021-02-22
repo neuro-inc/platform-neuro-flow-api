@@ -65,6 +65,10 @@ spec:
         - name: NP_SENTRY_CLUSTER
           value: {{ .Values.sentry.cluster }}
         {{- end }}
+        {{- if .Values.enableDocs }}
+        - name: NP_NEURO_FLOW_API_ENABLE_DOCS
+          value: "true"
+        {{- end }}
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets: {{ toYaml .Values.imagePullSecrets | nindent 6 }}
       {{- end }}
