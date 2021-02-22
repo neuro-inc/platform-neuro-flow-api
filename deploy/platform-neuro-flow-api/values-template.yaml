@@ -29,5 +29,8 @@ authUrl: http://platformauthapi:8080
 platform:
   token: {}
 
+postgres:
+  dsn: {}
+
 corsOrigins:
 enableDocs: false
