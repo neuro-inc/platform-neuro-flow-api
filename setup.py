@@ -12,6 +12,7 @@ install_requires = (
     "sentry-sdk==0.20.2",
     "marshmallow==3.10.0",
     "aiohttp-apispec==2.2.1",
+    "alembic==1.5.4",
 )
 
 setup(

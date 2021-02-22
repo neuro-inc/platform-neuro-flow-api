@@ -1,4 +1,5 @@
 from typing import Any, Dict
+from unittest.mock import ANY
 
 from yarl import URL
 
@@ -6,6 +7,7 @@ from platform_neuro_flow_api.config import (
     Config,
     CORSConfig,
     PlatformAuthConfig,
+    PostgresConfig,
     SentryConfig,
     ServerConfig,
 )
@@ -22,6 +24,9 @@ def test_create() -> None:
         "NP_SENTRY_CLUSTER": "test",
         "NP_CORS_ORIGINS": "https://domain1.com,http://do.main",
         "NP_NEURO_FLOW_API_ENABLE_DOCS": "true",
+        "NP_DB_POSTGRES_DSN": "postgresql://postgres@localhost:5432/postgres",
+        "NP_DB_POSTGRES_POOL_MIN": "50",
+        "NP_DB_POSTGRES_POOL_MAX": "500",
     }
     config = EnvironConfigFactory(environ).create()
     assert config == Config(
@@ -33,6 +38,12 @@ def test_create() -> None:
         sentry=SentryConfig(
             url="https://test.com",
             cluster="test",
+        ),
+        postgres=PostgresConfig(
+            postgres_dsn="postgresql://postgres@localhost:5432/postgres",
+            pool_min_size=50,
+            pool_max_size=500,
+            alembic=ANY,
         ),
         enable_docs=True,
     )
