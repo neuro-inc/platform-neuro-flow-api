@@ -1,0 +1,19 @@
+ingress:
+  enabled: true
+
+  extraAnnotations:
+    external-dns.platform.neuromation.io: 'true'
+  hosts: [staging.neu.ro]
+
+sentry:
+  url: https://007c28df2e15451baefdd022386bbb47@o489136.ingest.sentry.io/5553359
+  cluster: staging-azure
+
+platform:
+  token:
+    valueFrom:
+      secretKeyRef:
+        name: platformservices-secret
+        key: compute_token
+
+corsOrigins: https://neu.ro,https://master--neuro-web.netlify.com,http://localhost:8000
