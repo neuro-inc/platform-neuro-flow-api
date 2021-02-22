@@ -152,7 +152,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     neuro_flow_app = await create_neuro_flow_app(config)
     app["neuro_flow_app"] = neuro_flow_app
-    api_v1_app.add_subapp("/neuro_flow", neuro_flow_app)
+    api_v1_app.add_subapp("/flow", neuro_flow_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 

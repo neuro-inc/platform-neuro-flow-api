@@ -1,5 +1,4 @@
 {{- if .Values.ingress.enabled }}
----
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
@@ -7,9 +6,6 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.frontend.rule.type: PathPrefix
-    ingress.kubernetes.io/auth-type: forward
-    ingress.kubernetes.io/auth-trust-headers: "true"
-    ingress.kubernetes.io/auth-url: {{ .Values.platformIngressAuthUrl }}/oauth/authorize
 {{- if .Values.ingress.extraAnnotations }}
 {{ toYaml .Values.ingress.extraAnnotations | indent 4 }}
 {{- end }}
