@@ -28,7 +28,7 @@ def auth_image() -> str:
 
 @pytest.fixture(scope="session")
 def auth_name() -> str:
-    return "platform-admin-auth"
+    return "platform-neuro-flow-auth"
 
 
 @pytest.fixture(scope="session")
