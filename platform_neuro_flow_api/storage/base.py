@@ -82,6 +82,15 @@ class Task:
     state: Optional[Mapping[str, str]]
     statuses: Sequence[TaskStatusItem]
 
+    def __post_init__(self) -> None:
+        finished = any(
+            entry.status in {TaskStatus.SUCCEEDED, TaskStatus.CACHED}
+            for entry in self.statuses
+        )
+        if finished:
+            assert self.outputs is not None
+            assert self.state is not None
+
 
 class ProjectStorage(ABC):
     @dataclass(frozen=True)
