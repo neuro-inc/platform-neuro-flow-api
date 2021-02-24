@@ -5,14 +5,6 @@ from typing import Any
 
 import pytest
 
-from platform_neuro_flow_api.storage import (
-    ConfigsMeta,
-    ExistsError,
-    InMemoryStorage,
-    NotExistsError,
-    Project,
-    TaskStatus,
-)
 from platform_neuro_flow_api.storage.base import (
     Attempt,
     AttemptData,
@@ -26,16 +18,22 @@ from platform_neuro_flow_api.storage.base import (
     ConfigFile,
     ConfigFileData,
     ConfigFileStorage,
+    ConfigsMeta,
+    ExistsError,
     LiveJob,
     LiveJobData,
     LiveJobStorage,
+    NotExistsError,
+    Project,
     ProjectData,
     ProjectStorage,
     Task,
     TaskData,
+    TaskStatus,
     TaskStatusItem,
     TaskStorage,
 )
+from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 
 
 pytestmark = pytest.mark.asyncio

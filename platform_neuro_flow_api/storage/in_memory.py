@@ -1,7 +1,6 @@
 import secrets
 from typing import AsyncIterator, Callable, Dict, Optional, TypeVar
 
-from . import ExistsError
 from .base import (
     Attempt,
     AttemptData,
@@ -16,6 +15,7 @@ from .base import (
     ConfigFile,
     ConfigFileData,
     ConfigFileStorage,
+    ExistsError,
     FullID,
     HasId,
     LiveJob,
