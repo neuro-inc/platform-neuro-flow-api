@@ -27,6 +27,7 @@ from platform_neuro_flow_api.storage.base import (
     Project,
     ProjectData,
     ProjectStorage,
+    Storage,
     Task,
     TaskData,
     TaskStatus,
@@ -39,12 +40,43 @@ from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 pytestmark = pytest.mark.asyncio
 
 
-class TestProjectStorage:
-    @pytest.fixture
-    def storage(self, in_memory_storage: InMemoryStorage) -> ProjectStorage:
-        return in_memory_storage.projects
+class MockDataHelper:
+    def __init__(self, storage: Storage):
+        self._storage = storage
 
-    def data_factory(self, **kwargs: Any) -> ProjectData:
+    async def _ensure_project_id(self, project_id: str) -> None:
+        data = await self.gen_project_data()
+        project = Project.from_data_obj(project_id, data)
+        try:
+            await self._storage.projects.insert(project)
+        except ExistsError:
+            pass
+
+    async def _ensure_bake_id(self, bake_id: str) -> None:
+        data = await self.gen_bake_data()
+        item = Bake.from_data_obj(bake_id, data)
+        try:
+            await self._storage.bakes.insert(item)
+        except ExistsError:
+            pass
+
+    async def _ensure_attempt_id(self, attempt_id: str) -> None:
+        data = await self.gen_attempt_data()
+        item = Attempt.from_data_obj(attempt_id, data)
+        try:
+            await self._storage.attempts.insert(item)
+        except ExistsError:
+            pass
+
+    async def _ensure_config_file_id(self, config_file_id: str) -> None:
+        data = await self.gen_config_file_data()
+        item = ConfigFile.from_data_obj(config_file_id, data)
+        try:
+            await self._storage.config_files.insert(item)
+        except ExistsError:
+            pass
+
+    async def gen_project_data(self, **kwargs: Any) -> ProjectData:
         data = ProjectData(
             name=secrets.token_hex(8),
             owner=secrets.token_hex(8),
@@ -55,74 +87,7 @@ class TestProjectStorage:
             data = replace(data, **{key: value})
         return data
 
-    def item_factory(self, **kwargs: Any) -> Project:
-        data = self.data_factory()
-        item = Project.from_data_obj(secrets.token_hex(8), data)
-        for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
-
-    def compare_data(self, data1: ProjectData, data2: ProjectData) -> bool:
-        return ProjectData.__eq__(data1, data2)
-
-    async def test_create_get_update(self, storage: ProjectStorage) -> None:
-        data = self.data_factory()
-        created = await storage.create(data)
-        assert self.compare_data(data, created)
-        res = await storage.get(created.id)
-        assert self.compare_data(res, created)
-        assert res.id == created.id
-        updated = replace(res, name="new-name")
-        await storage.update(updated)
-        project = await storage.get(res.id)
-        assert project.name == updated.name
-
-    async def test_get_not_exists(self, storage: ProjectStorage) -> None:
-        with pytest.raises(NotExistsError):
-            await storage.get("wrong-id")
-
-    async def test_update_not_exists(self, storage: ProjectStorage) -> None:
-        with pytest.raises(NotExistsError):
-            project = self.item_factory()
-            await storage.update(project)
-
-    async def test_get_by_name(self, storage: ProjectStorage) -> None:
-        data = self.data_factory()
-        res = await storage.create(data)
-        project = await storage.get_by_name(
-            name=data.name, owner=data.owner, cluster=data.cluster
-        )
-        assert project.id == res.id
-
-    async def test_cannot_create_duplicate(self, storage: ProjectStorage) -> None:
-        data = self.data_factory()
-        await storage.create(data)
-        with pytest.raises(ExistsError):
-            await storage.create(data)
-
-    async def test_list(self, storage: ProjectStorage) -> None:
-        for name_id in range(5):
-            for owner_id in range(5):
-                for cluster_id in range(5):
-                    data = self.data_factory(
-                        name=f"name-{name_id}",
-                        owner=f"owner-{owner_id}",
-                        cluster=f"cluster-{cluster_id}",
-                    )
-                    await storage.create(data)
-        found = []
-        async for item in storage.list(name="name-1", owner="owner-2"):
-            found.append(item.cluster)
-        assert len(found) == 5
-        assert set(found) == {f"cluster-{index}" for index in range(5)}
-
-
-class TestLiveJobStorage:
-    @pytest.fixture
-    def storage(self, in_memory_storage: InMemoryStorage) -> LiveJobStorage:
-        return in_memory_storage.live_jobs
-
-    def data_factory(self, **kwargs: Any) -> LiveJobData:
+    async def gen_live_job_data(self, **kwargs: Any) -> LiveJobData:
         data = LiveJobData(
             yaml_id=secrets.token_hex(8),
             project_id=secrets.token_hex(8),
@@ -132,74 +97,10 @@ class TestLiveJobStorage:
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
             data = replace(data, **{key: value})
+        await self._ensure_project_id(data.project_id)
         return data
 
-    def item_factory(self, **kwargs: Any) -> LiveJob:
-        data = self.data_factory()
-        item = LiveJob.from_data_obj(secrets.token_hex(8), data)
-        for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
-
-    def compare_data(self, data1: LiveJobData, data2: LiveJobData) -> bool:
-        return LiveJobData.__eq__(data1, data2)
-
-    async def test_create_get_update(self, storage: LiveJobStorage) -> None:
-        data = self.data_factory()
-        created = await storage.create(data)
-        assert self.compare_data(data, created)
-        res = await storage.get(created.id)
-        assert self.compare_data(res, created)
-        assert res.id == created.id
-        updated = replace(res, yaml_id="new-yaml-id")
-        await storage.update(updated)
-        project = await storage.get(res.id)
-        assert project.yaml_id == updated.yaml_id
-
-    async def test_get_not_exists(self, storage: LiveJobStorage) -> None:
-        with pytest.raises(NotExistsError):
-            await storage.get("wrong-id")
-
-    async def test_update_not_exists(self, storage: LiveJobStorage) -> None:
-        with pytest.raises(NotExistsError):
-            item = self.item_factory()
-            await storage.update(item)
-
-    async def test_get_by_yaml_id(self, storage: LiveJobStorage) -> None:
-        data = self.data_factory()
-        res = await storage.create(data)
-        project = await storage.get_by_yaml_id(
-            yaml_id=data.yaml_id, project_id=data.project_id
-        )
-        assert project.id == res.id
-
-    async def test_cannot_create_duplicate(self, storage: LiveJobStorage) -> None:
-        data = self.data_factory()
-        await storage.create(data)
-        with pytest.raises(ExistsError):
-            await storage.create(data)
-
-    async def test_list(self, storage: LiveJobStorage) -> None:
-        for yaml_id_num in range(5):
-            for project_id in range(5):
-                data = self.data_factory(
-                    yaml_id=f"yaml-id-{yaml_id_num}",
-                    project_id=f"project-{project_id}",
-                )
-                await storage.create(data)
-        found = []
-        async for item in storage.list(project_id="project-2"):
-            found.append(item.yaml_id)
-        assert len(found) == 5
-        assert set(found) == {f"yaml-id-{index}" for index in range(5)}
-
-
-class TestBakeStorage:
-    @pytest.fixture
-    def storage(self, in_memory_storage: InMemoryStorage) -> BakeStorage:
-        return in_memory_storage.bakes
-
-    def data_factory(self, **kwargs: Any) -> BakeData:
+    async def gen_bake_data(self, **kwargs: Any) -> BakeData:
         data = BakeData(
             project_id=secrets.token_hex(8),
             batch=secrets.token_hex(8),
@@ -210,64 +111,14 @@ class TestBakeStorage:
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
             data = replace(data, **{key: value})
+        await self._ensure_project_id(data.project_id)
         return data
 
-    def item_factory(self, **kwargs: Any) -> Bake:
-        data = self.data_factory()
-        item = Bake.from_data_obj(secrets.token_hex(8), data)
-        for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
-
-    def compare_data(self, data1: BakeData, data2: BakeData) -> bool:
-        return BakeData.__eq__(data1, data2)
-
-    async def test_create_get_update(self, storage: BakeStorage) -> None:
-        data = self.data_factory()
-        created = await storage.create(data)
-        assert self.compare_data(data, created)
-        res = await storage.get(created.id)
-        assert self.compare_data(res, created)
-        assert res.id == created.id
-        updated = replace(res, batch="another_batch")
-        await storage.update(updated)
-        project = await storage.get(res.id)
-        assert project.batch == updated.batch
-
-    async def test_get_not_exists(self, storage: BakeStorage) -> None:
-        with pytest.raises(NotExistsError):
-            await storage.get("wrong-id")
-
-    async def test_update_not_exists(self, storage: BakeStorage) -> None:
-        with pytest.raises(NotExistsError):
-            item = self.item_factory()
-            await storage.update(item)
-
-    async def test_list(self, storage: BakeStorage) -> None:
-        for batch_id in range(5):
-            for project_id in range(5):
-                data = self.data_factory(
-                    batch=f"batch-id-{batch_id}",
-                    project_id=f"project-{project_id}",
-                )
-                await storage.create(data)
-        found = []
-        async for item in storage.list(project_id="project-2"):
-            found.append(item.batch)
-        assert len(found) == 5
-        assert set(found) == {f"batch-id-{index}" for index in range(5)}
-
-
-class TestAttemptStorage:
-    @pytest.fixture
-    def storage(self, in_memory_storage: InMemoryStorage) -> AttemptStorage:
-        return in_memory_storage.attempts
-
-    def data_factory(self, **kwargs: Any) -> AttemptData:
+    async def gen_attempt_data(self, **kwargs: Any) -> AttemptData:
         data = AttemptData(
             bake_id=secrets.token_hex(8),
             number=secrets.randbits(20),
-            when=datetime.now(timezone.utc),
+            created_at=datetime.now(timezone.utc),
             result=TaskStatus.PENDING,
             configs_meta=ConfigsMeta(
                 workspace=secrets.token_hex(8),
@@ -279,75 +130,15 @@ class TestAttemptStorage:
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
             data = replace(data, **{key: value})
+        await self._ensure_bake_id(data.bake_id)
+        await self._ensure_config_file_id(data.configs_meta.flow_config_id)
+        if data.configs_meta.project_config_id is not None:
+            await self._ensure_config_file_id(data.configs_meta.project_config_id)
+        for config_file_id in data.configs_meta.action_config_ids.values():
+            await self._ensure_config_file_id(config_file_id)
         return data
 
-    def item_factory(self, **kwargs: Any) -> Attempt:
-        data = self.data_factory()
-        item = Attempt.from_data_obj(secrets.token_hex(8), data)
-        for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
-
-    def compare_data(self, data1: AttemptData, data2: AttemptData) -> bool:
-        return AttemptData.__eq__(data1, data2)
-
-    async def test_create_get_update(self, storage: AttemptStorage) -> None:
-        data = self.data_factory()
-        created = await storage.create(data)
-        assert self.compare_data(data, created)
-        res = await storage.get(created.id)
-        assert self.compare_data(res, created)
-        assert res.id == created.id
-        updated = replace(res, bake_id="new-bake-id")
-        await storage.update(updated)
-        project = await storage.get(res.id)
-        assert project.bake_id == updated.bake_id
-
-    async def test_get_not_exists(self, storage: AttemptStorage) -> None:
-        with pytest.raises(NotExistsError):
-            await storage.get("wrong-id")
-
-    async def test_update_not_exists(self, storage: AttemptStorage) -> None:
-        with pytest.raises(NotExistsError):
-            item = self.item_factory()
-            await storage.update(item)
-
-    async def test_get_by_number(self, storage: AttemptStorage) -> None:
-        data = self.data_factory()
-        res = await storage.create(data)
-        project = await storage.get_by_number(
-            bake_id=data.bake_id,
-            number=data.number,
-        )
-        assert project.id == res.id
-
-    async def test_cannot_create_duplicate(self, storage: AttemptStorage) -> None:
-        data = self.data_factory()
-        await storage.create(data)
-        with pytest.raises(ExistsError):
-            await storage.create(data)
-
-    async def test_list(self, storage: AttemptStorage) -> None:
-        for bake_id in range(5):
-            for number in range(5):
-                data = self.data_factory(
-                    bake_id=f"bake-id-{bake_id}",
-                    number=number,
-                )
-                await storage.create(data)
-        found = []
-        async for item in storage.list(bake_id="bake-id-2"):
-            found.append(item.number)
-        assert len(found) == 5
-        assert set(found) == {index for index in range(5)}
-
-
-class TestTaskStorage:
-    @pytest.fixture
-    def storage(self, in_memory_storage: InMemoryStorage) -> TaskStorage:
-        return in_memory_storage.tasks
-
-    def data_factory(self, **kwargs: Any) -> TaskData:
+    async def gen_task_data(self, **kwargs: Any) -> TaskData:
         data = TaskData(
             yaml_id=(secrets.token_hex(8),),
             attempt_id=secrets.token_hex(8),
@@ -364,20 +155,303 @@ class TestTaskStorage:
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
             data = replace(data, **{key: value})
+        await self._ensure_attempt_id(data.attempt_id)
         return data
 
-    def item_factory(self, **kwargs: Any) -> Task:
-        data = self.data_factory()
-        item = Task.from_data_obj(secrets.token_hex(8), data)
+    async def gen_cache_entry_data(self, **kwargs: Any) -> CacheEntryData:
+        data = CacheEntryData(
+            project_id=secrets.token_hex(8),
+            task_id=(secrets.token_hex(8),),
+            batch=secrets.token_hex(8),
+            key=secrets.token_hex(8),
+            outputs={},
+            state={},
+            created_at=datetime.now(timezone.utc),
+        )
+        # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
+            data = replace(data, **{key: value})
+        await self._ensure_project_id(data.project_id)
+        return data
+
+    async def gen_config_file_data(self, **kwargs: Any) -> ConfigFileData:
+        data = ConfigFileData(
+            filename=secrets.token_hex(8),
+            content=secrets.token_hex(8),
+        )
+        # Updating this way so constructor call is typechecked properly
+        for key, value in kwargs.items():
+            data = replace(data, **{key: value})
+        return data
+
+
+class TestProjectStorage:
+    helper: MockDataHelper
+
+    @pytest.fixture
+    def storage(self, in_memory_storage: InMemoryStorage) -> ProjectStorage:
+        return in_memory_storage.projects
+
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
+
+    def compare_data(self, data1: ProjectData, data2: ProjectData) -> bool:
+        return ProjectData.__eq__(data1, data2)
+
+    async def test_create_get_update(self, storage: ProjectStorage) -> None:
+        data = await self.helper.gen_project_data()
+        created = await storage.create(data)
+        assert self.compare_data(data, created)
+        res = await storage.get(created.id)
+        assert self.compare_data(res, created)
+        assert res.id == created.id
+        updated = replace(res, name="new-name")
+        await storage.update(updated)
+        project = await storage.get(res.id)
+        assert project.name == updated.name
+
+    async def test_get_not_exists(self, storage: ProjectStorage) -> None:
+        with pytest.raises(NotExistsError):
+            await storage.get("wrong-id")
+
+    async def test_update_not_exists(self, storage: ProjectStorage) -> None:
+        with pytest.raises(NotExistsError):
+            data = await self.helper.gen_project_data()
+            project = Project.from_data_obj("test", data)
+            await storage.update(project)
+
+    async def test_get_by_name(self, storage: ProjectStorage) -> None:
+        data = await self.helper.gen_project_data()
+        res = await storage.create(data)
+        project = await storage.get_by_name(
+            name=data.name, owner=data.owner, cluster=data.cluster
+        )
+        assert project.id == res.id
+
+    async def test_cannot_create_duplicate(self, storage: ProjectStorage) -> None:
+        data = await self.helper.gen_project_data()
+        await storage.create(data)
+        with pytest.raises(ExistsError):
+            await storage.create(data)
+
+    async def test_list(self, storage: ProjectStorage) -> None:
+        for name_id in range(5):
+            for owner_id in range(5):
+                for cluster_id in range(5):
+                    data = await self.helper.gen_project_data(
+                        name=f"name-{name_id}",
+                        owner=f"owner-{owner_id}",
+                        cluster=f"cluster-{cluster_id}",
+                    )
+                    await storage.create(data)
+        found = []
+        async for item in storage.list(name="name-1", owner="owner-2"):
+            found.append(item.cluster)
+        assert len(found) == 5
+        assert set(found) == {f"cluster-{index}" for index in range(5)}
+
+
+class TestLiveJobStorage:
+
+    helper: MockDataHelper
+
+    @pytest.fixture
+    def storage(self, in_memory_storage: InMemoryStorage) -> LiveJobStorage:
+        return in_memory_storage.live_jobs
+
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
+
+    def compare_data(self, data1: LiveJobData, data2: LiveJobData) -> bool:
+        return LiveJobData.__eq__(data1, data2)
+
+    async def test_create_get_update(self, storage: LiveJobStorage) -> None:
+        data = await self.helper.gen_live_job_data()
+        created = await storage.create(data)
+        assert self.compare_data(data, created)
+        res = await storage.get(created.id)
+        assert self.compare_data(res, created)
+        assert res.id == created.id
+        updated = replace(res, yaml_id="new-yaml-id")
+        await storage.update(updated)
+        project = await storage.get(res.id)
+        assert project.yaml_id == updated.yaml_id
+
+    async def test_get_not_exists(self, storage: LiveJobStorage) -> None:
+        with pytest.raises(NotExistsError):
+            await storage.get("wrong-id")
+
+    async def test_update_not_exists(self, storage: LiveJobStorage) -> None:
+        with pytest.raises(NotExistsError):
+            data = await self.helper.gen_live_job_data()
+            item = LiveJob.from_data_obj("test", data)
+            await storage.update(item)
+
+    async def test_get_by_yaml_id(self, storage: LiveJobStorage) -> None:
+        data = await self.helper.gen_live_job_data()
+        res = await storage.create(data)
+        project = await storage.get_by_yaml_id(
+            yaml_id=data.yaml_id, project_id=data.project_id
+        )
+        assert project.id == res.id
+
+    async def test_cannot_create_duplicate(self, storage: LiveJobStorage) -> None:
+        data = await self.helper.gen_live_job_data()
+        await storage.create(data)
+        with pytest.raises(ExistsError):
+            await storage.create(data)
+
+    async def test_list(self, storage: LiveJobStorage) -> None:
+        for yaml_id_num in range(5):
+            for project_id in range(5):
+                data = await self.helper.gen_live_job_data(
+                    yaml_id=f"yaml-id-{yaml_id_num}",
+                    project_id=f"project-{project_id}",
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(project_id="project-2"):
+            found.append(item.yaml_id)
+        assert len(found) == 5
+        assert set(found) == {f"yaml-id-{index}" for index in range(5)}
+
+
+class TestBakeStorage:
+
+    helper: MockDataHelper
+
+    @pytest.fixture
+    def storage(self, in_memory_storage: InMemoryStorage) -> BakeStorage:
+        return in_memory_storage.bakes
+
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
+
+    def compare_data(self, data1: BakeData, data2: BakeData) -> bool:
+        return BakeData.__eq__(data1, data2)
+
+    async def test_create_get_update(self, storage: BakeStorage) -> None:
+        data = await self.helper.gen_bake_data()
+        created = await storage.create(data)
+        assert self.compare_data(data, created)
+        res = await storage.get(created.id)
+        assert self.compare_data(res, created)
+        assert res.id == created.id
+        updated = replace(res, batch="another_batch")
+        await storage.update(updated)
+        project = await storage.get(res.id)
+        assert project.batch == updated.batch
+
+    async def test_get_not_exists(self, storage: BakeStorage) -> None:
+        with pytest.raises(NotExistsError):
+            await storage.get("wrong-id")
+
+    async def test_update_not_exists(self, storage: BakeStorage) -> None:
+        with pytest.raises(NotExistsError):
+            data = await self.helper.gen_bake_data()
+            item = Bake.from_data_obj("test", data)
+            await storage.update(item)
+
+    async def test_list(self, storage: BakeStorage) -> None:
+        for batch_id in range(5):
+            for project_id in range(5):
+                data = await self.helper.gen_bake_data(
+                    batch=f"batch-id-{batch_id}",
+                    project_id=f"project-{project_id}",
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(project_id="project-2"):
+            found.append(item.batch)
+        assert len(found) == 5
+        assert set(found) == {f"batch-id-{index}" for index in range(5)}
+
+
+class TestAttemptStorage:
+    helper: MockDataHelper
+
+    @pytest.fixture
+    def storage(self, in_memory_storage: InMemoryStorage) -> AttemptStorage:
+        return in_memory_storage.attempts
+
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
+
+    def compare_data(self, data1: AttemptData, data2: AttemptData) -> bool:
+        return AttemptData.__eq__(data1, data2)
+
+    async def test_create_get_update(self, storage: AttemptStorage) -> None:
+        data = await self.helper.gen_attempt_data()
+        created = await storage.create(data)
+        assert self.compare_data(data, created)
+        res = await storage.get(created.id)
+        assert self.compare_data(res, created)
+        assert res.id == created.id
+        updated = replace(res, number=42)
+        await storage.update(updated)
+        project = await storage.get(res.id)
+        assert project.bake_id == updated.bake_id
+
+    async def test_get_not_exists(self, storage: AttemptStorage) -> None:
+        with pytest.raises(NotExistsError):
+            await storage.get("wrong-id")
+
+    async def test_update_not_exists(self, storage: AttemptStorage) -> None:
+        with pytest.raises(NotExistsError):
+            data = await self.helper.gen_attempt_data()
+            item = Attempt.from_data_obj("test", data)
+            await storage.update(item)
+
+    async def test_get_by_number(self, storage: AttemptStorage) -> None:
+        data = await self.helper.gen_attempt_data()
+        res = await storage.create(data)
+        project = await storage.get_by_number(
+            bake_id=data.bake_id,
+            number=data.number,
+        )
+        assert project.id == res.id
+
+    async def test_cannot_create_duplicate(self, storage: AttemptStorage) -> None:
+        data = await self.helper.gen_attempt_data()
+        await storage.create(data)
+        with pytest.raises(ExistsError):
+            await storage.create(data)
+
+    async def test_list(self, storage: AttemptStorage) -> None:
+        for bake_id in range(5):
+            for number in range(5):
+                data = await self.helper.gen_attempt_data(
+                    bake_id=f"bake-id-{bake_id}",
+                    number=number,
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(bake_id="bake-id-2"):
+            found.append(item.number)
+        assert len(found) == 5
+        assert set(found) == {index for index in range(5)}
+
+
+class TestTaskStorage:
+    helper: MockDataHelper
+
+    @pytest.fixture
+    def storage(self, in_memory_storage: InMemoryStorage) -> TaskStorage:
+        return in_memory_storage.tasks
+
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
 
     def compare_data(self, data1: TaskData, data2: TaskData) -> bool:
         return TaskData.__eq__(data1, data2)
 
     async def test_create_get_update(self, storage: TaskStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_task_data()
         created = await storage.create(data)
         assert self.compare_data(data, created)
         res = await storage.get(created.id)
@@ -394,11 +468,12 @@ class TestTaskStorage:
 
     async def test_update_not_exists(self, storage: TaskStorage) -> None:
         with pytest.raises(NotExistsError):
-            item = self.item_factory()
+            data = await self.helper.gen_task_data()
+            item = Task.from_data_obj("test", data)
             await storage.update(item)
 
     async def test_get_by_yaml_id(self, storage: TaskStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_task_data()
         res = await storage.create(data)
         project = await storage.get_by_yaml_id(
             attempt_id=data.attempt_id,
@@ -407,7 +482,7 @@ class TestTaskStorage:
         assert project.id == res.id
 
     async def test_cannot_create_duplicate(self, storage: TaskStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_task_data()
         await storage.create(data)
         with pytest.raises(ExistsError):
             await storage.create(data)
@@ -415,7 +490,7 @@ class TestTaskStorage:
     async def test_list(self, storage: TaskStorage) -> None:
         for attempt_id in range(5):
             for raw_id in range(5):
-                data = self.data_factory(
+                data = await self.helper.gen_task_data(
                     attempt_id=f"attempt-id-{attempt_id}",
                     raw_id=f"raw-id-{raw_id}",
                 )
@@ -428,37 +503,21 @@ class TestTaskStorage:
 
 
 class TestCacheEntryStorage:
+    helper: MockDataHelper
+
     @pytest.fixture
     def storage(self, in_memory_storage: InMemoryStorage) -> CacheEntryStorage:
         return in_memory_storage.cache_entries
 
-    def data_factory(self, **kwargs: Any) -> CacheEntryData:
-        data = CacheEntryData(
-            project_id=secrets.token_hex(8),
-            task_id=(secrets.token_hex(8),),
-            batch=secrets.token_hex(8),
-            key=secrets.token_hex(8),
-            outputs={},
-            state={},
-            created_at=datetime.now(timezone.utc),
-        )
-        # Updating this way so constructor call is typechecked properly
-        for key, value in kwargs.items():
-            data = replace(data, **{key: value})
-        return data
-
-    def item_factory(self, **kwargs: Any) -> CacheEntry:
-        data = self.data_factory()
-        item = CacheEntry.from_data_obj(secrets.token_hex(8), data)
-        for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
 
     def compare_data(self, data1: CacheEntryData, data2: CacheEntryData) -> bool:
         return CacheEntryData.__eq__(data1, data2)
 
     async def test_create_get_update(self, storage: CacheEntryStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_cache_entry_data()
         created = await storage.create(data)
         assert self.compare_data(data, created)
         res = await storage.get(created.id)
@@ -475,11 +534,12 @@ class TestCacheEntryStorage:
 
     async def test_update_not_exists(self, storage: CacheEntryStorage) -> None:
         with pytest.raises(NotExistsError):
-            item = self.item_factory()
+            data = await self.helper.gen_cache_entry_data()
+            item = CacheEntry.from_data_obj("test", data)
             await storage.update(item)
 
     async def test_get_by_yaml_id(self, storage: CacheEntryStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_cache_entry_data()
         res = await storage.create(data)
         item = await storage.get_by_key(
             task_id=data.task_id,
@@ -490,7 +550,7 @@ class TestCacheEntryStorage:
         assert item.id == res.id
 
     async def test_cannot_create_duplicate(self, storage: CacheEntryStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_cache_entry_data()
         await storage.create(data)
         with pytest.raises(ExistsError):
             await storage.create(data)
@@ -500,7 +560,7 @@ class TestCacheEntryStorage:
             for batch_id in range(5):
                 for task_id in range(5):
                     for project_id in range(5):
-                        data = self.data_factory(
+                        data = await self.helper.gen_cache_entry_data(
                             project_id=f"project-id-{project_id}",
                             key=f"key-{key_id}",
                             batch=f"batch-{batch_id}",
@@ -526,32 +586,21 @@ class TestCacheEntryStorage:
 
 
 class TestConfigFileStorage:
+    helper: MockDataHelper
+
     @pytest.fixture
     def storage(self, in_memory_storage: InMemoryStorage) -> ConfigFileStorage:
         return in_memory_storage.config_files
 
-    def data_factory(self, **kwargs: Any) -> ConfigFileData:
-        data = ConfigFileData(
-            filename=secrets.token_hex(8),
-            content=secrets.token_hex(8),
-        )
-        # Updating this way so constructor call is typechecked properly
-        for key, value in kwargs.items():
-            data = replace(data, **{key: value})
-        return data
-
-    def item_factory(self, **kwargs: Any) -> ConfigFile:
-        data = self.data_factory()
-        item = ConfigFile.from_data_obj(secrets.token_hex(8), data)
-        for key, value in kwargs.items():
-            item = replace(item, **{key: value})
-        return item
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
 
     def compare_data(self, data1: ConfigFileData, data2: ConfigFileData) -> bool:
         return ConfigFileData.__eq__(data1, data2)
 
     async def test_create_get_update(self, storage: ConfigFileStorage) -> None:
-        data = self.data_factory()
+        data = await self.helper.gen_config_file_data()
         created = await storage.create(data)
         assert self.compare_data(data, created)
         res = await storage.get(created.id)
@@ -568,5 +617,6 @@ class TestConfigFileStorage:
 
     async def test_update_not_exists(self, storage: ConfigFileStorage) -> None:
         with pytest.raises(NotExistsError):
-            item = self.item_factory()
+            data = await self.helper.gen_config_file_data()
+            item = ConfigFile.from_data_obj("test", data)
             await storage.update(item)

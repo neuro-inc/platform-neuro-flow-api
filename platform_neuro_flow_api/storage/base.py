@@ -130,7 +130,7 @@ class ConfigsMeta:
 class AttemptData:
     bake_id: str
     number: int
-    when: datetime.datetime
+    created_at: datetime.datetime
     result: TaskStatus
     configs_meta: ConfigsMeta
 
@@ -191,6 +191,10 @@ _E = TypeVar("_E", bound=HasId)
 
 
 class BaseStorage(ABC, Generic[_D, _E]):
+    @abstractmethod
+    async def insert(self, data: _E) -> None:
+        pass
+
     @abstractmethod
     async def create(self, data: _D) -> _E:
         pass

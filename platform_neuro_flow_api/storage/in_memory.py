@@ -44,6 +44,12 @@ class InMemoryBaseStorage(BaseStorage[_D, _E]):
     def _gen_id(self) -> str:
         return secrets.token_hex(8)
 
+    async def insert(self, data: _E) -> None:
+        await self.check_exists(data)  # type: ignore
+        if data.id in self._items:
+            raise ExistsError
+        self._items[data.id] = data
+
     async def create(self, data: _D) -> _E:
         await self.check_exists(data)
         new_id = self._gen_id()
