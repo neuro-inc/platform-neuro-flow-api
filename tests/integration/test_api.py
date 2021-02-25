@@ -1,14 +1,21 @@
 from dataclasses import dataclass, replace
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator, Awaitable, Callable
 
 import aiohttp
 import pytest
 from aiohttp.web import HTTPOk
-from aiohttp.web_exceptions import HTTPForbidden, HTTPNotFound, HTTPUnauthorized
+from aiohttp.web_exceptions import (
+    HTTPConflict,
+    HTTPCreated,
+    HTTPForbidden,
+    HTTPNotFound,
+    HTTPUnauthorized,
+)
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config
 
+from .auth import _User
 from .conftest import ApiAddress, create_local_app_server
 
 
@@ -38,6 +45,12 @@ class NeuroFlowApiEndpoints:
     @property
     def openapi_json_url(self) -> str:
         return f"{self.server_base_url}/api/docs/v1/flow/swagger.json"
+
+    def projects_url(self, cluster: str) -> str:
+        return f"{self.server_base_url}/api/v1/flow/{cluster}/projects"
+
+    def project_url(self, cluster: str, id_or_name: str) -> str:
+        return f"{self.projects_url(cluster)}/{id_or_name}"
 
 
 @pytest.fixture
@@ -167,3 +180,148 @@ class TestApi:
             assert resp.headers["Access-Control-Allow-Origin"] == "https://neu.ro"
             assert resp.headers["Access-Control-Allow-Credentials"] == "true"
             assert resp.headers["Access-Control-Allow-Methods"] == "GET"
+
+
+class TestProjectsApi:
+    async def test_projects_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["name"] == "test"
+            assert payload["owner"] == regular_user.name
+            assert payload["cluster"] == "test-cluster"
+            assert "id" in payload
+
+    async def test_projects_get_by_id(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            project_id = (await resp.json())["id"]
+        async with client.get(
+            url=neuro_flow_api.project_url("test-cluster", project_id),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["name"] == "test"
+            assert payload["owner"] == regular_user.name
+            assert payload["cluster"] == "test-cluster"
+            assert "id" in payload
+
+    async def test_projects_get_by_name(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.get(
+            url=neuro_flow_api.project_url("test-cluster", "test"),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["name"] == "test"
+            assert payload["owner"] == regular_user.name
+            assert payload["cluster"] == "test-cluster"
+            assert "id" in payload
+
+    async def test_projects_create_duplicate_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            json={"name": "test"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPConflict.status_code, await resp.text()
+
+    async def test_projects_list(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        for index in range(5):
+            async with client.post(
+                url=neuro_flow_api.projects_url("test-cluster"),
+                json={"name": f"test-{index}"},
+                headers=regular_user.headers,
+            ) as resp:
+                assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.get(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 5
+            names = set()
+            for item in items:
+                assert item["owner"] == regular_user.name
+                assert item["cluster"] == "test-cluster"
+                names.add(item["name"])
+            assert names == {f"test-{index}" for index in range(5)}
+
+    async def test_projects_list_only_owned(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        client: aiohttp.ClientSession,
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        for user in [user1, user2]:
+            for index in range(5):
+                async with client.post(
+                    url=neuro_flow_api.projects_url("test-cluster"),
+                    json={"name": f"test-{index}"},
+                    headers=user.headers,
+                ) as resp:
+                    assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.get(
+            url=neuro_flow_api.projects_url("test-cluster"),
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 5
+            names = set()
+            for item in items:
+                assert item["owner"] == user1.name
+                assert item["cluster"] == "test-cluster"
+                names.add(item["name"])
+            assert names == {f"test-{index}" for index in range(5)}
