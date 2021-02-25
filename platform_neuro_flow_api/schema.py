@@ -5,7 +5,7 @@ import aiohttp.web
 from aiohttp_apispec import querystring_schema
 from marshmallow import Schema, fields, post_load
 
-from platform_neuro_flow_api.storage.base import ProjectData
+from platform_neuro_flow_api.storage.base import LiveJobData, ProjectData
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -40,6 +40,19 @@ class ProjectSchema(Schema):
             owner=self.context["username"],
             cluster=data["cluster"],
         )
+
+
+class LiveJobSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    yaml_id = fields.String(required=True)
+    project_id = fields.String(required=True)
+    multi = fields.Boolean(required=True)
+    tags = fields.List(fields.String(), required=True)
+
+    @post_load
+    def make_live_job_data(self, data: Mapping[str, Any], **kwargs: Any) -> LiveJobData:
+        # Parse object to dataclass here
+        return LiveJobData(**data)
 
 
 class ClientErrorSchema(Schema):
