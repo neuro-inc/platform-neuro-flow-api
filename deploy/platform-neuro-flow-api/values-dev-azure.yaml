@@ -40,6 +40,14 @@ postgres-db-init:
         name: platformneuroflowapi-postgres
         key: platformneuroflowapi-service-dsn
 
+  migrations:
+    env:
+      - name: NP_DB_POSTGRES_DSN
+        valueFrom:
+          secretKeyRef:
+            name: platformneuroflowapi-postgres
+            key: platformneuroflowapi-service-dsn
+
 corsOrigins: https://neu.ro,https://master--neuro-web.netlify.com,http://localhost:8000
 
 enableDocs: true
