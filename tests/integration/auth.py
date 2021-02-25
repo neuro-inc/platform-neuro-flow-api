@@ -1,20 +1,23 @@
 import asyncio
 import logging
 import os
-from typing import Any, AsyncIterator, Callable, Dict, Iterator
+from dataclasses import dataclass
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, Iterator, Optional
 
 import aiohttp
 import pytest
+from aiohttp.hdrs import AUTHORIZATION
 from async_timeout import timeout
 from docker import DockerClient
 from docker.errors import NotFound as ContainerNotFound
 from docker.models.containers import Container
 from jose import jwt
-from neuro_auth_client import AuthClient
+from neuro_auth_client import AuthClient, Cluster, User
 from neuro_auth_client.security import JWT_IDENTITY_CLAIM_OPTIONS
 from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformAuthConfig
+from tests.integration.conftest import random_name
 
 
 logger = logging.getLogger(__name__)
@@ -152,3 +155,34 @@ async def auth_client(auth_server: URL, admin_token: str) -> AsyncIterator[AuthC
 @pytest.fixture
 def auth_config(auth_server: URL, admin_token: str) -> PlatformAuthConfig:
     return PlatformAuthConfig(url=auth_server, token=admin_token)
+
+
+@dataclass(frozen=True)
+class _User(User):
+    token: str = ""
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        return {AUTHORIZATION: f"Bearer {self.token}"}
+
+
+@pytest.fixture
+async def regular_user_factory(
+    auth_client: AuthClient,
+    token_factory: Callable[[str], str],
+    admin_token: str,
+    cluster_name: str,
+) -> AsyncIterator[Callable[[Optional[str]], Awaitable[_User]]]:
+    async def _factory(name: Optional[str] = None) -> _User:
+        if not name:
+            name = f"user-{random_name()}"
+        user = User(name=name, clusters=[Cluster(name=cluster_name)])
+        await auth_client.add_user(user, token=admin_token)
+        return _User(name=user.name, token=token_factory(user.name))  # type: ignore
+
+    yield _factory
+
+
+@pytest.fixture
+async def regular_user(regular_user_factory: Callable[[], Awaitable[_User]]) -> _User:
+    return await regular_user_factory()
