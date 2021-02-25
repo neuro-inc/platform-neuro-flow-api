@@ -21,6 +21,8 @@ FROM python:3.7.8-stretch as service
 WORKDIR /app
 
 COPY --from=installer /root/.local/ /root/.local/
+COPY alembic.ini alembic.ini
+COPY alembic alembic
 
 ENV PATH=/root/.local/bin:$PATH
 
