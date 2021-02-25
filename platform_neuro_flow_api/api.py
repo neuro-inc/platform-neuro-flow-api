@@ -30,7 +30,7 @@ from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import create_postgres_pool
 from .schema import ClientErrorSchema, ProjectSchema, query_schema
-from .storage.base import ExistsError, NotExistsError, Project, Storage
+from .storage.base import ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
 from .utils import ndjson_error_handler
 
@@ -55,7 +55,7 @@ class ApiHandler:
         return Response(text="Secured Pong")
 
 
-class NeuroFlowApiHandler:
+class ProjectsApiHandler:
     def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
         self._app = app
         self._config = config
@@ -63,9 +63,10 @@ class NeuroFlowApiHandler:
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
             [
-                aiohttp.web.get("/{cluster}/projects", self.list_projects),
-                aiohttp.web.post("/{cluster}/projects", self.create_project),
-                aiohttp.web.get("/{cluster}/projects/{id_or_name}", self.get_project),
+                aiohttp.web.get("", self.list_projects),
+                aiohttp.web.post("", self.create_project),
+                aiohttp.web.get("/by_name", self.get_project_by_name),
+                aiohttp.web.get("/{id}", self.get_project),
             ]
         )
 
@@ -78,16 +79,19 @@ class NeuroFlowApiHandler:
         return self._app["storage"]
 
     @docs(tags=["projects"], summary="List all users projects")
-    @query_schema(name=fields.String(required=False))
+    @query_schema(
+        name=fields.String(required=False), cluster=fields.String(required=False)
+    )
     @response_schema(ProjectSchema(many=True), HTTPOk.status_code)
     async def list_projects(
         self,
         request: aiohttp.web.Request,
         name: Optional[str] = None,
+        cluster: Optional[str] = None,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         projects = self.storage.projects.list(
-            owner=username, name=name, cluster=request.match_info["cluster"]
+            owner=username, name=name, cluster=cluster
         )
         if self._accepts_ndjson(request):
             response = aiohttp.web.StreamResponse()
@@ -127,7 +131,6 @@ class NeuroFlowApiHandler:
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
         schema = ProjectSchema()
-        schema.context["cluster"] = request.match_info["cluster"]
         schema.context["username"] = username
         project_data = schema.load(await request.json())
         try:
@@ -144,25 +147,33 @@ class NeuroFlowApiHandler:
             data=schema.dump(project), status=HTTPCreated.status_code
         )
 
-    @docs(tags=["projects"], summary="Get projects by id or name")
+    @docs(tags=["projects"], summary="Get projects by id")
     @response_schema(ProjectSchema(), HTTPOk.status_code)
     async def get_project(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        id_or_name = request.match_info["id_or_name"]
-        cluster = request.match_info["cluster"]
-        project: Optional[Project] = None
+        id_or_name = request.match_info["id"]
         try:
             project = await self.storage.projects.get(id_or_name)
         except NotExistsError:
-            try:
-                project = await self.storage.projects.get_by_name(
-                    name=id_or_name,
-                    owner=username,
-                    cluster=cluster,
-                )
-            except NotExistsError:
-                pass
-        if project is None or project.cluster != cluster:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+        return aiohttp.web.json_response(
+            data=ProjectSchema().dump(project), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["projects"], summary="Get projects by id")
+    @query_schema(
+        name=fields.String(required=True), cluster=fields.String(required=True)
+    )
+    @response_schema(ProjectSchema(), HTTPOk.status_code)
+    async def get_project_by_name(
+        self, request: aiohttp.web.Request, name: str, cluster: str
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        try:
+            project = await self.storage.projects.get_by_name(name, username, cluster)
+        except NotExistsError:
             raise HTTPNotFound
         return aiohttp.web.json_response(
             data=ProjectSchema().dump(project), status=HTTPOk.status_code
@@ -194,9 +205,9 @@ async def create_api_v1_app() -> aiohttp.web.Application:
     return api_v1_app
 
 
-async def create_neuro_flow_app(config: Config) -> aiohttp.web.Application:
+async def create_projects_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
-    handler = NeuroFlowApiHandler(app, config)
+    handler = ProjectsApiHandler(app, config)
     handler.register(app)
     return app
 
@@ -256,7 +267,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
 
             logger.info("Initializing Service")
-            app["neuro_flow_app"]["storage"] = storage
+            app["projects_app"]["storage"] = storage
 
             yield
 
@@ -265,9 +276,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     api_v1_app = await create_api_v1_app()
     app["api_v1_app"] = api_v1_app
 
-    neuro_flow_app = await create_neuro_flow_app(config)
-    app["neuro_flow_app"] = neuro_flow_app
-    api_v1_app.add_subapp("/flow", neuro_flow_app)
+    projects_app = await create_projects_app(config)
+    app["projects_app"] = projects_app
+    api_v1_app.add_subapp("/flow/projects", projects_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 
