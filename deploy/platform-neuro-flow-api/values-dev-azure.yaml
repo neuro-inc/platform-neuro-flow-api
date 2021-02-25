@@ -23,6 +23,23 @@ postgres:
         name: platformneuroflowapi-postgres
         key: platformneuroflowapi-service-dsn
 
+postgres-db-init:
+  adminDsn:
+    valueFrom:
+      secretKeyRef:
+        name: platformneuroflowapi-postgres
+        key: platformneuroflowapi-service-dsn
+  migrationsRunnerDsn:
+    valueFrom:
+      secretKeyRef:
+        name: platformneuroflowapi-postgres
+        key: platformneuroflowapi-service-dsn
+  serviceDsn:
+    valueFrom:
+      secretKeyRef:
+        name: platformneuroflowapi-postgres
+        key: platformneuroflowapi-service-dsn
+
 corsOrigins: https://neu.ro,https://master--neuro-web.netlify.com,http://localhost:8000
 
 enableDocs: true

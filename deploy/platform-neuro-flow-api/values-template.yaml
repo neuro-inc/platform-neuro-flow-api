@@ -18,6 +18,23 @@ resources:
 ingress:
   enabled: false
 
+postgres-db-init:
+  image:
+    repository: $DOCKER_SERVER/bitnami/postgresql
+
+  adminDsn: {}
+  migrationsRunnerDsn: {}
+  serviceDsn: {}
+
+  migrations:
+    enabled: true
+
+    image:
+      repository: "$IMAGE_REPO"
+      tag: "$IMAGE_TAG"
+
+    command: ["alembic", "upgrade", "head"]
+
 secrets: []
 
 sentry:
