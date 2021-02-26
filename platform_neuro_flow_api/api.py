@@ -29,7 +29,7 @@ from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import create_postgres_pool
-from .schema import ClientErrorSchema, ProjectSchema, query_schema
+from .schema import ClientErrorSchema, LiveJobSchema, ProjectSchema, query_schema
 from .storage.base import ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
 from .utils import ndjson_error_handler
@@ -151,9 +151,9 @@ class ProjectsApiHandler:
     @response_schema(ProjectSchema(), HTTPOk.status_code)
     async def get_project(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        id_or_name = request.match_info["id"]
+        id = request.match_info["id"]
         try:
-            project = await self.storage.projects.get(id_or_name)
+            project = await self.storage.projects.get(id)
         except NotExistsError:
             raise HTTPNotFound
         if project.owner != username:
@@ -177,6 +177,164 @@ class ProjectsApiHandler:
             raise HTTPNotFound
         return aiohttp.web.json_response(
             data=ProjectSchema().dump(project), status=HTTPOk.status_code
+        )
+
+
+class LiveJobApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.get("", self.list),
+                aiohttp.web.post("", self.create),
+                aiohttp.web.put("/replace", self.replace),
+                aiohttp.web.get("/by_yaml_id", self.get_by_yaml_id),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    def _accepts_ndjson(self, request: aiohttp.web.Request) -> bool:
+        accept = request.headers.get("Accept", "")
+        return "application/x-ndjson" in accept
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    @docs(tags=["live_jobs"], summary="List live jobs in given project")
+    @query_schema(project_id=fields.String(required=True))
+    @response_schema(LiveJobSchema(many=True), HTTPOk.status_code)
+    async def list(
+        self,
+        request: aiohttp.web.Request,
+        project_id: str,
+    ) -> aiohttp.web.StreamResponse:
+        username = await check_authorized(request)
+        await self._check_project(username, project_id)
+        live_jobs = self.storage.live_jobs.list(project_id=project_id)
+        if self._accepts_ndjson(request):
+            response = aiohttp.web.StreamResponse()
+            response.headers["Content-Type"] = "application/x-ndjson"
+            await response.prepare(request)
+            async with ndjson_error_handler(request, response):
+                async for live_job in live_jobs:
+                    payload_line = LiveJobSchema().dumps(live_job)
+                    await response.write(payload_line.encode() + b"\n")
+            return response
+        else:
+            response_payload = [
+                LiveJobSchema().dump(live_job) async for live_job in live_jobs
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
+
+    @docs(
+        tags=["live_jobs"],
+        summary="Create live job",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Live job created",
+                "schema": LiveJobSchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "Live job with such yaml_id exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(LiveJobSchema())
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = LiveJobSchema()
+        live_job_data = schema.load(await request.json())
+        await self._check_project(username, live_job_data.project_id)
+        try:
+            live_job = await self.storage.live_jobs.create(live_job_data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Live with such yaml_id exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(live_job), status=HTTPCreated.status_code
+        )
+
+    @docs(
+        tags=["live_jobs"],
+        summary="Create live job or update by yaml_id match",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Live job replaced",
+                "schema": LiveJobSchema(),
+            },
+        },
+    )
+    @request_schema(LiveJobSchema())
+    async def replace(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = LiveJobSchema()
+        live_job_data = schema.load(await request.json())
+        await self._check_project(username, live_job_data.project_id)
+        live_job = await self.storage.live_jobs.update_or_create(live_job_data)
+        return aiohttp.web.json_response(
+            data=schema.dump(live_job), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["live_jobs"], summary="Get live job by id")
+    @response_schema(LiveJobSchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            live_job = await self.storage.live_jobs.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        await self._check_project(username, live_job.project_id)
+        return aiohttp.web.json_response(
+            data=LiveJobSchema().dump(live_job), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["live_jobs"], summary="Get projects by id")
+    @query_schema(
+        project_id=fields.String(required=True),
+        yaml_id=fields.String(required=True),
+    )
+    @response_schema(LiveJobSchema(), HTTPOk.status_code)
+    async def get_by_yaml_id(
+        self, request: aiohttp.web.Request, project_id: str, yaml_id: str
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        await self._check_project(username, project_id)
+        try:
+            live_job = await self.storage.live_jobs.get_by_yaml_id(
+                yaml_id=yaml_id,
+                project_id=project_id,
+            )
+        except NotExistsError:
+            raise HTTPNotFound
+        return aiohttp.web.json_response(
+            data=LiveJobSchema().dump(live_job), status=HTTPOk.status_code
         )
 
 
@@ -208,6 +366,13 @@ async def create_api_v1_app() -> aiohttp.web.Application:
 async def create_projects_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
     handler = ProjectsApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
+async def create_live_jobs_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = LiveJobApiHandler(app, config)
     handler.register(app)
     return app
 
@@ -268,6 +433,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             logger.info("Initializing Service")
             app["projects_app"]["storage"] = storage
+            app["live_jobs_app"]["storage"] = storage
 
             yield
 
@@ -279,6 +445,10 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     projects_app = await create_projects_app(config)
     app["projects_app"] = projects_app
     api_v1_app.add_subapp("/flow/projects", projects_app)
+
+    live_jobs_app = await create_live_jobs_app(config)
+    app["live_jobs_app"] = live_jobs_app
+    api_v1_app.add_subapp("/flow/live_jobs", live_jobs_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 

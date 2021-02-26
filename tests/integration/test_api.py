@@ -1,3 +1,4 @@
+import secrets
 from dataclasses import dataclass, replace
 from typing import AsyncIterator, Awaitable, Callable
 
@@ -14,6 +15,7 @@ from aiohttp.web_exceptions import (
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config
+from platform_neuro_flow_api.storage.base import Project
 
 from .auth import _User
 from .conftest import ApiAddress, create_local_app_server
@@ -50,12 +52,27 @@ class NeuroFlowApiEndpoints:
     def projects_url(self) -> str:
         return f"{self.server_base_url}/api/v1/flow/projects"
 
-    def project_url(self, id_or_name: str) -> str:
-        return f"{self.projects_url}/{id_or_name}"
+    def project_url(self, id: str) -> str:
+        return f"{self.projects_url}/{id}"
 
     @property
     def project_by_name_url(self) -> str:
         return f"{self.projects_url}/by_name"
+
+    @property
+    def live_jobs_url(self) -> str:
+        return f"{self.server_base_url}/api/v1/flow/live_jobs"
+
+    def live_job_url(self, id: str) -> str:
+        return f"{self.live_jobs_url}/{id}"
+
+    @property
+    def live_job_by_yaml_id_url(self) -> str:
+        return f"{self.live_jobs_url}/by_yaml_id"
+
+    @property
+    def live_job_replace_url(self) -> str:
+        return f"{self.live_jobs_url}/replace"
 
 
 @pytest.fixture
@@ -331,3 +348,348 @@ class TestProjectsApi:
                 assert item["cluster"] == "test-cluster"
                 names.add(item["name"])
             assert names == {f"test-{index}" for index in range(5)}
+
+
+class TestLiveJobsApi:
+    @pytest.fixture()
+    def project_factory(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        client: aiohttp.ClientSession,
+    ) -> Callable[[_User], Awaitable[Project]]:
+        async def _factory(user: _User) -> Project:
+            async with client.post(
+                url=neuro_flow_api.projects_url,
+                json={"name": secrets.token_hex(8), "cluster": "test-cluster"},
+                headers=user.headers,
+            ) as resp:
+                payload = await resp.json()
+                return Project(**payload)
+
+        return _factory
+
+    async def test_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22"]
+            assert "id" in payload
+
+    async def test_replace_new(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.put(
+            url=neuro_flow_api.live_job_replace_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22"]
+            assert "id" in payload
+
+    async def test_replace_existing(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22"]
+            assert "id" in payload
+        async with client.put(
+            url=neuro_flow_api.live_job_replace_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22", "33"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22", "33"]
+            assert "id" in payload
+
+    async def test_get_by_id(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            job_id = (await resp.json())["id"]
+        async with client.get(
+            url=neuro_flow_api.live_job_url(job_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22"]
+            assert payload["id"] == job_id
+
+    async def test_get_by_yaml_id(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            job_id = (await resp.json())["id"]
+        async with client.get(
+            url=neuro_flow_api.live_job_by_yaml_id_url,
+            params={"project_id": project.id, "yaml_id": "test-job"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22"]
+            assert payload["id"] == job_id
+
+    async def test_create_duplicate_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPConflict.status_code, await resp.text()
+
+    async def test_no_project_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": "not-exists",
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+
+    async def test_list(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        for index in range(5):
+            async with client.post(
+                url=neuro_flow_api.live_jobs_url,
+                json={
+                    "yaml_id": f"test-job-{index}",
+                    "project_id": project.id,
+                    "multi": False,
+                    "tags": ["11", "22"],
+                },
+                headers=regular_user.headers,
+            ) as resp:
+                assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.get(
+            url=neuro_flow_api.live_jobs_url,
+            params={"project_id": project.id},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 5
+            yaml_ids = set()
+            for item in items:
+                assert item["project_id"] == project.id
+                assert not item["multi"]
+                assert item["tags"] == ["11", "22"]
+                yaml_ids.add(item["yaml_id"])
+            assert yaml_ids == {f"test-job-{index}" for index in range(5)}
+
+    async def test_projects_list_only_from_project(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project1 = await project_factory(regular_user)
+        project2 = await project_factory(regular_user)
+        for project in [project1, project2]:
+            for index in range(5):
+                async with client.post(
+                    url=neuro_flow_api.live_jobs_url,
+                    json={
+                        "yaml_id": f"test-job-{index}",
+                        "project_id": project.id,
+                        "multi": False,
+                        "tags": ["11", "22"],
+                    },
+                    headers=regular_user.headers,
+                ) as resp:
+                    assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.get(
+            url=neuro_flow_api.live_jobs_url,
+            params={"project_id": project1.id},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 5
+            yaml_ids = set()
+            for item in items:
+                assert item["project_id"] == project1.id
+                assert not item["multi"]
+                assert item["tags"] == ["11", "22"]
+                yaml_ids.add(item["yaml_id"])
+            assert yaml_ids == {f"test-job-{index}" for index in range(5)}
+
+    async def test_projects_cannot_access_not_owner(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        project = await project_factory(user1)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
+            },
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            job_id = (await resp.json())["id"]
+        # Cannot get by id
+        async with client.get(
+            url=neuro_flow_api.live_job_url(job_id),
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+        # Cannot get by yaml id
+        async with client.get(
+            url=neuro_flow_api.live_job_by_yaml_id_url,
+            params={"project_id": project.id, "yaml_id": "test-job"},
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+        # Cannot list
+        async with client.get(
+            url=neuro_flow_api.live_jobs_url,
+            params={"project_id": project.id},
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
