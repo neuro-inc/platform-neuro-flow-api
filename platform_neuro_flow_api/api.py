@@ -16,7 +16,13 @@ from aiohttp.web import (
     json_response,
     middleware,
 )
-from aiohttp.web_exceptions import HTTPConflict, HTTPCreated, HTTPNotFound, HTTPOk
+from aiohttp.web_exceptions import (
+    HTTPConflict,
+    HTTPCreated,
+    HTTPNoContent,
+    HTTPNotFound,
+    HTTPOk,
+)
 from aiohttp_apispec import docs, request_schema, response_schema, setup_aiohttp_apispec
 from aiohttp_security import check_authorized
 from marshmallow import fields
@@ -29,7 +35,13 @@ from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import create_postgres_pool
-from .schema import ClientErrorSchema, LiveJobSchema, ProjectSchema, query_schema
+from .schema import (
+    CacheEntrySchema,
+    ClientErrorSchema,
+    LiveJobSchema,
+    ProjectSchema,
+    query_schema,
+)
 from .storage.base import ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
 from .utils import ndjson_error_handler
@@ -338,6 +350,142 @@ class LiveJobApiHandler:
         )
 
 
+class CacheEntryApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.post("", self.create),
+                aiohttp.web.delete("", self.delete),
+                aiohttp.web.get("/by_key", self.get_by_key),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    def _accepts_ndjson(self, request: aiohttp.web.Request) -> bool:
+        accept = request.headers.get("Accept", "")
+        return "application/x-ndjson" in accept
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    @docs(
+        tags=["cache_entries"],
+        summary="Create cache entry",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Cache entry created",
+                "schema": CacheEntrySchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "Cache entry with such key exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(CacheEntrySchema())
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = CacheEntrySchema()
+        data = schema.load(await request.json())
+        await self._check_project(username, data.project_id)
+        try:
+            live_job = await self.storage.cache_entries.create(data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Cache entry with such key exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(live_job), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["cache_entries"], summary="Get cache entry by id")
+    @response_schema(CacheEntrySchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            cache_entry = await self.storage.cache_entries.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        await self._check_project(username, cache_entry.project_id)
+        return aiohttp.web.json_response(
+            data=CacheEntrySchema().dump(cache_entry), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["cache_entries"], summary="Get cache entry by key")
+    @query_schema(
+        project_id=fields.String(required=True),
+        task_id=fields.String(required=True),
+        batch=fields.String(required=True),
+        key=fields.String(required=True),
+    )
+    @response_schema(CacheEntrySchema(), HTTPOk.status_code)
+    async def get_by_key(
+        self,
+        request: aiohttp.web.Request,
+        project_id: str,
+        task_id: str,
+        batch: str,
+        key: str,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        await self._check_project(username, project_id)
+        try:
+            cache_entry = await self.storage.cache_entries.get_by_key(
+                project_id=project_id,
+                task_id=tuple(task_id.split(".")),
+                batch=batch,
+                key=key,
+            )
+        except NotExistsError:
+            raise HTTPNotFound
+        return aiohttp.web.json_response(
+            data=CacheEntrySchema().dump(cache_entry), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["cache_entries"], summary="Clear cache entries")
+    @query_schema(
+        project_id=fields.String(required=True),
+        task_id=fields.String(required=False),
+        batch=fields.String(required=False),
+    )
+    async def delete(
+        self,
+        request: aiohttp.web.Request,
+        project_id: str,
+        task_id: Optional[str] = None,
+        batch: Optional[str] = None,
+    ) -> aiohttp.web.StreamResponse:
+        username = await check_authorized(request)
+        await self._check_project(username, project_id)
+        await self.storage.cache_entries.delete_all(
+            project_id=project_id,
+            batch=batch,
+            task_id=tuple(task_id.split("")) if task_id else None,
+        )
+        return aiohttp.web.Response(status=HTTPNoContent.status_code)
+
+
 @middleware
 async def handle_exceptions(
     request: Request, handler: Callable[[Request], Awaitable[StreamResponse]]
@@ -373,6 +521,13 @@ async def create_projects_app(config: Config) -> aiohttp.web.Application:
 async def create_live_jobs_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
     handler = LiveJobApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
+async def create_cache_entries_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = CacheEntryApiHandler(app, config)
     handler.register(app)
     return app
 
@@ -434,6 +589,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             logger.info("Initializing Service")
             app["projects_app"]["storage"] = storage
             app["live_jobs_app"]["storage"] = storage
+            app["cache_entries_app"]["storage"] = storage
 
             yield
 
@@ -449,6 +605,10 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     live_jobs_app = await create_live_jobs_app(config)
     app["live_jobs_app"] = live_jobs_app
     api_v1_app.add_subapp("/flow/live_jobs", live_jobs_app)
+
+    cache_entries_app = await create_cache_entries_app(config)
+    app["cache_entries_app"] = cache_entries_app
+    api_v1_app.add_subapp("/flow/cache_entries", cache_entries_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 
