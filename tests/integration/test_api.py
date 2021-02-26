@@ -1,6 +1,7 @@
 import secrets
 from dataclasses import dataclass, replace
-from typing import AsyncIterator, Awaitable, Callable
+from datetime import datetime
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict
 
 import aiohttp
 import pytest
@@ -73,6 +74,17 @@ class NeuroFlowApiEndpoints:
     @property
     def live_job_replace_url(self) -> str:
         return f"{self.live_jobs_url}/replace"
+
+    @property
+    def cache_entries_url(self) -> str:
+        return f"{self.server_base_url}/api/v1/flow/cache_entries"
+
+    def cache_entry_url(self, id: str) -> str:
+        return f"{self.cache_entries_url}/{id}"
+
+    @property
+    def cache_entry_by_key_url(self) -> str:
+        return f"{self.cache_entries_url}/by_key"
 
 
 @pytest.fixture
@@ -350,24 +362,24 @@ class TestProjectsApi:
             assert names == {f"test-{index}" for index in range(5)}
 
 
+@pytest.fixture()
+def project_factory(
+    neuro_flow_api: NeuroFlowApiEndpoints,
+    client: aiohttp.ClientSession,
+) -> Callable[[_User], Awaitable[Project]]:
+    async def _factory(user: _User) -> Project:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": secrets.token_hex(8), "cluster": "test-cluster"},
+            headers=user.headers,
+        ) as resp:
+            payload = await resp.json()
+            return Project(**payload)
+
+    return _factory
+
+
 class TestLiveJobsApi:
-    @pytest.fixture()
-    def project_factory(
-        self,
-        neuro_flow_api: NeuroFlowApiEndpoints,
-        client: aiohttp.ClientSession,
-    ) -> Callable[[_User], Awaitable[Project]]:
-        async def _factory(user: _User) -> Project:
-            async with client.post(
-                url=neuro_flow_api.projects_url,
-                json={"name": secrets.token_hex(8), "cluster": "test-cluster"},
-                headers=user.headers,
-            ) as resp:
-                payload = await resp.json()
-                return Project(**payload)
-
-        return _factory
-
     async def test_create(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -690,6 +702,212 @@ class TestLiveJobsApi:
         async with client.get(
             url=neuro_flow_api.live_jobs_url,
             params={"project_id": project.id},
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+
+
+class TestCacheEntryApi:
+    def make_payload(self, project_id: str) -> Dict[str, Any]:
+        return {
+            "project_id": project_id,
+            "task_id": "test.task",
+            "batch": "seq",
+            "key": "key",
+            "outputs": {"foo": "bar"},
+            "state": {"foo_state": "bar_state"},
+        }
+
+    async def test_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        request_payload = self.make_payload(project.id)
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert "id" in payload
+            for key in request_payload:
+                assert payload[key] == request_payload[key]
+            created_at = datetime.fromisoformat(payload["created_at"])
+            assert created_at
+
+    async def test_get_by_id(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        request_payload = self.make_payload(project.id)
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            entry_id = (await resp.json())["id"]
+        async with client.get(
+            url=neuro_flow_api.cache_entry_url(entry_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["id"] == entry_id
+            for key in request_payload:
+                assert payload[key] == request_payload[key]
+            created_at = datetime.fromisoformat(payload["created_at"])
+            assert created_at
+
+    async def test_get_by_key(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        request_payload = self.make_payload(project.id)
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            entry_id = (await resp.json())["id"]
+        async with client.get(
+            url=neuro_flow_api.cache_entry_by_key_url,
+            params={
+                "project_id": project.id,
+                "task_id": request_payload["task_id"],
+                "batch": request_payload["batch"],
+                "key": request_payload["key"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["id"] == entry_id
+            for key in request_payload:
+                assert payload[key] == request_payload[key]
+            created_at = datetime.fromisoformat(payload["created_at"])
+            assert created_at
+
+    async def test_create_duplicate_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        request_payload = self.make_payload(project.id)
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPConflict.status_code, await resp.text()
+
+    async def test_no_project_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        request_payload = self.make_payload("not-exists")
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+
+    async def test_delete(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project1 = await project_factory(regular_user)
+        project2 = await project_factory(regular_user)
+        project_to_entry_id: Dict[str, str] = {}
+        for project in [project1, project2]:
+            request_payload = self.make_payload(project.id)
+            async with client.post(
+                url=neuro_flow_api.cache_entries_url,
+                json=request_payload,
+                headers=regular_user.headers,
+            ) as resp:
+                assert resp.status == HTTPCreated.status_code, await resp.text()
+                project_to_entry_id[project.id] = (await resp.json())["id"]
+        async with client.delete(
+            url=neuro_flow_api.cache_entries_url,
+            params={"project_id": project1.id},
+            headers=regular_user.headers,
+        ) as resp:
+            pass
+        async with client.get(
+            url=neuro_flow_api.cache_entry_url(project_to_entry_id[project1.id]),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+
+        async with client.get(
+            url=neuro_flow_api.cache_entry_url(project_to_entry_id[project2.id]),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+
+    async def test_cannot_access_not_owner(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        project = await project_factory(user1)
+        request_payload = self.make_payload(project.id)
+        async with client.post(
+            url=neuro_flow_api.cache_entries_url,
+            json=request_payload,
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            entry_id = (await resp.json())["id"]
+        # Cannot get by id
+        async with client.get(
+            url=neuro_flow_api.cache_entry_url(entry_id),
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+        # Cannot get by yaml key
+        async with client.get(
+            url=neuro_flow_api.cache_entry_by_key_url,
+            params={
+                "project_id": project.id,
+                "task_id": request_payload["task_id"],
+                "batch": request_payload["batch"],
+                "key": request_payload["key"],
+            },
             headers=user2.headers,
         ) as resp:
             assert resp.status == HTTPNotFound.status_code, await resp.text()
