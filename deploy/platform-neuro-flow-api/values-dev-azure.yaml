@@ -27,13 +27,13 @@ postgres-db-init:
   adminDsn:
     valueFrom:
       secretKeyRef:
-        name: platformneuroflowapi-postgres
-        key: platformneuroflowapi-service-dsn
+        name: postgres
+        key: admin-dsn
   migrationsRunnerDsn:
     valueFrom:
       secretKeyRef:
         name: platformneuroflowapi-postgres
-        key: platformneuroflowapi-service-dsn
+        key: platformneuroflowapi-migrations-dsn
   serviceDsn:
     valueFrom:
       secretKeyRef:
@@ -46,7 +46,7 @@ postgres-db-init:
         valueFrom:
           secretKeyRef:
             name: platformneuroflowapi-postgres
-            key: platformneuroflowapi-service-dsn
+            key: platformneuroflowapi-migrations-dsn
 
 corsOrigins: https://neu.ro,https://master--neuro-web.netlify.com,http://localhost:8000
 
