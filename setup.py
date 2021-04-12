@@ -14,7 +14,7 @@ install_requires = (
     "aiohttp-apispec==2.2.1",
     "alembic==1.5.4",
     "psycopg2-binary==2.8.6",
-    "asyncpgsa==0.27.0",
+    "asyncpgsa==0.27.1",
 )
 
 setup(
