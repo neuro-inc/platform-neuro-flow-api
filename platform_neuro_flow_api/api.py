@@ -36,18 +36,27 @@ from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import create_postgres_pool
 from .schema import (
+    AttemptSchema,
+    BakeSchema,
     CacheEntrySchema,
     ClientErrorSchema,
+    ConfigFileSchema,
     LiveJobSchema,
     ProjectSchema,
+    TaskSchema,
     query_schema,
 )
-from .storage.base import ExistsError, NotExistsError, Storage
+from .storage.base import Attempt, Bake, ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
 from .utils import ndjson_error_handler
 
 
 logger = logging.getLogger(__name__)
+
+
+def accepts_ndjson(request: aiohttp.web.Request) -> bool:
+    accept = request.headers.get("Accept", "")
+    return "application/x-ndjson" in accept
 
 
 class ApiHandler:
@@ -82,10 +91,6 @@ class ProjectsApiHandler:
             ]
         )
 
-    def _accepts_ndjson(self, request: aiohttp.web.Request) -> bool:
-        accept = request.headers.get("Accept", "")
-        return "application/x-ndjson" in accept
-
     @property
     def storage(self) -> Storage:
         return self._app["storage"]
@@ -105,7 +110,7 @@ class ProjectsApiHandler:
         projects = self.storage.projects.list(
             owner=username, name=name, cluster=cluster
         )
-        if self._accepts_ndjson(request):
+        if accepts_ndjson(request):
             response = aiohttp.web.StreamResponse()
             response.headers["Content-Type"] = "application/x-ndjson"
             await response.prepare(request)
@@ -208,10 +213,6 @@ class LiveJobApiHandler:
             ]
         )
 
-    def _accepts_ndjson(self, request: aiohttp.web.Request) -> bool:
-        accept = request.headers.get("Accept", "")
-        return "application/x-ndjson" in accept
-
     @property
     def storage(self) -> Storage:
         return self._app["storage"]
@@ -235,7 +236,7 @@ class LiveJobApiHandler:
         username = await check_authorized(request)
         await self._check_project(username, project_id)
         live_jobs = self.storage.live_jobs.list(project_id=project_id)
-        if self._accepts_ndjson(request):
+        if accepts_ndjson(request):
             response = aiohttp.web.StreamResponse()
             response.headers["Content-Type"] = "application/x-ndjson"
             await response.prepare(request)
@@ -350,6 +351,520 @@ class LiveJobApiHandler:
         )
 
 
+class BakeApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.get("", self.list),
+                aiohttp.web.post("", self.create),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    @docs(tags=["bakes"], summary="List bakes in given project")
+    @query_schema(project_id=fields.String(required=True))
+    @response_schema(BakeSchema(many=True), HTTPOk.status_code)
+    async def list(
+        self,
+        request: aiohttp.web.Request,
+        project_id: str,
+    ) -> aiohttp.web.StreamResponse:
+        username = await check_authorized(request)
+        await self._check_project(username, project_id)
+        bakes = self.storage.bakes.list(project_id=project_id)
+        if accepts_ndjson(request):
+            response = aiohttp.web.StreamResponse()
+            response.headers["Content-Type"] = "application/x-ndjson"
+            await response.prepare(request)
+            async with ndjson_error_handler(request, response):
+                async for bake in bakes:
+                    payload_line = BakeSchema().dumps(bake)
+                    await response.write(payload_line.encode() + b"\n")
+            return response
+        else:
+            response_payload = [BakeSchema().dump(bake) async for bake in bakes]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
+
+    @docs(
+        tags=["bakes"],
+        summary="Create bake job",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Bake created",
+                "schema": BakeSchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "bake with such id exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(BakeSchema())
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = BakeSchema()
+        bake_data = schema.load(await request.json())
+        await self._check_project(username, bake_data.project_id)
+        try:
+            bake = await self.storage.bakes.create(bake_data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Bake with such id exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(bake), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["bakes"], summary="Get bake by id")
+    @response_schema(BakeSchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            bake = await self.storage.bakes.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        await self._check_project(username, bake.project_id)
+        return aiohttp.web.json_response(
+            data=BakeSchema().dump(bake), status=HTTPOk.status_code
+        )
+
+
+class AttemptApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.get("", self.list),
+                aiohttp.web.post("", self.create),
+                aiohttp.web.get("/by_number", self.get_by_number),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    async def _get_bake(self, bake_id: str) -> Bake:
+        try:
+            return await self.storage.bakes.get(bake_id)
+        except NotExistsError:
+            raise HTTPNotFound
+
+    @docs(tags=["attempts"], summary="List attempts in given bake")
+    @query_schema(bake_id=fields.String(required=True))
+    @response_schema(AttemptSchema(many=True), HTTPOk.status_code)
+    async def list(
+        self,
+        request: aiohttp.web.Request,
+        bake_id: str,
+    ) -> aiohttp.web.StreamResponse:
+        username = await check_authorized(request)
+        bake = await self._get_bake(bake_id)
+        await self._check_project(username, bake.project_id)
+        attempts = self.storage.attempts.list(bake_id=bake_id)
+        if accepts_ndjson(request):
+            response = aiohttp.web.StreamResponse()
+            response.headers["Content-Type"] = "application/x-ndjson"
+            await response.prepare(request)
+            async with ndjson_error_handler(request, response):
+                async for attempt in attempts:
+                    payload_line = AttemptSchema().dumps(bake)
+                    await response.write(payload_line.encode() + b"\n")
+            return response
+        else:
+            response_payload = [
+                AttemptSchema().dump(attempt) async for attempt in attempts
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
+
+    @docs(
+        tags=["attempts"],
+        summary="Create bake attempt",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Attempt created",
+                "schema": AttemptSchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "Attempt with such bake and number exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(AttemptSchema())
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = AttemptSchema()
+        attempt_data = schema.load(await request.json())
+        bake = await self._get_bake(attempt_data.bake_id)
+        await self._check_project(username, bake.project_id)
+        try:
+            attempt = await self.storage.attempts.create(attempt_data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Attempt with such bake and number exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(attempt), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["attempts"], summary="Get attempt by id")
+    @response_schema(AttemptSchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            attempt = await self.storage.attempts.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        return aiohttp.web.json_response(
+            data=LiveJobSchema().dump(attempt), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["attempts"], summary="Get attempt by bake and number")
+    @query_schema(
+        project_id=fields.String(required=True),
+        bake_id=fields.String(required=True),
+        number=fields.Integer(required=True),
+    )
+    @response_schema(AttemptSchema(), HTTPOk.status_code)
+    async def get_by_number(
+        self,
+        request: aiohttp.web.Request,
+        bake_id: str,
+        number: int,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        bake = await self._get_bake(bake_id)
+        await self._check_project(username, bake.project_id)
+        try:
+            cache_entry = await self.storage.attempts.get_by_number(
+                bake_id=bake_id,
+                number=number,
+            )
+        except NotExistsError:
+            raise HTTPNotFound
+        return aiohttp.web.json_response(
+            data=AttemptSchema().dump(cache_entry), status=HTTPOk.status_code
+        )
+
+
+class TaskApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.get("", self.list),
+                aiohttp.web.post("", self.create),
+                aiohttp.web.put("/replace", self.replace),
+                aiohttp.web.get("/by_yaml_id", self.get_by_yaml_id),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    async def _get_bake(self, bake_id: str) -> Bake:
+        try:
+            return await self.storage.bakes.get(bake_id)
+        except NotExistsError:
+            raise HTTPNotFound
+
+    async def _get_attempt(self, attempt_id: str) -> Attempt:
+        try:
+            return await self.storage.attempts.get(attempt_id)
+        except NotExistsError:
+            raise HTTPNotFound
+
+    @docs(tags=["tasks"], summary="List tasks in given attempt")
+    @query_schema(project_id=fields.String(required=True))
+    @response_schema(TaskSchema(many=True), HTTPOk.status_code)
+    async def list(
+        self,
+        request: aiohttp.web.Request,
+        attempt_id: str,
+    ) -> aiohttp.web.StreamResponse:
+        username = await check_authorized(request)
+        attempt = await self._get_attempt(attempt_id)
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        tasks = self.storage.tasks.list(attempt_id=attempt_id)
+        if accepts_ndjson(request):
+            response = aiohttp.web.StreamResponse()
+            response.headers["Content-Type"] = "application/x-ndjson"
+            await response.prepare(request)
+            async with ndjson_error_handler(request, response):
+                async for task in tasks:
+                    payload_line = TaskSchema().dumps(task)
+                    await response.write(payload_line.encode() + b"\n")
+            return response
+        else:
+            response_payload = [TaskSchema().dump(task) async for task in tasks]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
+
+    @docs(
+        tags=["tasks"],
+        summary="Update task",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Task data replaced",
+                "schema": TaskSchema(),
+            },
+        },
+    )
+    @request_schema(TaskSchema())
+    async def replace(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = TaskSchema()
+        task_data = schema.load(await request.json())
+        attempt = await self._get_attempt(task_data.attempt_id)
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        task = await self.storage.tasks.update(task_data)
+        return aiohttp.web.json_response(
+            data=schema.dump(task), status=HTTPCreated.status_code
+        )
+
+    @docs(
+        tags=["tasks"],
+        summary="Create task",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Bake created",
+                "schema": BakeSchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "Task already exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(TaskSchema())
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = TaskSchema()
+        task_data = schema.load(await request.json())
+        attempt = await self._get_attempt(task_data.attempt_id)
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        try:
+            task = await self.storage.tasks.create(task_data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Task already exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(task), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["tasks"], summary="Get task by id")
+    @response_schema(TaskSchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            task = await self.storage.tasks.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        attempt = await self._get_attempt(task.attempt_id)
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        return aiohttp.web.json_response(
+            data=TaskSchema().dump(task), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["tasks"], summary="Get tasks by id")
+    @query_schema(
+        attempt_id=fields.String(required=True),
+        yaml_id=fields.String(required=True),
+    )
+    @response_schema(TaskSchema(), HTTPOk.status_code)
+    async def get_by_yaml_id(
+        self, request: aiohttp.web.Request, attempt_id: str, yaml_id: str
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        attempt = await self._get_attempt(attempt_id)
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        try:
+            task = await self.storage.tasks.get_by_yaml_id(
+                yaml_id=tuple(yaml_id.split(".")),
+                attempt_id=attempt_id,
+            )
+        except NotExistsError:
+            raise HTTPNotFound
+        return aiohttp.web.json_response(
+            data=TaskSchema().dump(task), status=HTTPOk.status_code
+        )
+
+
+class ConfigFileApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.post("", self.create),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    async def _get_bake(self, bake_id: str) -> Bake:
+        try:
+            return await self.storage.bakes.get(bake_id)
+        except NotExistsError:
+            raise HTTPNotFound
+
+    async def _get_attempt(self, attempt_id: str) -> Attempt:
+        try:
+            return await self.storage.attempts.get(attempt_id)
+        except NotExistsError:
+            raise HTTPNotFound
+
+    @docs(
+        tags=["config_files"],
+        summary="Create config file",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Bake created",
+                "schema": ConfigFileSchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "Config file already exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(ConfigFileSchema())
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = ConfigFileSchema()
+        config_file_data = schema.load(await request.json())
+        # TODO: add config file owner validation
+        assert username is not None
+        # await self._check_project(username, bake.project_id)
+        try:
+            task = await self.storage.config_files.create(config_file_data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Config file exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(task), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["config_files"], summary="Get task by id")
+    @response_schema(ConfigFileSchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            config_file = await self.storage.config_files.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        # TODO: add config file owner validation
+        assert username is not None
+        # await self._check_project(username, bake.project_id)
+        return aiohttp.web.json_response(
+            data=TaskSchema().dump(config_file), status=HTTPOk.status_code
+        )
+
+
 class CacheEntryApiHandler:
     def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
         self._app = app
@@ -364,10 +879,6 @@ class CacheEntryApiHandler:
                 aiohttp.web.get("/{id}", self.get),
             ]
         )
-
-    def _accepts_ndjson(self, request: aiohttp.web.Request) -> bool:
-        accept = request.headers.get("Accept", "")
-        return "application/x-ndjson" in accept
 
     @property
     def storage(self) -> Storage:
@@ -525,6 +1036,34 @@ async def create_live_jobs_app(config: Config) -> aiohttp.web.Application:
     return app
 
 
+async def create_bakes_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = BakeApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
+async def create_attempts_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = AttemptApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
+async def create_tasks_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = TaskApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
+async def create_config_files_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = ConfigFileApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
 async def create_cache_entries_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
     handler = CacheEntryApiHandler(app, config)
@@ -589,7 +1128,11 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             logger.info("Initializing Service")
             app["projects_app"]["storage"] = storage
             app["live_jobs_app"]["storage"] = storage
+            app["bakes_app"]["storage"] = storage
+            app["attempts_app"]["storage"] = storage
+            app["tasks_app"]["storage"] = storage
             app["cache_entries_app"]["storage"] = storage
+            app["config_files_app"]["storage"] = storage
 
             yield
 
@@ -606,9 +1149,25 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     app["live_jobs_app"] = live_jobs_app
     api_v1_app.add_subapp("/flow/live_jobs", live_jobs_app)
 
+    bakes_app = await create_bakes_app(config)
+    app["bakes_app"] = bakes_app
+    api_v1_app.add_subapp("/flow/bakes", bakes_app)
+
+    attempts_app = await create_attempts_app(config)
+    app["attempts_app"] = attempts_app
+    api_v1_app.add_subapp("/flow/attempts", attempts_app)
+
+    tasks_app = await create_tasks_app(config)
+    app["tasks_app"] = tasks_app
+    api_v1_app.add_subapp("/flow/tasks", tasks_app)
+
     cache_entries_app = await create_cache_entries_app(config)
     app["cache_entries_app"] = cache_entries_app
     api_v1_app.add_subapp("/flow/cache_entries", cache_entries_app)
+
+    config_files_app = await create_config_files_app(config)
+    app["config_files_app"] = config_files_app
+    api_v1_app.add_subapp("/flow/config_files", config_files_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 

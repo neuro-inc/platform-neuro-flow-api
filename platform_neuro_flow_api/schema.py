@@ -7,10 +7,15 @@ from aiohttp_apispec import querystring_schema
 from marshmallow import Schema, fields, post_load
 
 from platform_neuro_flow_api.storage.base import (
+    AttemptData,
+    BakeData,
     CacheEntryData,
+    ConfigFileData,
     FullID,
     LiveJobData,
     ProjectData,
+    TaskData,
+    TaskStatus,
 )
 
 
@@ -72,6 +77,96 @@ class FullIDField(fields.String):
         if value is None:
             return None
         return super()._serialize(".".join(value), *args, **kwargs)
+
+
+class BakeSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    project_id = fields.String(required=True)
+    batch = fields.String(required=True)
+    created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
+    graphs = fields.Dict(
+        keys=FullIDField(),
+        values=fields.Dict(keys=FullIDField(), values=fields.List(FullIDField())),
+        required=True,
+    )
+    params = fields.Dict(keys=fields.String(), values=fields.String())
+
+    @post_load
+    def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeData:
+        return BakeData(created_at=datetime.now(timezone.utc), **data)
+
+
+class ConfigFileSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    filename = fields.String(required=True)
+    content = fields.String(required=True)
+
+    @post_load
+    def make_config_file_data(
+        self, data: Mapping[str, Any], **kwargs: Any
+    ) -> ConfigFileData:
+        # Parse object to dataclass here
+        return ConfigFileData(**data)
+
+
+class ConfigsMetaSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    workspace = fields.String(required=True)
+    flow_config_id = fields.String(required=True)
+    project_config_id = fields.String()
+    action_config_id = fields.Dict(
+        keys=fields.String(required=True), values=fields.String(required=True)
+    )
+
+
+class TaskStatusField(fields.String):
+    def _deserialize(self, *args: Any, **kwargs: Any) -> TaskStatus:
+        res: str = super()._deserialize(*args, **kwargs)
+        return TaskStatus(res)
+
+    def _serialize(
+        self, value: Optional[TaskStatus], *args: Any, **kwargs: Any
+    ) -> Optional[str]:
+        if value is None:
+            return None
+        return super()._serialize(str(value), *args, **kwargs)
+
+
+class AttemptSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    bake_id = fields.String(required=True)
+    number = fields.Integer(required=True, strict=True)
+    created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
+    result = fields.String()
+    configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
+
+    @post_load
+    def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> AttemptData:
+        return AttemptData(created_at=datetime.now(timezone.utc), **data)
+
+
+class TaskStatusItem(Schema):
+    created_at = fields.AwareDateTime(required=True)
+    status = TaskStatusField(required=True)
+
+
+class TaskSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    yaml_id = FullIDField(required=True)
+    attempt_id = fields.String(required=True)
+    raw_id = fields.String()
+    outputs = fields.Dict(
+        keys=fields.String(required=True), values=fields.String(required=True)
+    )
+    state = fields.Dict(
+        keys=fields.String(required=True), values=fields.String(required=True)
+    )
+    statuses = fields.List(fields.Nested(TaskStatusItem()), required=True)
+
+    @post_load
+    def make_task_data(self, data: Mapping[str, Any], **kwargs: Any) -> TaskData:
+        # Parse object to dataclass here
+        return TaskData(**data)
 
 
 class CacheEntrySchema(Schema):
