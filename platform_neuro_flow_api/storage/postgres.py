@@ -382,12 +382,14 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
-        graphs = payload["graphs"] = {}
+        graphs = {}
         for key, subgraph in payload["graphs"].items():
             subgr = {}
             for node, deps in subgraph.items():
                 subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
             graphs[_str2full_id(key)] = subgr
+        payload["graphs"] = graphs
+        print("FROM RECORD2", payload)
         return Bake(**payload)
 
     async def list(
