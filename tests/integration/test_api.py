@@ -761,7 +761,7 @@ class TestBakeApi:
             json={
                 "project_id": project.id,
                 "batch": "test-batch",
-                "graphs": {"": {"b": ["a"]}},
+                "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
             },
             headers=regular_user.headers,
@@ -770,7 +770,7 @@ class TestBakeApi:
             payload = await resp.json()
             assert payload["project_id"] == project.id
             assert payload["batch"] == "test-batch"
-            assert payload["graphs"] == {"": {"b": ["a"]}}
+            assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
             assert payload["params"] == {"p1": "v1"}
             assert "id" in payload
             assert "created_at" in payload
@@ -788,7 +788,7 @@ class TestBakeApi:
             json={
                 "project_id": project.id,
                 "batch": "test-batch",
-                "graphs": {"": {"b": ["a"]}},
+                "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
             },
             headers=regular_user.headers,
@@ -806,7 +806,7 @@ class TestBakeApi:
             payload = await resp.json()
             assert payload["project_id"] == project.id
             assert payload["batch"] == "test-batch"
-            assert payload["graphs"] == {"": {"b": ["a"]}}
+            assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
             assert payload["params"] == {"p1": "v1"}
             assert payload["id"] == bake_id
             assert payload["created_at"] == payload1["created_at"]
@@ -845,7 +845,7 @@ class TestBakeApi:
             json={
                 "project_id": project.id,
                 "batch": "test-batch",
-                "graphs": {"": {"b": ["a"]}},
+                "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
             },
             headers=regular_user.headers,
@@ -871,7 +871,7 @@ class TestBakeApi:
                 "id": bake_id,
                 "project_id": project.id,
                 "batch": "test-batch",
-                "graphs": {"": {"b": ["a"]}},
+                "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
                 "created_at": payload1["created_at"],
             }

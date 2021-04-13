@@ -380,6 +380,10 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
+        print("!!!!!!!!!!!!!!!")
+        from pprint import pprint
+
+        pprint(payload["graphs"])
         payload["graphs"] = {
             _str2full_id(key): {
                 _str2full_id(node): set(deps) for node, deps in subgraph.items()
