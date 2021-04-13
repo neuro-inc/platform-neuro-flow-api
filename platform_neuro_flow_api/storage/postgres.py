@@ -385,12 +385,12 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         from pprint import pprint
 
         pprint(payload["graphs"])
-        payload["graphs"] = {
-            _str2full_id(key): {
-                _str2full_id(node): set(deps) for node, deps in subgraph.items()
-            }
-            for key, subgraph in payload["graphs"].items()
-        }
+        graphs = payload["graphs"] = {}
+        for key, subgraph in payload["graphs"].items():
+            subgr = {}
+            for node, deps in subgraph.items():
+                subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
+            graphs[_str2full_id(key)] = subgr
         return Bake(**payload)
 
     async def list(
