@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import AsyncIterator, Awaitable, Callable, Optional
@@ -466,6 +467,7 @@ class AttemptApiHandler:
                 aiohttp.web.get("", self.list),
                 aiohttp.web.post("", self.create),
                 aiohttp.web.get("/by_number", self.get_by_number),
+                aiohttp.web.post("/finish/{id}", self.finish),
                 aiohttp.web.get("/{id}", self.get),
             ]
         )
@@ -587,14 +589,46 @@ class AttemptApiHandler:
         bake = await self._get_bake(bake_id)
         await self._check_project(username, bake.project_id)
         try:
-            cache_entry = await self.storage.attempts.get_by_number(
+            attempt = await self.storage.attempts.get_by_number(
                 bake_id=bake_id,
                 number=number,
             )
         except NotExistsError:
             raise HTTPNotFound
         return aiohttp.web.json_response(
-            data=AttemptSchema().dump(cache_entry), status=HTTPOk.status_code
+            data=AttemptSchema().dump(attempt), status=HTTPOk.status_code
+        )
+
+    @docs(
+        tags=["attempts"],
+        summary="Finish attempt",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Attempt finished",
+                "schema": AttemptSchema(),
+            },
+        },
+    )
+    @query_schema(
+        result=fields.String(required=True),
+    )
+    async def finish(
+        self,
+        request: aiohttp.web.Request,
+        result: str,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            attempt = await self.storage.attempts.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+        new_attempt = dataclasses.replace(attempt, result=result)
+        await self.storage.attempts.update(new_attempt)
+        return aiohttp.web.json_response(
+            data=AttemptSchema().dump(new_attempt), status=HTTPCreated.status_code
         )
 
 

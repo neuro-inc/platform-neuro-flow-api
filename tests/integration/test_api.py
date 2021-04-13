@@ -79,7 +79,6 @@ class NeuroFlowApiEndpoints:
     def bakes_url(self) -> str:
         return f"{self.server_base_url}/api/v1/flow/bakes"
 
-    @property
     def bake_url(self, id: str) -> str:
         return f"{self.bakes_url}/{id}"
 
@@ -87,7 +86,6 @@ class NeuroFlowApiEndpoints:
     def attempts_url(self) -> str:
         return f"{self.server_base_url}/api/v1/flow/attempts"
 
-    @property
     def attempt_url(self, id: str) -> str:
         return f"{self.attempts_url}/{id}"
 
@@ -99,7 +97,6 @@ class NeuroFlowApiEndpoints:
     def tasks_url(self) -> str:
         return f"{self.server_base_url}/api/v1/flow/tasks"
 
-    @property
     def task_url(self, id: str) -> str:
         return f"{self.tasks_url}/{id}"
 
@@ -126,7 +123,6 @@ class NeuroFlowApiEndpoints:
     def config_files_url(self) -> str:
         return f"{self.server_base_url}/api/v1/flow/config_files"
 
-    @property
     def config_file_url(self, id: str) -> str:
         return f"{self.config_files_url}/{id}"
 
@@ -778,6 +774,108 @@ class TestBakeApi:
             assert payload["params"] == {"p1": "v1"}
             assert "id" in payload
             assert "created_at" in payload
+
+    async def test_get(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"b": ["a"]}},
+                "params": {"p1": "v1"},
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload1 = await resp.json()
+
+        bake_id = payload1["id"]
+
+        async with client.get(
+            url=neuro_flow_api.bake_url(bake_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["project_id"] == project.id
+            assert payload["batch"] == "test-batch"
+            assert payload["graphs"] == {"": {"b": ["a"]}}
+            assert payload["params"] == {"p1": "v1"}
+            assert payload["id"] == bake_id
+            assert payload["created_at"] == payload1["created_at"]
+
+    async def test_list_empty(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        lst = []
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            lst.append(payload)
+        assert lst == []
+
+    async def test_list_something(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"b": ["a"]}},
+                "params": {"p1": "v1"},
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload1 = await resp.json()
+
+        bake_id = payload1["id"]
+
+        lst = []
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            lst.append(payload)
+        assert lst == [
+            {
+                "id": bake_id,
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"b": ["a"]}},
+                "params": {"p1": "v1"},
+                "created_at": payload1["created_at"],
+            }
+        ]
 
 
 class TestCacheEntryApi:
