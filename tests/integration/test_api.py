@@ -827,7 +827,7 @@ class TestBakeApi:
             },
             headers=regular_user.headers,
         ) as resp:
-            assert resp.status == HTTPCreated.status_code, await resp.text()
+            assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             lst.append(payload)
         assert lst == []
@@ -863,7 +863,7 @@ class TestBakeApi:
             },
             headers=regular_user.headers,
         ) as resp:
-            assert resp.status == HTTPCreated.status_code, await resp.text()
+            assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             lst.append(payload)
         assert lst == [
