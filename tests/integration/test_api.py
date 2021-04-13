@@ -802,7 +802,7 @@ class TestBakeApi:
             url=neuro_flow_api.bake_url(bake_id),
             headers=regular_user.headers,
         ) as resp:
-            assert resp.status == HTTPCreated.status_code, await resp.text()
+            assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             assert payload["project_id"] == project.id
             assert payload["batch"] == "test-batch"
@@ -822,7 +822,7 @@ class TestBakeApi:
         lst = []
         async with client.get(
             url=neuro_flow_api.bakes_url,
-            json={
+            params={
                 "project_id": project.id,
             },
             headers=regular_user.headers,
@@ -858,7 +858,7 @@ class TestBakeApi:
         lst = []
         async with client.get(
             url=neuro_flow_api.bakes_url,
-            json={
+            params={
                 "project_id": project.id,
             },
             headers=regular_user.headers,
