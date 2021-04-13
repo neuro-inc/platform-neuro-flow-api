@@ -359,6 +359,7 @@ class PostgresLiveJobsStorage(
 
 class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     def _to_values(self, item: Bake) -> Dict[str, Any]:
+        print("TO VALUES", item.graphs)
         payload = asdict(item)
         payload["graphs"] = {
             _full_id2str(key): {
@@ -376,6 +377,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
 
     def _from_record(self, record: Record) -> Bake:
         payload = json.loads(record["payload"])
+        print("FROM RECORD", payload["graphs"])
         payload["id"] = record["id"]
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
