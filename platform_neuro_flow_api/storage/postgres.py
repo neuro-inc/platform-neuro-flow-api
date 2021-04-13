@@ -381,6 +381,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
         print("!!!!!!!!!!!!!!!")
+        print(payload["graphs"])
         from pprint import pprint
 
         pprint(payload["graphs"])
