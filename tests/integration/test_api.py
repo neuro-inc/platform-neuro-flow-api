@@ -933,6 +933,7 @@ class TestAttemptApi:
             json={
                 "bake_id": bake.id,
                 "number": 1,
+                "result": "pending",
                 "configs_meta": self.CONFIGS_META,
             },
             headers=regular_user.headers,
@@ -959,6 +960,7 @@ class TestAttemptApi:
             json={
                 "bake_id": bake.id,
                 "number": 1,
+                "result": "pending",
                 "configs_meta": self.CONFIGS_META,
             },
             headers=regular_user.headers,
@@ -1001,6 +1003,7 @@ class TestAttemptApi:
             json={
                 "bake_id": bake.id,
                 "number": 1,
+                "result": "pending",
                 "configs_meta": self.CONFIGS_META,
             },
             headers=regular_user.headers,
@@ -1038,6 +1041,7 @@ class TestAttemptApi:
             json={
                 "bake_id": bake.id,
                 "number": 1,
+                "result": "pending",
                 "configs_meta": self.CONFIGS_META,
             },
             headers=regular_user.headers,
