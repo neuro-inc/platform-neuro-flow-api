@@ -910,7 +910,7 @@ class TestAttemptApi:
         "workspace": "workspace",
         "flow_config_id": "<flow_config_id>",
         "project_config_id": "<project_config_id>",
-        "action_config_id": {
+        "action_config_ids": {
             "action1": "<action1_config_id>",
             "action2": "<action2_config_id>",
         },
