@@ -1007,11 +1007,7 @@ class TestAttemptApi:
             created_at = payload["created_at"]
 
         async with client.get(
-            url=neuro_flow_api.attempt_by_number_url,
-            params={
-                "bake_id": bake.id,
-                "number": 1,
-            },
+            url=neuro_flow_api.attempt_url(attempt_id),
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
@@ -1048,9 +1044,10 @@ class TestAttemptApi:
             created_at = payload["created_at"]
 
         async with client.get(
-            url=neuro_flow_api.attempt_url(attempt_id),
+            url=neuro_flow_api.attempt_by_number_url,
             params={
                 "bake_id": bake.id,
+                "number": 1,
             },
             headers=regular_user.headers,
         ) as resp:
