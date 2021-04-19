@@ -623,6 +623,7 @@ class AttemptApiHandler:
             raise HTTPBadRequest
         bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
+
         await self.storage.attempts.update(attempt_data)
         return aiohttp.web.json_response(
             data=schema.dump(attempt_data), status=HTTPOk.status_code
