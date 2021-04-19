@@ -574,7 +574,6 @@ class AttemptApiHandler:
 
     @docs(tags=["attempts"], summary="Get attempt by bake and number")
     @query_schema(
-        project_id=fields.String(required=True),
         bake_id=fields.String(required=True),
         number=fields.Integer(required=True),
     )
