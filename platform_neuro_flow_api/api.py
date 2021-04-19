@@ -1,4 +1,3 @@
-import dataclasses
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import AsyncIterator, Awaitable, Callable, Optional
@@ -467,7 +466,7 @@ class AttemptApiHandler:
                 aiohttp.web.get("", self.list),
                 aiohttp.web.post("", self.create),
                 aiohttp.web.get("/by_number", self.get_by_number),
-                aiohttp.web.post("/finish/{id}", self.finish),
+                aiohttp.web.put("/replace", self.replace),
                 aiohttp.web.get("/{id}", self.get),
             ]
         )
@@ -600,34 +599,32 @@ class AttemptApiHandler:
 
     @docs(
         tags=["attempts"],
-        summary="Finish attempt",
+        summary="Update existing attempt",
         responses={
             HTTPCreated.status_code: {
-                "description": "Attempt finished",
+                "description": "Attempt replaced",
                 "schema": AttemptSchema(),
             },
         },
     )
-    @query_schema(
-        result=fields.String(required=True),
-    )
-    async def finish(
+    @request_schema(AttemptSchema())
+    async def replace(
         self,
         request: aiohttp.web.Request,
-        result: str,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        id = request.match_info["id"]
-        try:
-            attempt = await self.storage.attempts.get(id)
-        except NotExistsError:
-            raise HTTPNotFound
-        bake = await self._get_bake(attempt.bake_id)
+        schema = AttemptSchema()
+        attempt_data = schema.load(await request.json())
+        existing_attempt = await self.storage.attempts.get(attempt_data.id)
+        if existing_attempt.id != attempt_data.id:
+            raise HTTPBadRequest
+        if existing_attempt.bake_id != attempt_data.bake_id:
+            raise HTTPBadRequest
+        bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
-        new_attempt = dataclasses.replace(attempt, result=result)
-        await self.storage.attempts.update(new_attempt)
+        await self.storage.attempts.update(attempt_data)
         return aiohttp.web.json_response(
-            data=AttemptSchema().dump(new_attempt), status=HTTPCreated.status_code
+            data=AttemptSchema().dump(attempt_data), status=HTTPOk.status_code
         )
 
 

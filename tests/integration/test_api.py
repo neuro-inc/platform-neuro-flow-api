@@ -90,6 +90,10 @@ class NeuroFlowApiEndpoints:
         return f"{self.attempts_url}/{id}"
 
     @property
+    def attempt_replace_url(self) -> str:
+        return f"{self.attempts_url}/replace"
+
+    @property
     def attempt_by_number_url(self) -> str:
         return f"{self.attempts_url}/by_number"
 
@@ -1059,6 +1063,52 @@ class TestAttemptApi:
                 "number": 1,
                 "created_at": created_at,
                 "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+            }
+
+    async def test_finish(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            attempt_id = payload["id"]
+            created_at = payload["created_at"]
+            attempt = dict(payload)
+
+        attempt["result"] = "succeded"
+        async with client.put(
+            url=neuro_flow_api.attempt_replace_url,
+            json=attempt,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+
+        async with client.get(
+            url=neuro_flow_api.attempt_url(attempt_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": attempt_id,
+                "bake_id": bake.id,
+                "number": 1,
+                "created_at": created_at,
+                "result": "succeded",
                 "configs_meta": self.CONFIGS_META,
             }
 
