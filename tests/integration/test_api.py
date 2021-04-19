@@ -984,6 +984,87 @@ class TestAttemptApi:
                 }
             ]
 
+    async def test_get(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            attempt_id = payload["id"]
+            created_at = payload["created_at"]
+
+        async with client.get(
+            url=neuro_flow_api.attempt_by_number_url,
+            params={
+                "bake_id": bake.id,
+                "number": 1,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": attempt_id,
+                "bake_id": bake.id,
+                "number": 1,
+                "created_at": created_at,
+                "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+            }
+
+    async def test_get_by_number(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            attempt_id = payload["id"]
+            created_at = payload["created_at"]
+
+        async with client.get(
+            url=neuro_flow_api.attempt_url(attempt_id),
+            params={
+                "bake_id": bake.id,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": attempt_id,
+                "bake_id": bake.id,
+                "number": 1,
+                "created_at": created_at,
+                "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+            }
+
 
 class TestCacheEntryApi:
     def make_payload(self, project_id: str) -> Dict[str, Any]:
