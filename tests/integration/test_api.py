@@ -880,7 +880,7 @@ def bake_factory(
     client: aiohttp.ClientSession,
     project_factory: Callable[[_User], Awaitable[Project]],
 ) -> Callable[[_User], Awaitable[Bake]]:
-    async def _factory(user: _User) -> Project:
+    async def _factory(user: _User) -> Bake:
         async with client.post(
             url=neuro_flow_api.projects_url,
             json={"name": secrets.token_hex(8), "cluster": "test-cluster"},
