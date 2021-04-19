@@ -1094,7 +1094,7 @@ class TestAttemptApi:
             created_at = payload["created_at"]
             attempt = dict(payload)
 
-        attempt["result"] = "succeded"
+        attempt["result"] = "succeeded"
         async with client.put(
             url=neuro_flow_api.attempt_replace_url,
             json=attempt,
@@ -1113,7 +1113,7 @@ class TestAttemptApi:
                 "bake_id": bake.id,
                 "number": 1,
                 "created_at": created_at,
-                "result": "succeded",
+                "result": "succeeded",
                 "configs_meta": self.CONFIGS_META,
             }
 
