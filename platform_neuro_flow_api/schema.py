@@ -129,7 +129,7 @@ class TaskStatusField(fields.String):
     ) -> Optional[str]:
         if value is None:
             return None
-        return super()._serialize(str(value), *args, **kwargs)
+        return super()._serialize(value.value, *args, **kwargs)
 
 
 class AttemptSchema(Schema):
