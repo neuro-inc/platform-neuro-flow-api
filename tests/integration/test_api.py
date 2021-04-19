@@ -819,7 +819,6 @@ class TestBakeApi:
         project_factory: Callable[[_User], Awaitable[Project]],
     ) -> None:
         project = await project_factory(regular_user)
-        lst = []
         async with client.get(
             url=neuro_flow_api.bakes_url,
             params={
@@ -829,8 +828,7 @@ class TestBakeApi:
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
-            lst.append(payload)
-        assert lst == []
+            assert payload == []
 
     async def test_list_something(
         self,
@@ -855,7 +853,6 @@ class TestBakeApi:
 
         bake_id = payload1["id"]
 
-        lst = []
         async with client.get(
             url=neuro_flow_api.bakes_url,
             params={
@@ -865,17 +862,16 @@ class TestBakeApi:
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
-            lst.append(payload)
-        assert lst == [
-            {
-                "id": bake_id,
-                "project_id": project.id,
-                "batch": "test-batch",
-                "graphs": {"": {"a": [], "b": ["a"]}},
-                "params": {"p1": "v1"},
-                "created_at": payload1["created_at"],
-            }
-        ]
+            assert payload == [
+                {
+                    "id": bake_id,
+                    "project_id": project.id,
+                    "batch": "test-batch",
+                    "graphs": {"": {"a": [], "b": ["a"]}},
+                    "params": {"p1": "v1"},
+                    "created_at": payload1["created_at"],
+                }
+            ]
 
 
 class TestCacheEntryApi:
