@@ -601,13 +601,14 @@ class AttemptApiHandler:
         tags=["attempts"],
         summary="Update existing attempt",
         responses={
-            HTTPCreated.status_code: {
+            HTTPOk.status_code: {
                 "description": "Attempt replaced",
                 "schema": AttemptSchema(),
             },
         },
     )
     @request_schema(AttemptSchema())
+    @response_schema(AttemptSchema(), HTTPOk.status_code)
     async def replace(
         self,
         request: aiohttp.web.Request,
@@ -624,7 +625,7 @@ class AttemptApiHandler:
         await self._check_project(username, bake.project_id)
         await self.storage.attempts.update(attempt_data)
         return aiohttp.web.json_response(
-            data=AttemptSchema().dump(attempt_data), status=HTTPOk.status_code
+            data=schema.dump(attempt_data), status=HTTPOk.status_code
         )
 
 
