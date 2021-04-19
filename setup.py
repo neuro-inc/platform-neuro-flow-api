@@ -6,8 +6,8 @@ setup_requires = ("setuptools_scm",)
 
 install_requires = (
     "aiohttp==3.7.3",
-    "neuro_auth_client==21.1.6",
-    "platform-logging==0.3",
+    "neuro_auth_client==21.4.19",
+    "platform-logging==21.4.2",
     "aiohttp-cors==0.7.0",
     "sentry-sdk==0.20.2",
     "marshmallow==3.10.0",
