@@ -1070,7 +1070,7 @@ class TestAttemptApi:
                 "configs_meta": self.CONFIGS_META,
             }
 
-    async def test_finish(
+    async def test_replace(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
@@ -1083,6 +1083,7 @@ class TestAttemptApi:
             json={
                 "bake_id": bake.id,
                 "number": 1,
+                "result": "pending",
                 "configs_meta": self.CONFIGS_META,
             },
             headers=regular_user.headers,
