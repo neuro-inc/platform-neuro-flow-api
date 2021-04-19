@@ -16,7 +16,7 @@ from aiohttp.web_exceptions import (
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config
-from platform_neuro_flow_api.storage.base import Project
+from platform_neuro_flow_api.storage.base import Bake, Project
 
 from .auth import _User
 from .conftest import ApiAddress, create_local_app_server
@@ -872,6 +872,74 @@ class TestBakeApi:
                     "created_at": payload1["created_at"],
                 }
             ]
+
+
+@pytest.fixture()
+def bake_factory(
+    neuro_flow_api: NeuroFlowApiEndpoints,
+    client: aiohttp.ClientSession,
+    project_factory: Callable[[_User], Awaitable[Project]],
+) -> Callable[[_User], Awaitable[Bake]]:
+    async def _factory(user: _User) -> Project:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": secrets.token_hex(8), "cluster": "test-cluster"},
+            headers=user.headers,
+        ) as resp:
+            payload = await resp.json()
+            project = Project(**payload)
+
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+            },
+            headers=user.headers,
+        ) as resp:
+            payload2 = await resp.json()
+            return Bake(**payload2)
+
+    return _factory
+
+
+class TestAttemptApi:
+    async def test_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        configs_meta = {
+            "workspace": "workspace",
+            "flow_config_id": "<flow_config_id>",
+            "project_config_id": "<project_config_id>",
+            "action_config_id": {
+                "action1": "<action1_config_id>",
+                "action2": "<action2_config_id>",
+            },
+        }
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "configs_meta": configs_meta,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["bake_id"] == bake.id
+            assert payload["number"] == 1
+            assert payload["result"] == "PENDING"
+            assert payload["configs_meta"] == configs_meta
+            assert "id" in payload
+            assert "created_at" in payload
 
 
 class TestCacheEntryApi:

@@ -137,12 +137,14 @@ class AttemptSchema(Schema):
     bake_id = fields.String(required=True)
     number = fields.Integer(required=True, strict=True)
     created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
-    result = fields.String()
+    result = TaskStatusField(required=True, dump_only=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
 
     @post_load
     def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> AttemptData:
-        return AttemptData(created_at=datetime.now(timezone.utc), **data)
+        return AttemptData(
+            created_at=datetime.now(timezone.utc), result=TaskStatus.PENDING, **data
+        )
 
 
 class TaskStatusItem(Schema):
