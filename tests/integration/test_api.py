@@ -1092,8 +1092,10 @@ class TestAttemptApi:
             payload = await resp.json()
             attempt_id = payload["id"]
             created_at = payload["created_at"]
-            attempt = dict(payload)
 
+        print("1111111111111111111")
+        print(payload)
+        attempt = dict(payload)
         attempt["result"] = "succeeded"
         async with client.put(
             url=neuro_flow_api.attempt_replace_url,
