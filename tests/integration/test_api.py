@@ -961,7 +961,7 @@ class TestAttemptApi:
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
             payload = await resp.json()
-            bake_id = payload["id"]
+            attempt_id = payload["id"]
             created_at = payload["created_at"]
 
         async with client.get(
@@ -975,11 +975,12 @@ class TestAttemptApi:
             payload = await resp.json()
             assert payload == [
                 {
-                    "id": bake_id,
+                    "id": attempt_id,
+                    "bake_id": bake.id,
                     "number": 1,
                     "created_at": created_at,
                     "result": "pending",
-                    "config_factory": self.CONFIGS_META,
+                    "configs_meta": self.CONFIGS_META,
                 }
             ]
 
