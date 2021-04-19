@@ -569,7 +569,7 @@ class AttemptApiHandler:
         bake = await self._get_bake(attempt.bake_id)
         await self._check_project(username, bake.project_id)
         return aiohttp.web.json_response(
-            data=LiveJobSchema().dump(attempt), status=HTTPOk.status_code
+            data=AttemptSchema().dump(attempt), status=HTTPOk.status_code
         )
 
     @docs(tags=["attempts"], summary="Get attempt by bake and number")
