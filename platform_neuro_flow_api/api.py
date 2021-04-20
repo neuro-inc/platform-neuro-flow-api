@@ -757,7 +757,7 @@ class TaskApiHandler:
         attempt_id=fields.String(required=True),
         yaml_id=fields.String(required=True),
     )
-    @response_schema(TaskSchema(), HTTPOk.status_code)
+    #    @response_schema(TaskSchema(), HTTPOk.status_code)
     async def get_by_yaml_id(
         self, request: aiohttp.web.Request, attempt_id: str, yaml_id: str
     ) -> aiohttp.web.Response:
