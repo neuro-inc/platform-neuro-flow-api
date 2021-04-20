@@ -1,5 +1,6 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from dataclasses import replace
 from typing import AsyncIterator, Awaitable, Callable, Optional
 
 import aiohttp
@@ -466,6 +467,7 @@ class AttemptApiHandler:
                 aiohttp.web.get("", self.list),
                 aiohttp.web.post("", self.create),
                 aiohttp.web.get("/by_number", self.get_by_number),
+                aiohttp.web.put("/replace", self.replace),
                 aiohttp.web.get("/{id}", self.get),
             ]
         )
@@ -567,12 +569,11 @@ class AttemptApiHandler:
         bake = await self._get_bake(attempt.bake_id)
         await self._check_project(username, bake.project_id)
         return aiohttp.web.json_response(
-            data=LiveJobSchema().dump(attempt), status=HTTPOk.status_code
+            data=AttemptSchema().dump(attempt), status=HTTPOk.status_code
         )
 
     @docs(tags=["attempts"], summary="Get attempt by bake and number")
     @query_schema(
-        project_id=fields.String(required=True),
         bake_id=fields.String(required=True),
         number=fields.Integer(required=True),
     )
@@ -587,14 +588,44 @@ class AttemptApiHandler:
         bake = await self._get_bake(bake_id)
         await self._check_project(username, bake.project_id)
         try:
-            cache_entry = await self.storage.attempts.get_by_number(
+            attempt = await self.storage.attempts.get_by_number(
                 bake_id=bake_id,
                 number=number,
             )
         except NotExistsError:
             raise HTTPNotFound
         return aiohttp.web.json_response(
-            data=AttemptSchema().dump(cache_entry), status=HTTPOk.status_code
+            data=AttemptSchema().dump(attempt), status=HTTPOk.status_code
+        )
+
+    @docs(
+        tags=["attempts"],
+        summary="Update existing attempt",
+        responses={
+            HTTPOk.status_code: {
+                "description": "Attempt replaced",
+                "schema": AttemptSchema(),
+            },
+        },
+    )
+    @request_schema(AttemptSchema())
+    @response_schema(AttemptSchema(), HTTPOk.status_code)
+    async def replace(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = AttemptSchema()
+        attempt_data = schema.load(await request.json())
+        attempt = await self.storage.attempts.get_by_number(
+            attempt_data.bake_id, attempt_data.number
+        )
+        bake = await self._get_bake(attempt_data.bake_id)
+        await self._check_project(username, bake.project_id)
+        new_attempt = replace(attempt, result=attempt_data.result)
+        await self.storage.attempts.update(new_attempt)
+        return aiohttp.web.json_response(
+            data=schema.dump(attempt_data), status=HTTPOk.status_code
         )
 
 
@@ -639,7 +670,7 @@ class TaskApiHandler:
             raise HTTPNotFound
 
     @docs(tags=["tasks"], summary="List tasks in given attempt")
-    @query_schema(project_id=fields.String(required=True))
+    @query_schema(attempt_id=fields.String(required=True))
     @response_schema(TaskSchema(many=True), HTTPOk.status_code)
     async def list(
         self,
@@ -665,32 +696,6 @@ class TaskApiHandler:
             return aiohttp.web.json_response(
                 data=response_payload, status=HTTPOk.status_code
             )
-
-    @docs(
-        tags=["tasks"],
-        summary="Update task",
-        responses={
-            HTTPCreated.status_code: {
-                "description": "Task data replaced",
-                "schema": TaskSchema(),
-            },
-        },
-    )
-    @request_schema(TaskSchema())
-    async def replace(
-        self,
-        request: aiohttp.web.Request,
-    ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
-        schema = TaskSchema()
-        task_data = schema.load(await request.json())
-        attempt = await self._get_attempt(task_data.attempt_id)
-        bake = await self._get_bake(attempt.bake_id)
-        await self._check_project(username, bake.project_id)
-        task = await self.storage.tasks.update(task_data)
-        return aiohttp.web.json_response(
-            data=schema.dump(task), status=HTTPCreated.status_code
-        )
 
     @docs(
         tags=["tasks"],
@@ -752,7 +757,6 @@ class TaskApiHandler:
         attempt_id=fields.String(required=True),
         yaml_id=fields.String(required=True),
     )
-    @response_schema(TaskSchema(), HTTPOk.status_code)
     async def get_by_yaml_id(
         self, request: aiohttp.web.Request, attempt_id: str, yaml_id: str
     ) -> aiohttp.web.Response:
@@ -767,8 +771,50 @@ class TaskApiHandler:
             )
         except NotExistsError:
             raise HTTPNotFound
+        import pprint
+
+        print(11111111111111)
+        pprint.pprint(task)
         return aiohttp.web.json_response(
             data=TaskSchema().dump(task), status=HTTPOk.status_code
+        )
+
+    @docs(
+        tags=["tasks"],
+        summary="Update task",
+        responses={
+            HTTPOk.status_code: {
+                "description": "Task data replaced",
+                "schema": TaskSchema(),
+            },
+        },
+    )
+    @request_schema(TaskSchema())
+    @response_schema(AttemptSchema(), HTTPOk.status_code)
+    async def replace(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = TaskSchema()
+        task_data = schema.load(await request.json())
+        task = await self.storage.tasks.get_by_yaml_id(
+            task_data.yaml_id, task_data.attempt_id
+        )
+        attempt = await self._get_attempt(task_data.attempt_id)
+        bake = await self._get_bake(attempt.bake_id)
+        await self._check_project(username, bake.project_id)
+
+        new_task = replace(
+            task,
+            raw_id=task_data.raw_id,
+            outputs=task_data.outputs,
+            state=task_data.state,
+            statuses=task_data.statuses,
+        )
+        await self.storage.tasks.update(new_task)
+        return aiohttp.web.json_response(
+            data=schema.dump(new_task), status=HTTPOk.status_code
         )
 
 

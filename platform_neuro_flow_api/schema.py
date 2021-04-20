@@ -16,6 +16,7 @@ from platform_neuro_flow_api.storage.base import (
     ProjectData,
     TaskData,
     TaskStatus,
+    TaskStatusItem,
 )
 
 
@@ -114,7 +115,7 @@ class ConfigsMetaSchema(Schema):
     workspace = fields.String(required=True)
     flow_config_id = fields.String(required=True)
     project_config_id = fields.String()
-    action_config_id = fields.Dict(
+    action_config_ids = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
 
@@ -129,7 +130,7 @@ class TaskStatusField(fields.String):
     ) -> Optional[str]:
         if value is None:
             return None
-        return super()._serialize(str(value), *args, **kwargs)
+        return super()._serialize(value.value, *args, **kwargs)
 
 
 class AttemptSchema(Schema):
@@ -137,7 +138,7 @@ class AttemptSchema(Schema):
     bake_id = fields.String(required=True)
     number = fields.Integer(required=True, strict=True)
     created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
-    result = fields.String()
+    result = TaskStatusField(required=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
 
     @post_load
@@ -145,8 +146,10 @@ class AttemptSchema(Schema):
         return AttemptData(created_at=datetime.now(timezone.utc), **data)
 
 
-class TaskStatusItem(Schema):
-    created_at = fields.AwareDateTime(required=True)
+class TaskStatusItemSchema(Schema):
+    created_at = fields.AwareDateTime(
+        required=True, attribute="when", data_key="created_at"
+    )
     status = TaskStatusField(required=True)
 
 
@@ -154,19 +157,26 @@ class TaskSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     yaml_id = FullIDField(required=True)
     attempt_id = fields.String(required=True)
-    raw_id = fields.String()
+    raw_id = fields.String(required=True, allow_none=True)
     outputs = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
     state = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
-    statuses = fields.List(fields.Nested(TaskStatusItem()), required=True)
+    statuses = fields.List(fields.Nested(TaskStatusItemSchema()), required=True)
 
     @post_load
     def make_task_data(self, data: Mapping[str, Any], **kwargs: Any) -> TaskData:
         # Parse object to dataclass here
-        return TaskData(**data)
+        kwargs = dict(data)
+        statuses = kwargs.pop("statuses")
+        return TaskData(
+            statuses=[
+                TaskStatusItem(when=i["when"], status=i["status"]) for i in statuses
+            ],
+            **kwargs
+        )
 
 
 class CacheEntrySchema(Schema):

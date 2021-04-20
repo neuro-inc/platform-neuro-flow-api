@@ -360,12 +360,13 @@ class PostgresLiveJobsStorage(
 class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     def _to_values(self, item: Bake) -> Dict[str, Any]:
         payload = asdict(item)
-        payload["graphs"] = {
-            _full_id2str(key): {
-                _full_id2str(node): list(deps) for node, deps in subgraph.items()
-            }
-            for key, subgraph in item.graphs.items()
-        }
+        graphs = {}
+        for key, subgraph in item.graphs.items():
+            subgr = {}
+            for node, deps in subgraph.items():
+                subgr[_full_id2str(node)] = [_full_id2str(dep) for dep in deps]
+            graphs[_full_id2str(key)] = subgr
+        payload["graphs"] = graphs
         return {
             "id": payload.pop("id"),
             "project_id": payload.pop("project_id"),
@@ -380,12 +381,13 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
-        payload["graphs"] = {
-            _str2full_id(key): {
-                _str2full_id(node): set(deps) for node, deps in subgraph.items()
-            }
-            for key, subgraph in payload["graphs"].items()
-        }
+        graphs = {}
+        for key, subgraph in payload["graphs"].items():
+            subgr = {}
+            for node, deps in subgraph.items():
+                subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
+            graphs[_str2full_id(key)] = subgr
+        payload["graphs"] = graphs
         return Bake(**payload)
 
     async def list(
