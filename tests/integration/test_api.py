@@ -1310,55 +1310,63 @@ class TestTaskApi:
                 "statuses": [],
             }
 
-    # async def test_replace(
-    #     self,
-    #     neuro_flow_api: NeuroFlowApiEndpoints,
-    #     regular_user: _User,
-    #     client: aiohttp.ClientSession,
-    #     bake_factory: Callable[[_User], Awaitable[Project]],
-    # ) -> None:
-    #     bake = await bake_factory(regular_user)
-    #     async with client.post(
-    #         url=neuro_flow_api.attempts_url,
-    #         json={
-    #             "bake_id": bake.id,
-    #             "number": 1,
-    #             "result": "pending",
-    #             "configs_meta": self.CONFIGS_META,
-    #         },
-    #         headers=regular_user.headers,
-    #     ) as resp:
-    #         assert resp.status == HTTPCreated.status_code, await resp.text()
-    #         payload = await resp.json()
-    #         attempt_id = payload["id"]
-    #         created_at = payload["created_at"]
+    async def test_replace(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        attempt_factory: Callable[[_User], Awaitable[Attempt]],
+    ) -> None:
+        attempt = await attempt_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.tasks_url,
+            json={
+                "yaml_id": "a",
+                "attempt_id": attempt.id,
+                "raw_id": None,
+                "outputs": {},
+                "state": {},
+                "statuses": [],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            task_id = payload["id"]
 
-    #     async with client.put(
-    #         url=neuro_flow_api.attempt_replace_url,
-    #         json={
-    #             "bake_id": bake.id,
-    #             "number": 1,
-    #             "result": "succeeded",
-    #             "configs_meta": self.CONFIGS_META,
-    #         },
-    #         headers=regular_user.headers,
-    #     ) as resp:
-    #         assert resp.status == HTTPOk.status_code, await resp.text()
+        async with client.put(
+            url=neuro_flow_api.task_replace_url,
+            json={
+                "attempt_id": attempt.id,
+                "task_id": "a",
+                "raw_id": "job-41628b21-d321-454f-abe0-630e5bc38abf",
+                "outputs": {},
+                "state": {},
+                "statuses": [{"created_at": attempt.created_at, "status": "pending"}],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
 
-    #     async with client.get(
-    #         url=neuro_flow_api.attempt_url(attempt_id),
-    #         headers=regular_user.headers,
-    #     ) as resp:
-    #         assert resp.status == HTTPOk.status_code, await resp.text()
-    #         payload = await resp.json()
-    #         assert payload == {
-    #             "id": attempt_id,
-    #             "bake_id": bake.id,
-    #             "number": 1,
-    #             "created_at": created_at,
-    #             "result": "succeeded",
-    #             "configs_meta": self.CONFIGS_META,
-    #         }
+        async with client.get(
+            url=neuro_flow_api.task_by_yaml_id_url,
+            params={
+                "attempt_id": attempt.id,
+                "yaml_id": "a",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": task_id,
+                "attempt_id": attempt.id,
+                "yaml_id": "a",
+                "raw_id": "job-41628b21-d321-454f-abe0-630e5bc38abf",
+                "outputs": {},
+                "state": {},
+                "statuses": [{"created_at": attempt.created_at, "status": "pending"}],
+            }
 
 
 class TestCacheEntryApi:
