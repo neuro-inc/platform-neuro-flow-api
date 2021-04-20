@@ -1093,13 +1093,14 @@ class TestAttemptApi:
             attempt_id = payload["id"]
             created_at = payload["created_at"]
 
-        print("1111111111111111111")
-        print(payload)
-        attempt = dict(payload)
-        attempt["result"] = "succeeded"
         async with client.put(
             url=neuro_flow_api.attempt_replace_url,
-            json=attempt,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "result": "succeeded",
+                "configs_meta": self.CONFIGS_META,
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
