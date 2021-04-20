@@ -166,7 +166,13 @@ class TaskSchema(Schema):
     @post_load
     def make_task_data(self, data: Mapping[str, Any], **kwargs: Any) -> TaskData:
         # Parse object to dataclass here
-        return TaskData(**data)
+        statuses = data.pop("statuses")
+        return TaskData(
+            statuses=[
+                TaskStatusItem(when=i.created_at, status=i.status) for i in statuses
+            ],
+            **data
+        )
 
 
 class CacheEntrySchema(Schema):
