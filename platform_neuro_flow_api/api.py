@@ -670,7 +670,7 @@ class TaskApiHandler:
             raise HTTPNotFound
 
     @docs(tags=["tasks"], summary="List tasks in given attempt")
-    @query_schema(project_id=fields.String(required=True))
+    @query_schema(attempt_id=fields.String(required=True))
     @response_schema(TaskSchema(many=True), HTTPOk.status_code)
     async def list(
         self,
