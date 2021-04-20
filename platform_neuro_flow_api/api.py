@@ -796,7 +796,7 @@ class TaskApiHandler:
         schema = TaskSchema()
         task_data = schema.load(await request.json())
         task = await self.storage.tasks.get_by_yaml_id(
-            task_data.attempt_id, task_data.yaml_id
+            task_data.yaml_id, task_data.attempt_id
         )
         attempt = await self._get_attempt(task_data.attempt_id)
         bake = await self._get_bake(attempt.bake_id)
