@@ -622,8 +622,8 @@ class AttemptApiHandler:
         )
         bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
-        replace(attempt, result=attempt_data.result)
-        await self.storage.attempts.update(attempt)
+        new_attempt = replace(attempt, result=attempt_data.result)
+        await self.storage.attempts.update(new_attempt)
         return aiohttp.web.json_response(
             data=schema.dump(attempt_data), status=HTTPOk.status_code
         )
