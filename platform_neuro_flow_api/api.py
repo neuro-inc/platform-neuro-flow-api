@@ -1,5 +1,6 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from dataclasses import replace
 from typing import AsyncIterator, Awaitable, Callable, Optional
 
 import aiohttp
@@ -621,7 +622,7 @@ class AttemptApiHandler:
         )
         bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
-        attempt_data.id = attempt.id
+        replace(attempt_data, id=attempt.id)
         await self.storage.attempts.update(attempt_data)
         return aiohttp.web.json_response(
             data=schema.dump(attempt_data), status=HTTPOk.status_code
