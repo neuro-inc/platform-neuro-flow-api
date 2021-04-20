@@ -147,7 +147,9 @@ class AttemptSchema(Schema):
 
 
 class TaskStatusItemSchema(Schema):
-    created_at = fields.AwareDateTime(required=True, attribute="when")
+    created_at = fields.AwareDateTime(
+        required=True, attribute="when", data_key="created_at"
+    )
     status = TaskStatusField(required=True)
 
 
