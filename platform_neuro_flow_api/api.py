@@ -616,15 +616,14 @@ class AttemptApiHandler:
         username = await check_authorized(request)
         schema = AttemptSchema()
         attempt_data = schema.load(await request.json())
-        existing_attempt = await self.storage.attempts.get(attempt_data.id)
-        if existing_attempt.id != attempt_data.id:
-            raise HTTPBadRequest
-        if existing_attempt.bake_id != attempt_data.bake_id:
-            raise HTTPBadRequest
+        attempt = await self.storage.attempts.get_by_number(
+            attempt_data.bake_id, attempt_data.number
+        )
         bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
 
-        await self.storage.attempts.update(attempt_data)
+        new_attempt = self.storage.attempts._make_entry(attempt.id, attempt_data)
+        await self.storage.attempts.update(new_attempt)
         return aiohttp.web.json_response(
             data=schema.dump(attempt_data), status=HTTPOk.status_code
         )
