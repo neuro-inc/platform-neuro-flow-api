@@ -162,7 +162,7 @@ class TaskSchema(Schema):
     state = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
-    statuses = fields.List(fields.Nested(TaskStatusItemSchema()), required=True)
+    statuses = fields.List(fields.Nested(TaskStatusItemSchema), required=True)
 
     @post_load
     def make_task_data(self, data: Mapping[str, Any], **kwargs: Any) -> TaskData:
