@@ -169,6 +169,8 @@ class TaskSchema(Schema):
         # Parse object to dataclass here
         kwargs = dict(data)
         statuses = kwargs.pop("statuses")
+        print(111111111111111111)
+        print(statuses)
         return TaskData(
             statuses=[
                 TaskStatusItem(when=i.created_at, status=i.status) for i in statuses
