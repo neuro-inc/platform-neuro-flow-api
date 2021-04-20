@@ -1266,47 +1266,49 @@ class TestTaskApi:
                 "statuses": [],
             }
 
-    # async def test_get_by_number(
-    #     self,
-    #     neuro_flow_api: NeuroFlowApiEndpoints,
-    #     regular_user: _User,
-    #     client: aiohttp.ClientSession,
-    #     bake_factory: Callable[[_User], Awaitable[Project]],
-    # ) -> None:
-    #     bake = await bake_factory(regular_user)
-    #     async with client.post(
-    #         url=neuro_flow_api.attempts_url,
-    #         json={
-    #             "bake_id": bake.id,
-    #             "number": 1,
-    #             "result": "pending",
-    #             "configs_meta": self.CONFIGS_META,
-    #         },
-    #         headers=regular_user.headers,
-    #     ) as resp:
-    #         assert resp.status == HTTPCreated.status_code, await resp.text()
-    #         payload = await resp.json()
-    #         attempt_id = payload["id"]
-    #         created_at = payload["created_at"]
+    async def test_get_by_yaml_id(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        attempt_factory: Callable[[_User], Awaitable[Attempt]],
+    ) -> None:
+        attempt = await attempt_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.tasks_url,
+            json={
+                "yaml_id": "a",
+                "attempt_id": attempt.id,
+                "raw_id": None,
+                "outputs": {},
+                "state": {},
+                "statuses": [],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            task_id = payload["id"]
 
-    #     async with client.get(
-    #         url=neuro_flow_api.attempt_by_number_url,
-    #         params={
-    #             "bake_id": bake.id,
-    #             "number": 1,
-    #         },
-    #         headers=regular_user.headers,
-    #     ) as resp:
-    #         assert resp.status == HTTPOk.status_code, await resp.text()
-    #         payload = await resp.json()
-    #         assert payload == {
-    #             "id": attempt_id,
-    #             "bake_id": bake.id,
-    #             "number": 1,
-    #             "created_at": created_at,
-    #             "result": "pending",
-    #             "configs_meta": self.CONFIGS_META,
-    #         }
+        async with client.get(
+            url=neuro_flow_api.task_by_yaml_id_url,
+            params={
+                "attempt_id": attempt.id,
+                "yaml_id": "a",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": task_id,
+                "attempt_id": attempt.id,
+                "yaml_id": "a",
+                "raw_id": None,
+                "outputs": {},
+                "state": {},
+                "statuses": [],
+            }
 
     # async def test_replace(
     #     self,
