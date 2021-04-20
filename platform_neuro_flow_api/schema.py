@@ -16,6 +16,7 @@ from platform_neuro_flow_api.storage.base import (
     ProjectData,
     TaskData,
     TaskStatus,
+    TaskStatusItem,
 )
 
 
@@ -145,7 +146,7 @@ class AttemptSchema(Schema):
         return AttemptData(created_at=datetime.now(timezone.utc), **data)
 
 
-class TaskStatusItem(Schema):
+class TaskStatusItemSchema(Schema):
     created_at = fields.AwareDateTime(required=True)
     status = TaskStatusField(required=True)
 
@@ -161,17 +162,18 @@ class TaskSchema(Schema):
     state = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
-    statuses = fields.List(fields.Nested(TaskStatusItem()), required=True)
+    statuses = fields.List(fields.Nested(TaskStatusItemSchema()), required=True)
 
     @post_load
     def make_task_data(self, data: Mapping[str, Any], **kwargs: Any) -> TaskData:
         # Parse object to dataclass here
-        statuses = data.pop("statuses")
+        kwargs = dict(data)
+        statuses = kwargs.pop("statuses")
         return TaskData(
             statuses=[
                 TaskStatusItem(when=i.created_at, status=i.status) for i in statuses
             ],
-            **data
+            **kwargs
         )
 
 
