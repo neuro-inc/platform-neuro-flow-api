@@ -1338,7 +1338,7 @@ class TestTaskApi:
             url=neuro_flow_api.task_replace_url,
             json={
                 "attempt_id": attempt.id,
-                "task_id": "a",
+                "yaml_id": "a",
                 "raw_id": "job-41628b21-d321-454f-abe0-630e5bc38abf",
                 "outputs": {},
                 "state": {},
