@@ -173,8 +173,7 @@ class TaskSchema(Schema):
         statuses = kwargs.pop("statuses")
         return TaskData(
             statuses=[
-                TaskStatusItem(when=i["created_at"], status=i["status"])
-                for i in statuses
+                TaskStatusItem(when=i["when"], status=i["status"]) for i in statuses
             ],
             **kwargs
         )
