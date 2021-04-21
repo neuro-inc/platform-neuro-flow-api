@@ -149,9 +149,19 @@ class InMemoryAttemptStorage(AttemptStorage, InMemoryBaseStorage[AttemptData, At
         raise ExistsError
 
     async def get_by_number(self, bake_id: str, number: int) -> Attempt:
-        for item in self._items.values():
-            if item.bake_id == bake_id and item.number == number:
-                return item
+        if number == -1:
+            found = None
+            # get the last attempt
+            for item in self._items.values():
+                if item.bake_id == bake_id:
+                    if found is None or item.number > found.number:
+                        found = item
+            if found is not None:
+                return found
+        else:
+            for item in self._items.values():
+                if item.bake_id == bake_id and item.number == number:
+                    return item
         raise NotExistsError
 
     async def list(self, bake_id: Optional[str] = None) -> AsyncIterator[Attempt]:
