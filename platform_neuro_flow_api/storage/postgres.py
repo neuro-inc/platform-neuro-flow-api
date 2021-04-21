@@ -425,9 +425,19 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         return Attempt(**payload)
 
     async def get_by_number(self, bake_id: str, number: int) -> Attempt:
-        query = self._table.select().where(
-            self._table.c.bake_id == bake_id and self._table.c.number == number
-        )
+        if number == -1:
+            query = (
+                self._table.select()
+                .where(
+                    self._table.c.bake_id == bake_id and self._table.c.number == number
+                )
+                .order_by(self._table.c.number.desc())
+                .limit(1)
+            )
+        else:
+            query = self._table.select().where(
+                self._table.c.bake_id == bake_id and self._table.c.number == number
+            )
         record = await self._fetchrow(query)
         if not record:
             raise NotExistsError
