@@ -112,6 +112,9 @@ class FlowTables:
             "config_files",
             metadata,
             sa.Column("id", sa.String(), primary_key=True),
+            sa.Column(
+                "bake_id", sa.String(), sa.ForeignKey("bakes.id"), nullable=False
+            ),
             sa.Column("filename", sa.String(), nullable=False),
             sa.Column("content", sa.Text(), nullable=False),
             sa.Column("payload", sapg.JSONB(), nullable=False),
