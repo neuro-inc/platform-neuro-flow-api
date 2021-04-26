@@ -176,6 +176,7 @@ class MockDataHelper:
 
     async def gen_config_file_data(self, **kwargs: Any) -> ConfigFileData:
         data = ConfigFileData(
+            bake_id=secrets.token_hex(8),
             filename=secrets.token_hex(8),
             content=secrets.token_hex(8),
         )
