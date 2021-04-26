@@ -183,6 +183,7 @@ class MockDataHelper:
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
             data = replace(data, **{key: value})
+        await self._ensure_bake_id(data.bake_id)
         return data
 
 
