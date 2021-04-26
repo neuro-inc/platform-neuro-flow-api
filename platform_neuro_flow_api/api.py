@@ -771,10 +771,6 @@ class TaskApiHandler:
             )
         except NotExistsError:
             raise HTTPNotFound
-        import pprint
-
-        print(11111111111111)
-        pprint.pprint(task)
         return aiohttp.web.json_response(
             data=TaskSchema().dump(task), status=HTTPOk.status_code
         )
