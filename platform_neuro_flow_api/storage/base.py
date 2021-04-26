@@ -109,6 +109,7 @@ class Bake(BakeData, HasId):
 
 @dataclass(frozen=True)
 class ConfigFileData:
+    bake_id: str
     filename: str
     content: str
 

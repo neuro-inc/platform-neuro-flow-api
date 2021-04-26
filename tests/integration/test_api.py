@@ -1169,6 +1169,64 @@ class TestAttemptApi:
             }
 
 
+class TestConfigFileApi:
+    async def test_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.config_files_url,
+            json={
+                "bake_id": bake.id,
+                "filename": "batch.yaml",
+                "content": "<batch content>",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["bake_id"] == bake.id
+            assert payload["filename"] == "batch.yaml"
+            assert payload["content"] == "<batch content>"
+            assert "id" in payload
+
+    async def test_get(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.config_files_url,
+            json={
+                "bake_id": bake.id,
+                "filename": "batch.yaml",
+                "content": "<batch content>",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            config_file_id = payload["id"]
+
+        async with client.get(
+            url=neuro_flow_api.config_file_url(config_file_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["id"] == config_file_id
+            assert payload["bake_id"] == bake.id
+            assert payload["filename"] == "batch.yaml"
+            assert payload["content"] == "<batch content>"
+
+
 @pytest.fixture()
 def attempt_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,

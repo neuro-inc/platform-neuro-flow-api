@@ -881,7 +881,7 @@ class ConfigFileApiHandler:
         assert username is not None
         # await self._check_project(username, bake.project_id)
         try:
-            task = await self.storage.config_files.create(config_file_data)
+            config_file = await self.storage.config_files.create(config_file_data)
         except ExistsError:
             return json_response(
                 {
@@ -891,10 +891,10 @@ class ConfigFileApiHandler:
                 status=HTTPConflict.status_code,
             )
         return aiohttp.web.json_response(
-            data=schema.dump(task), status=HTTPCreated.status_code
+            data=schema.dump(config_file), status=HTTPCreated.status_code
         )
 
-    @docs(tags=["config_files"], summary="Get task by id")
+    @docs(tags=["config_files"], summary="Get config file by id")
     @response_schema(ConfigFileSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         username = await check_authorized(request)
@@ -907,7 +907,7 @@ class ConfigFileApiHandler:
         assert username is not None
         # await self._check_project(username, bake.project_id)
         return aiohttp.web.json_response(
-            data=TaskSchema().dump(config_file), status=HTTPOk.status_code
+            data=ConfigFileSchema().dump(config_file), status=HTTPOk.status_code
         )
 
 
