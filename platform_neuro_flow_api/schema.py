@@ -99,6 +99,7 @@ class BakeSchema(Schema):
 
 class ConfigFileSchema(Schema):
     id = fields.String(required=True, dump_only=True)
+    bake_id = fields.String(required=True)
     filename = fields.String(required=True)
     content = fields.String(required=True)
 
