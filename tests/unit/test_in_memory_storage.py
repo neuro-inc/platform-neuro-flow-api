@@ -176,12 +176,14 @@ class MockDataHelper:
 
     async def gen_config_file_data(self, **kwargs: Any) -> ConfigFileData:
         data = ConfigFileData(
+            bake_id=secrets.token_hex(8),
             filename=secrets.token_hex(8),
             content=secrets.token_hex(8),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
             data = replace(data, **{key: value})
+        await self._ensure_bake_id(data.bake_id)
         return data
 
 

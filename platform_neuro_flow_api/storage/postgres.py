@@ -112,6 +112,9 @@ class FlowTables:
             "config_files",
             metadata,
             sa.Column("id", sa.String(), primary_key=True),
+            sa.Column(
+                "bake_id", sa.String(), sa.ForeignKey("bakes.id"), nullable=False
+            ),
             sa.Column("filename", sa.String(), nullable=False),
             sa.Column("content", sa.Text(), nullable=False),
             sa.Column("payload", sapg.JSONB(), nullable=False),
@@ -570,6 +573,7 @@ class PostgresConfigFileStorage(
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
+            "bake_id": payload.pop("bake_id"),
             "filename": payload.pop("filename"),
             "content": payload.pop("content"),
             "payload": payload,
@@ -578,6 +582,7 @@ class PostgresConfigFileStorage(
     def _from_record(self, record: Record) -> ConfigFile:
         payload = json.loads(record["payload"])
         payload["id"] = record["id"]
+        payload["bake_id"] = record["bake_id"]
         payload["filename"] = record["filename"]
         payload["content"] = record["content"]
         return ConfigFile(**payload)

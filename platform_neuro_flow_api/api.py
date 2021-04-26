@@ -849,12 +849,6 @@ class ConfigFileApiHandler:
         except NotExistsError:
             raise HTTPNotFound
 
-    async def _get_attempt(self, attempt_id: str) -> Attempt:
-        try:
-            return await self.storage.attempts.get(attempt_id)
-        except NotExistsError:
-            raise HTTPNotFound
-
     @docs(
         tags=["config_files"],
         summary="Create config file",
@@ -877,11 +871,10 @@ class ConfigFileApiHandler:
         username = await check_authorized(request)
         schema = ConfigFileSchema()
         config_file_data = schema.load(await request.json())
-        # TODO: add config file owner validation
-        assert username is not None
-        # await self._check_project(username, bake.project_id)
+        bake = await self._get_bake(config_file_data.bake_id)
+        await self._check_project(username, bake.project_id)
         try:
-            task = await self.storage.config_files.create(config_file_data)
+            config_file = await self.storage.config_files.create(config_file_data)
         except ExistsError:
             return json_response(
                 {
@@ -891,10 +884,10 @@ class ConfigFileApiHandler:
                 status=HTTPConflict.status_code,
             )
         return aiohttp.web.json_response(
-            data=schema.dump(task), status=HTTPCreated.status_code
+            data=schema.dump(config_file), status=HTTPCreated.status_code
         )
 
-    @docs(tags=["config_files"], summary="Get task by id")
+    @docs(tags=["config_files"], summary="Get config file by id")
     @response_schema(ConfigFileSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         username = await check_authorized(request)
@@ -903,11 +896,10 @@ class ConfigFileApiHandler:
             config_file = await self.storage.config_files.get(id)
         except NotExistsError:
             raise HTTPNotFound
-        # TODO: add config file owner validation
-        assert username is not None
-        # await self._check_project(username, bake.project_id)
+        bake = await self._get_bake(config_file.bake_id)
+        await self._check_project(username, bake.project_id)
         return aiohttp.web.json_response(
-            data=TaskSchema().dump(config_file), status=HTTPOk.status_code
+            data=ConfigFileSchema().dump(config_file), status=HTTPOk.status_code
         )
 
 
