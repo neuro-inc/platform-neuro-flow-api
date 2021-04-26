@@ -570,6 +570,7 @@ class PostgresConfigFileStorage(
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
+            "bake_id": payload.pop("bake_id"),
             "filename": payload.pop("filename"),
             "content": payload.pop("content"),
             "payload": payload,
@@ -578,6 +579,7 @@ class PostgresConfigFileStorage(
     def _from_record(self, record: Record) -> ConfigFile:
         payload = json.loads(record["payload"])
         payload["id"] = record["id"]
+        payload["bake_id"] = record["bake_id"]
         payload["filename"] = record["filename"]
         payload["content"] = record["content"]
         return ConfigFile(**payload)
