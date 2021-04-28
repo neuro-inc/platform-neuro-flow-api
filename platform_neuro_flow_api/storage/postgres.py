@@ -435,7 +435,6 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
             query = (
                 self._table.select()
                 .where(self._table.c.bake_id == bake_id)
-                .where(self._table.c.number == number)
                 .order_by(self._table.c.number.desc())
                 .limit(1)
             )
