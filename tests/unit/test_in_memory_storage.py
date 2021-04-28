@@ -231,6 +231,14 @@ class TestProjectStorage:
         )
         assert project.id == res.id
 
+    async def test_get_by_name_wrong_owner(self, storage: ProjectStorage) -> None:
+        data = await self.helper.gen_project_data()
+        await storage.create(data)
+        with pytest.raises(NotExistsError):
+            await storage.get_by_name(
+                name=data.name, owner="wrong_owner", cluster=data.cluster
+            )
+
     async def test_cannot_create_duplicate(self, storage: ProjectStorage) -> None:
         data = await self.helper.gen_project_data()
         await storage.create(data)

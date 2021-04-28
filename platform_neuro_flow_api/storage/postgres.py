@@ -280,10 +280,11 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         return Project(**payload)
 
     async def get_by_name(self, name: str, owner: str, cluster: str) -> Project:
-        query = self._table.select().where(
-            self._table.c.name == name
-            and self._table.c.owner == owner
-            and self._table.c.cluster == cluster
+        query = (
+            self._table.select()
+            .where(self._table.c.name == name)
+            .where(self._table.c.owner == owner)
+            .where(self._table.c.cluster == cluster)
         )
         record = await self._fetchrow(query)
         if not record:
@@ -330,8 +331,10 @@ class PostgresLiveJobsStorage(
         return LiveJob(**payload)
 
     async def get_by_yaml_id(self, yaml_id: str, project_id: str) -> LiveJob:
-        query = self._table.select().where(
-            self._table.c.yaml_id == yaml_id and self._table.c.project_id == project_id
+        query = (
+            self._table.select()
+            .where(self._table.c.yaml_id == yaml_id)
+            .where(self._table.c.project_id == project_id)
         )
         record = await self._fetchrow(query)
         if not record:
@@ -431,15 +434,16 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         if number == -1:
             query = (
                 self._table.select()
-                .where(
-                    self._table.c.bake_id == bake_id and self._table.c.number == number
-                )
+                .where(self._table.c.bake_id == bake_id)
+                .where(self._table.c.number == number)
                 .order_by(self._table.c.number.desc())
                 .limit(1)
             )
         else:
-            query = self._table.select().where(
-                self._table.c.bake_id == bake_id and self._table.c.number == number
+            query = (
+                self._table.select()
+                .where(self._table.c.bake_id == bake_id)
+                .where(self._table.c.number == number)
             )
         record = await self._fetchrow(query)
         if not record:
@@ -490,9 +494,10 @@ class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
         return Task(**payload)
 
     async def get_by_yaml_id(self, yaml_id: FullID, attempt_id: str) -> Task:
-        query = self._table.select().where(
-            self._table.c.yaml_id == _full_id2str(yaml_id)
-            and self._table.c.attempt_id == attempt_id
+        query = (
+            self._table.select()
+            .where(self._table.c.yaml_id == _full_id2str(yaml_id))
+            .where(self._table.c.attempt_id == attempt_id)
         )
         record = await self._fetchrow(query)
         if not record:
@@ -539,11 +544,12 @@ class PostgresCacheEntryStorage(
     async def get_by_key(
         self, project_id: str, task_id: FullID, batch: str, key: str
     ) -> CacheEntry:
-        query = self._table.select().where(
-            self._table.c.project_id == project_id
-            and self._table.c.task_id == _full_id2str(task_id)
-            and self._table.c.batch == batch
-            and self._table.c.key == key
+        query = (
+            self._table.select()
+            .where(self._table.c.project_id == project_id)
+            .where(self._table.c.task_id == _full_id2str(task_id))
+            .where(self._table.c.batch == batch)
+            .where(self._table.c.key == key)
         )
         record = await self._fetchrow(query)
         if not record:
