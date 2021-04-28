@@ -115,7 +115,7 @@ class ConfigsMetaSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     workspace = fields.String(required=True)
     flow_config_id = fields.String(required=True)
-    project_config_id = fields.String()
+    project_config_id = fields.String(allow_none=True)
     action_config_ids = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
