@@ -389,7 +389,10 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
-        payload["tags"] = json.loads(record["tags"])
+        if record["tags"] is None:
+            payload["tags"] = []
+        else:
+            payload["tags"] = json.loads(record["tags"])
         graphs = {}
         for key, subgraph in payload["graphs"].items():
             subgr = {}
