@@ -1,5 +1,5 @@
 import secrets
-from typing import AsyncIterator, Callable, Dict, Optional, Sequence, TypeVar
+from typing import AbstractSet, AsyncIterator, Callable, Dict, Optional, TypeVar
 
 from .base import (
     Attempt,
@@ -136,12 +136,12 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
     async def list(
         self,
         project_id: Optional[str] = None,
-        tags: Optional[Sequence[str]] = None,
+        tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
                 continue
-            if tags is not None and not set(tags).issubset(set(item.tags)):
+            if not set(tags).issubset(set(item.tags)):
                 continue
             yield item
 

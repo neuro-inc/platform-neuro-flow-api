@@ -253,7 +253,7 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
     def list(
         self,
         project_id: Optional[str] = None,
-        tags: Optional[Sequence[str]] = None,
+        tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
         pass
 

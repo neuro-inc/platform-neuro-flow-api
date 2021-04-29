@@ -390,22 +390,22 @@ class TestBakeStorage:
         await storage.create(data)
 
         found = []
-        async for item in storage.list(tags=["tag-1"]):
+        async for item in storage.list(tags={"tag-1"}):
             found.append(item.batch)
         assert len(found) == 2
 
         found = []
-        async for item in storage.list(tags=["tag-2"]):
+        async for item in storage.list(tags={"tag-2"}):
             found.append(item.batch)
         assert len(found) == 2
 
         found = []
-        async for item in storage.list(tags=["tag-3"]):
+        async for item in storage.list(tags={"tag-3"}):
             found.append(item.batch)
         assert len(found) == 1
 
         found = []
-        async for item in storage.list(tags=["tag-1", "tag-2"]):
+        async for item in storage.list(tags={"tag-1", "tag-2"}):
             found.append(item.batch)
         assert len(found) == 1
 

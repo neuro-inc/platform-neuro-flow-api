@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Sequence, TypeVar
+from typing import AbstractSet, Any, AsyncIterator, Callable, Dict, Optional, TypeVar
 
 import asyncpgsa
 import sqlalchemy as sa
@@ -402,12 +402,12 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     async def list(
         self,
         project_id: Optional[str] = None,
-        tags: Optional[Sequence[str]] = None,
+        tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
         query = self._table.select()
         if project_id is not None:
             query = query.where(self._table.c.project_id == project_id)
-        if tags is not None:
+        if tags:
             query = query.where(self._table.c.tags.contains(list(tags)))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):

@@ -767,6 +767,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": [],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -776,6 +777,7 @@ class TestBakeApi:
             assert payload["batch"] == "test-batch"
             assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
             assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == []
             assert "id" in payload
             assert "created_at" in payload
 
@@ -794,6 +796,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": ["foo", "bar"],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -812,6 +815,7 @@ class TestBakeApi:
             assert payload["batch"] == "test-batch"
             assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
             assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == ["foo", "bar"]
             assert payload["id"] == bake_id
             assert payload["created_at"] == payload1["created_at"]
 
@@ -849,6 +853,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": [],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -964,6 +969,7 @@ def bake_factory(
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": ["tag"],
             },
             headers=user.headers,
         ) as resp:
