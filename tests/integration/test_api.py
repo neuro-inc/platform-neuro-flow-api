@@ -767,7 +767,6 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
-                "tags": [],
             },
             headers=regular_user.headers,
         ) as resp:

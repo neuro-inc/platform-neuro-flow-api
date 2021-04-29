@@ -422,13 +422,13 @@ class BakeApiHandler:
             },
         },
     )
-    @request_schema(BakeSchema())
+    @request_schema(BakeSchema(partial=["tags"]))
     async def create(
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        schema = BakeSchema()
+        schema = BakeSchema(partial=["tags"])
         bake_data = schema.load(await request.json())
         await self._check_project(username, bake_data.project_id)
         try:

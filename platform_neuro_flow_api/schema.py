@@ -98,7 +98,7 @@ class BakeSchema(Schema):
         required=True,
     )
     params = fields.Dict(keys=fields.String(), values=fields.String())
-    tags = fields.List(fields.String(), required=True)
+    tags = fields.List(fields.String(), required=True, metadata=dict(doc_default=()))
 
     @post_load
     def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeData:
