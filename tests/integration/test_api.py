@@ -1592,7 +1592,7 @@ class TestCacheEntryApi:
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
         payload2 = dict(request_payload)
-        payload2["outputs"] = ({"bazz": "egg"},)
+        payload2["outputs"] = {"bazz": "egg"}
         async with client.post(
             url=neuro_flow_api.cache_entries_url,
             json=payload2,
