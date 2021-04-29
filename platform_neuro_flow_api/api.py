@@ -362,6 +362,7 @@ class BakeApiHandler:
             [
                 aiohttp.web.get("", self.list),
                 aiohttp.web.post("", self.create),
+                aiohttp.web.get("/by_name", self.get_by_name),
                 aiohttp.web.get("/{id}", self.get),
             ]
         )
@@ -381,6 +382,7 @@ class BakeApiHandler:
     @docs(tags=["bakes"], summary="List bakes in given project")
     @query_schema(
         project_id=fields.String(required=True),
+        name=fields.String(missing=None),
         tags=fields.List(fields.String(), missing=tuple()),
     )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
@@ -388,11 +390,14 @@ class BakeApiHandler:
         self,
         request: aiohttp.web.Request,
         project_id: str,
+        name: Optional[str],
         tags: Sequence[str],
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         await self._check_project(username, project_id)
-        bakes = self.storage.bakes.list(project_id=project_id, tags=set(tags))
+        bakes = self.storage.bakes.list(
+            project_id=project_id, name=name, tags=set(tags)
+        )
         if accepts_ndjson(request):
             response = aiohttp.web.StreamResponse()
             response.headers["Content-Type"] = "application/x-ndjson"
@@ -422,13 +427,13 @@ class BakeApiHandler:
             },
         },
     )
-    @request_schema(BakeSchema(partial=["tags"]))
+    @request_schema(BakeSchema(partial=["name", "tags"]))
     async def create(
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        schema = BakeSchema(partial=["tags"])
+        schema = BakeSchema(partial=["name", "tags"])
         bake_data = schema.load(await request.json())
         await self._check_project(username, bake_data.project_id)
         try:
@@ -452,6 +457,30 @@ class BakeApiHandler:
         id = request.match_info["id"]
         try:
             bake = await self.storage.bakes.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        await self._check_project(username, bake.project_id)
+        return aiohttp.web.json_response(
+            data=BakeSchema().dump(bake), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["bakes"], summary="Get bake by name")
+    @query_schema(
+        project_id=fields.String(required=True),
+        name=fields.String(required=True),
+    )
+    @response_schema(BakeSchema(), HTTPOk.status_code)
+    async def get_by_name(
+        self,
+        request: aiohttp.web.Request,
+        project_id: str,
+        name: str,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        try:
+            bake = await self.storage.bakes.get_by_name(
+                project_id=project_id, name=name
+            )
         except NotExistsError:
             raise HTTPNotFound
         await self._check_project(username, bake.project_id)

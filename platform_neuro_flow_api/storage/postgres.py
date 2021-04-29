@@ -45,6 +45,7 @@ from .base import (
     TaskStatus,
     TaskStatusItem,
     TaskStorage,
+    UniquenessError,
 )
 
 
@@ -103,9 +104,11 @@ class FlowTables:
                 nullable=False,
             ),
             sa.Column("batch", sa.String(), nullable=False),
+            sa.Column("name", sa.String(), nullable=True),
             sa.Column(
                 "created_at", sapg.TIMESTAMP(timezone=True, precision=6), nullable=False
             ),
+            sa.Column("status", sa.String(), nullable=False, server_default="pending"),
             sa.Column("tags", sapg.JSONB(), nullable=True),
             sa.Column("payload", sapg.JSONB(), nullable=False),
         )
@@ -193,16 +196,19 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
         self._id_prefix = id_prefix
         self._make_entry = make_entry
 
-    async def _execute(self, query: sasql.ClauseElement) -> str:
+    async def _execute(
+        self, query: sasql.ClauseElement, conn: Optional[Connection] = None
+    ) -> str:
         query_string, params = asyncpgsa.compile_query(query)
-        return await self._pool.execute(query_string, *params)
+        conn = conn or self._pool
+        return await conn.execute(query_string, *params)
 
     async def _fetchrow(
-        self,
-        query: sasql.ClauseElement,
+        self, query: sasql.ClauseElement, conn: Optional[Connection] = None
     ) -> Optional[Record]:
         query_string, params = asyncpgsa.compile_query(query)
-        return await self._pool.fetchrow(query_string, *params)
+        conn = conn or self._pool
+        return await conn.fetchrow(query_string, *params)
 
     def _cursor(self, query: sasql.ClauseElement, conn: Connection) -> CursorFactory:
         query_string, params = asyncpgsa.compile_query(query)
@@ -219,23 +225,25 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
     def _from_record(self, record: Record) -> _E:
         pass
 
+    async def after_insert(self, data: _E, conn: Connection) -> None:
+        pass
+
+    async def after_update(self, data: _E, conn: Connection) -> None:
+        pass
+
     async def insert(self, data: _E) -> None:
         values = self._to_values(data)
         query = self._table.insert().values(values)
-        try:
-            await self._execute(query)
-        except UniqueViolationError:
-            raise ExistsError
-        return None
+        async with self._pool.acquire() as conn, conn.transaction():
+            try:
+                await self._execute(query, conn)
+            except UniqueViolationError:
+                raise ExistsError
+            await self.after_insert(data, conn)
 
     async def create(self, data: _D) -> _E:
         entry = self._make_entry(self._gen_id(), data)
-        values = self._to_values(entry)
-        query = self._table.insert().values(values)
-        try:
-            await self._execute(query)
-        except UniqueViolationError:
-            raise ExistsError
+        await self.insert(entry)
         return entry
 
     async def update(self, data: _E) -> None:
@@ -247,11 +255,13 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
             .where(self._table.c.id == id)
             .returning(self._table.c.id)
         )
-        result = await self._fetchrow(query)
-        if not result:
-            # Docs on status messages are placed here:
-            # https://www.postgresql.org/docs/current/protocol-message-formats.html
-            raise NotExistsError
+        async with self._pool.acquire() as conn, conn.transaction():
+            result = await self._fetchrow(query, conn)
+            if not result:
+                # Docs on status messages are placed here:
+                # https://www.postgresql.org/docs/current/protocol-message-formats.html
+                raise NotExistsError
+            await self.after_update(data, conn)
 
     async def get(self, id: str) -> _E:
         query = self._table.select(self._table.c.id == id)
@@ -379,6 +389,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             "project_id": payload.pop("project_id"),
             "batch": payload.pop("batch"),
             "created_at": payload.pop("created_at"),
+            "name": payload.pop("name"),
             "tags": payload.pop("tags"),
             "payload": payload,
         }
@@ -389,6 +400,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
+        payload["name"] = record["name"]
         if record["tags"] is None:
             payload["tags"] = []
         else:
@@ -405,19 +417,52 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     async def list(
         self,
         project_id: Optional[str] = None,
+        name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
         query = self._table.select()
         if project_id is not None:
             query = query.where(self._table.c.project_id == project_id)
+        if name is not None:
+            query = query.where(self._table.c.name == name)
         if tags:
             query = query.where(self._table.c.tags.contains(list(tags)))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):
                 yield self._from_record(record)
 
+    async def get_by_name(self, project_id: str, name: str) -> Bake:
+        query = (
+            self._table.select()
+            .where(self._table.c.project_id == project_id)
+            .where(self._table.c.name == name)
+            .where(
+                self._table.c.status.in_(
+                    [
+                        TaskStatus.PENDING,
+                        TaskStatus.RUNNING,
+                    ]
+                )
+            )
+        )
+        record = await self._fetchrow(query)
+        if not record:
+            raise NotExistsError
+        return self._from_record(record)
+
 
 class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, Attempt]):
+    def __init__(
+        self,
+        attempts_table: sa.Table,
+        bakes_table: sa.Table,
+        pool: Pool,
+        id_prefix: str,
+        make_entry: Callable[[str, AttemptData], Attempt],
+    ):
+        super().__init__(attempts_table, pool, id_prefix, make_entry)
+        self._bakes_table = bakes_table
+
     def _to_values(self, item: Attempt) -> Dict[str, Any]:
         payload = asdict(item)
         return {
@@ -438,6 +483,34 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         payload["result"] = TaskStatus(record["result"])
         payload["configs_meta"] = ConfigsMeta(**payload["configs_meta"])
         return Attempt(**payload)
+
+    async def after_insert(self, data: Attempt, conn: Connection) -> None:
+        await self._sync_bake_status(data, conn)
+
+    async def after_update(self, data: Attempt, conn: Connection) -> None:
+        await self._sync_bake_status(data, conn)
+
+    async def _sync_bake_status(self, data: Attempt, conn: Connection) -> None:
+        max_number_query = (
+            sa.select([sa.func.max(self._table.c.number)])
+            .select_from(self._table)
+            .where(self._table.c.bake_id == data.bake_id)
+        )
+        result = await self._fetchrow(max_number_query, conn)
+        assert result is not None
+        max_number = result[0]
+        if data.number == max_number:
+            query = (
+                self._bakes_table.update()
+                .values({"status": data.result})
+                .where(self._bakes_table.c.id == data.bake_id)
+            )
+            try:
+                await self._execute(query)
+            except UniqueViolationError:
+                raise UniquenessError(
+                    "There can be only one running bake with given name"
+                )
 
     async def get_by_number(self, bake_id: str, number: int) -> Attempt:
         if number == -1:
@@ -626,7 +699,8 @@ class PostgresStorage(Storage):
             make_entry=Bake.from_data_obj,
         )
         self.attempts = PostgresAttemptStorage(
-            table=tables.attempts,
+            attempts_table=tables.attempts,
+            bakes_table=tables.bakes,
             pool=pool,
             id_prefix="attempt",
             make_entry=Attempt.from_data_obj,

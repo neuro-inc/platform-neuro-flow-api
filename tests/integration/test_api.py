@@ -83,6 +83,10 @@ class NeuroFlowApiEndpoints:
         return f"{self.bakes_url}/{id}"
 
     @property
+    def bake_by_name_url(self) -> str:
+        return f"{self.bakes_url}/by_name"
+
+    @property
     def attempts_url(self) -> str:
         return f"{self.server_base_url}/api/v1/flow/attempts"
 
@@ -818,6 +822,47 @@ class TestBakeApi:
             assert payload["id"] == bake_id
             assert payload["created_at"] == payload1["created_at"]
 
+    async def test_get_by_name(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+                "tags": ["foo", "bar"],
+                "name": "test-name",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload1 = await resp.json()
+
+        bake_id = payload1["id"]
+
+        async with client.get(
+            url=neuro_flow_api.bake_by_name_url,
+            params={"project_id": project.id, "name": "test-name"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["project_id"] == project.id
+            assert payload["batch"] == "test-batch"
+            assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
+            assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == ["foo", "bar"]
+            assert payload["id"] == bake_id
+            assert payload["created_at"] == payload1["created_at"]
+            assert payload["name"] == payload1["name"]
+
     async def test_list_empty(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -879,6 +924,7 @@ class TestBakeApi:
                     "params": {"p1": "v1"},
                     "created_at": payload1["created_at"],
                     "tags": [],
+                    "name": None,
                 }
             ]
 
