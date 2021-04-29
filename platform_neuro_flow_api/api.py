@@ -951,13 +951,13 @@ class CacheEntryApiHandler:
             old_entry = await self.storage.cache_entries.get_by_key(
                 data.project_id, data.task_id, data.batch, data.key
             )
-            new_entry = replace(
+            cache_entry = replace(
                 old_entry,
                 created_at=data.created_at,
                 outputs=data.outputs,
                 state=data.state,
             )
-            cache_entry = await self.storage.cache_entries.update(new_entry)
+            await self.storage.cache_entries.update(cache_entry)
         return aiohttp.web.json_response(
             data=schema.dump(cache_entry), status=HTTPCreated.status_code
         )
