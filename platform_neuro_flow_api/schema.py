@@ -158,7 +158,7 @@ class TaskSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     yaml_id = FullIDField(required=True)
     attempt_id = fields.String(required=True)
-    raw_id = fields.String(required=True, allow_none=True)
+    raw_id = fields.String(required=True)  # empty string for no id
     outputs = fields.Dict(
         keys=fields.String(required=True), values=fields.String(required=True)
     )
