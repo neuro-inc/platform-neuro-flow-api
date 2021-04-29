@@ -100,6 +100,11 @@ class BakeData:
     # prefix -> { id -> deps }
     graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
     params: Optional[Mapping[str, str]] = None
+    tags: Sequence[str] = ()
+
+    def __post_init__(self) -> None:
+        # Ensure that tags is a tuple for correct __eq__
+        object.__setattr__(self, "tags", tuple(self.tags))
 
 
 @dataclass(frozen=True)
@@ -245,7 +250,11 @@ class LiveJobStorage(BaseStorage[LiveJobData, LiveJob], ABC):
 
 class BakeStorage(BaseStorage[BakeData, Bake], ABC):
     @abstractmethod
-    def list(self, project_id: Optional[str] = None) -> AsyncIterator[Bake]:
+    def list(
+        self,
+        project_id: Optional[str] = None,
+        tags: AbstractSet[str] = frozenset(),
+    ) -> AsyncIterator[Bake]:
         pass
 
 

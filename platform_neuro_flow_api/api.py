@@ -1,7 +1,7 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
-from typing import AsyncIterator, Awaitable, Callable, Optional
+from typing import AsyncIterator, Awaitable, Callable, Optional, Sequence
 
 import aiohttp
 import aiohttp.web
@@ -379,16 +379,20 @@ class BakeApiHandler:
             raise HTTPNotFound
 
     @docs(tags=["bakes"], summary="List bakes in given project")
-    @query_schema(project_id=fields.String(required=True))
+    @query_schema(
+        project_id=fields.String(required=True),
+        tags=fields.List(fields.String(), missing=tuple()),
+    )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
     async def list(
         self,
         request: aiohttp.web.Request,
         project_id: str,
+        tags: Sequence[str],
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         await self._check_project(username, project_id)
-        bakes = self.storage.bakes.list(project_id=project_id)
+        bakes = self.storage.bakes.list(project_id=project_id, tags=set(tags))
         if accepts_ndjson(request):
             response = aiohttp.web.StreamResponse()
             response.headers["Content-Type"] = "application/x-ndjson"

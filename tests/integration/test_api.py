@@ -767,6 +767,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": [],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -776,6 +777,7 @@ class TestBakeApi:
             assert payload["batch"] == "test-batch"
             assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
             assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == []
             assert "id" in payload
             assert "created_at" in payload
 
@@ -794,6 +796,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": ["foo", "bar"],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -812,6 +815,7 @@ class TestBakeApi:
             assert payload["batch"] == "test-batch"
             assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
             assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == ["foo", "bar"]
             assert payload["id"] == bake_id
             assert payload["created_at"] == payload1["created_at"]
 
@@ -849,6 +853,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": [],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -874,8 +879,78 @@ class TestBakeApi:
                     "graphs": {"": {"a": [], "b": ["a"]}},
                     "params": {"p1": "v1"},
                     "created_at": payload1["created_at"],
+                    "tags": [],
                 }
             ]
+
+    async def test_list_by_tag(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+                "tags": ["tag1"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload1 = await resp.json()
+
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+                "tags": ["tag1", "tag2"],
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload2 = await resp.json()
+
+        bake1_id = payload1["id"]
+        bake2_id = payload2["id"]
+
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            params={"project_id": project.id, "tags": ["tag1"]},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            ids = {item["id"] for item in payload}
+            assert {bake1_id, bake2_id} == ids
+
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            params={"project_id": project.id, "tags": ["tag2"]},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            ids = {item["id"] for item in payload}
+            assert {bake2_id} == ids
+
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            params={"project_id": project.id, "tags": ["tag1", "tag2"]},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            ids = {item["id"] for item in payload}
+            assert {bake2_id} == ids
 
 
 @pytest.fixture()
@@ -894,6 +969,7 @@ def bake_factory(
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": ["tag"],
             },
             headers=user.headers,
         ) as resp:

@@ -107,6 +107,7 @@ class MockDataHelper:
             created_at=datetime.now(timezone.utc),
             graphs={},
             params=None,
+            tags=(),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
@@ -350,10 +351,11 @@ class TestBakeStorage:
         res = await storage.get(created.id)
         assert self.compare_data(res, created)
         assert res.id == created.id
-        updated = replace(res, batch="another_batch")
+        updated = replace(res, batch="another_batch", tags=("foo", "bar"))
         await storage.update(updated)
-        project = await storage.get(res.id)
-        assert project.batch == updated.batch
+        bake = await storage.get(res.id)
+        assert bake.batch == updated.batch
+        assert bake.tags == updated.tags
 
     async def test_get_not_exists(self, storage: BakeStorage) -> None:
         with pytest.raises(NotExistsError):
@@ -378,6 +380,34 @@ class TestBakeStorage:
             found.append(item.batch)
         assert len(found) == 5
         assert set(found) == {f"batch-id-{index}" for index in range(5)}
+
+    async def test_list_by_tags(self, storage: BakeStorage) -> None:
+        for tag in range(5):
+            data = await self.helper.gen_bake_data(tags=(f"tag-{tag}",))
+            await storage.create(data)
+
+        data = await self.helper.gen_bake_data(tags=("tag-1", "tag-2"))
+        await storage.create(data)
+
+        found = []
+        async for item in storage.list(tags={"tag-1"}):
+            found.append(item.batch)
+        assert len(found) == 2
+
+        found = []
+        async for item in storage.list(tags={"tag-2"}):
+            found.append(item.batch)
+        assert len(found) == 2
+
+        found = []
+        async for item in storage.list(tags={"tag-3"}):
+            found.append(item.batch)
+        assert len(found) == 1
+
+        found = []
+        async for item in storage.list(tags={"tag-1", "tag-2"}):
+            found.append(item.batch)
+        assert len(found) == 1
 
 
 class TestAttemptStorage:

@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, AsyncIterator, Callable, Dict, Optional, TypeVar
+from typing import AbstractSet, Any, AsyncIterator, Callable, Dict, Optional, TypeVar
 
 import asyncpgsa
 import sqlalchemy as sa
@@ -106,6 +106,7 @@ class FlowTables:
             sa.Column(
                 "created_at", sapg.TIMESTAMP(timezone=True, precision=6), nullable=False
             ),
+            sa.Column("tags", sapg.JSONB(), nullable=True),
             sa.Column("payload", sapg.JSONB(), nullable=False),
         )
         config_files_table = sa.Table(
@@ -378,6 +379,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             "project_id": payload.pop("project_id"),
             "batch": payload.pop("batch"),
             "created_at": payload.pop("created_at"),
+            "tags": payload.pop("tags"),
             "payload": payload,
         }
 
@@ -387,6 +389,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["project_id"] = record["project_id"]
         payload["batch"] = record["batch"]
         payload["created_at"] = record["created_at"]
+        payload["tags"] = json.loads(record["tags"])
         graphs = {}
         for key, subgraph in payload["graphs"].items():
             subgr = {}
@@ -399,10 +402,13 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     async def list(
         self,
         project_id: Optional[str] = None,
+        tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
         query = self._table.select()
         if project_id is not None:
             query = query.where(self._table.c.project_id == project_id)
+        if tags:
+            query = query.where(self._table.c.tags.contains(list(tags)))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):
                 yield self._from_record(record)

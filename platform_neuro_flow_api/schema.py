@@ -30,7 +30,14 @@ def query_schema(**kwargs: fields.Field) -> Callable[[F], F]:
         @querystring_schema(schema)
         @functools.wraps(handler)
         async def _wrapped(self: Any, request: aiohttp.web.Request) -> Any:
-            validated = schema.load(request.query)
+            query_data = {
+                key: request.query.getall(key)
+                if len(request.query.getall(key)) > 1
+                or isinstance(schema.fields.get(key), fields.List)
+                else request.query[key]
+                for key in request.query.keys()
+            }
+            validated = schema.load(query_data)
             return await handler(self, request, **validated)
 
         return _wrapped
@@ -91,6 +98,7 @@ class BakeSchema(Schema):
         required=True,
     )
     params = fields.Dict(keys=fields.String(), values=fields.String())
+    tags = fields.List(fields.String(), required=True)
 
     @post_load
     def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeData:
