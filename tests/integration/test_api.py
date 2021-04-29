@@ -1276,7 +1276,7 @@ class TestTaskApi:
             json={
                 "yaml_id": "a",
                 "attempt_id": attempt.id,
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
@@ -1287,7 +1287,7 @@ class TestTaskApi:
             payload = await resp.json()
             assert payload["yaml_id"] == "a"
             assert payload["attempt_id"] == attempt.id
-            assert payload["raw_id"] is None
+            assert payload["raw_id"] == ""
             assert payload["outputs"] == {}
             assert payload["state"] == {}
             assert payload["statuses"] == []
@@ -1306,7 +1306,7 @@ class TestTaskApi:
             json={
                 "yaml_id": "a",
                 "attempt_id": attempt.id,
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
@@ -1331,7 +1331,7 @@ class TestTaskApi:
                     "id": task_id,
                     "attempt_id": attempt.id,
                     "yaml_id": "a",
-                    "raw_id": None,
+                    "raw_id": "",
                     "outputs": {},
                     "state": {},
                     "statuses": [],
@@ -1351,7 +1351,7 @@ class TestTaskApi:
             json={
                 "yaml_id": "a",
                 "attempt_id": attempt.id,
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
@@ -1372,7 +1372,7 @@ class TestTaskApi:
                 "id": task_id,
                 "attempt_id": attempt.id,
                 "yaml_id": "a",
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
@@ -1391,7 +1391,7 @@ class TestTaskApi:
             json={
                 "yaml_id": "a",
                 "attempt_id": attempt.id,
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
@@ -1416,7 +1416,7 @@ class TestTaskApi:
                 "id": task_id,
                 "attempt_id": attempt.id,
                 "yaml_id": "a",
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
@@ -1435,7 +1435,7 @@ class TestTaskApi:
             json={
                 "yaml_id": "a",
                 "attempt_id": attempt.id,
-                "raw_id": None,
+                "raw_id": "",
                 "outputs": {},
                 "state": {},
                 "statuses": [],
