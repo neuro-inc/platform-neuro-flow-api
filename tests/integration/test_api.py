@@ -1576,7 +1576,7 @@ class TestCacheEntryApi:
             created_at = datetime.fromisoformat(payload["created_at"])
             assert created_at
 
-    async def test_create_duplicate_fail(
+    async def test_create_duplicate_ok(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
@@ -1591,12 +1591,17 @@ class TestCacheEntryApi:
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
+        payload2 = dict(request_payload)
+        payload2["outputs"] = {"bazz": "egg"}
         async with client.post(
             url=neuro_flow_api.cache_entries_url,
-            json=request_payload,
+            json=payload2,
             headers=regular_user.headers,
         ) as resp:
-            assert resp.status == HTTPConflict.status_code, await resp.text()
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload3 = await resp.json()
+            assert payload3["state"] == request_payload["state"]
+            assert payload3["outputs"] == payload2["outputs"]
 
     async def test_no_project_fail(
         self,

@@ -934,10 +934,6 @@ class CacheEntryApiHandler:
                 "description": "Cache entry created",
                 "schema": CacheEntrySchema(),
             },
-            HTTPConflict.status_code: {
-                "description": "Cache entry with such key exists",
-                "schema": ClientErrorSchema(),
-            },
         },
     )
     @request_schema(CacheEntrySchema())
@@ -950,17 +946,20 @@ class CacheEntryApiHandler:
         data = schema.load(await request.json())
         await self._check_project(username, data.project_id)
         try:
-            live_job = await self.storage.cache_entries.create(data)
+            cache_entry = await self.storage.cache_entries.create(data)
         except ExistsError:
-            return json_response(
-                {
-                    "code": "unique",
-                    "description": "Cache entry with such key exists",
-                },
-                status=HTTPConflict.status_code,
+            old_entry = await self.storage.cache_entries.get_by_key(
+                data.project_id, data.task_id, data.batch, data.key
             )
+            cache_entry = replace(
+                old_entry,
+                created_at=data.created_at,
+                outputs=data.outputs,
+                state=data.state,
+            )
+            await self.storage.cache_entries.update(cache_entry)
         return aiohttp.web.json_response(
-            data=schema.dump(live_job), status=HTTPCreated.status_code
+            data=schema.dump(cache_entry), status=HTTPCreated.status_code
         )
 
     @docs(tags=["cache_entries"], summary="Get cache entry by id")
