@@ -136,14 +136,20 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
     async def list(
         self,
         project_id: Optional[str] = None,
+        name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
                 continue
+            if name is not None and item.name != name:
+                continue
             if not set(tags).issubset(set(item.tags)):
                 continue
             yield item
+
+    async def get_by_name(self, project_id: str, name: str) -> Bake:
+        raise NotImplementedError("Name uniqueness is not enforced for InMemoryStorage")
 
 
 class InMemoryAttemptStorage(AttemptStorage, InMemoryBaseStorage[AttemptData, Attempt]):

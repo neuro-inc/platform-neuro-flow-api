@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 from asyncpg import Pool
 
@@ -6,9 +8,12 @@ from platform_neuro_flow_api.storage.base import (
     BakeStorage,
     CacheEntryStorage,
     ConfigFileStorage,
+    ExistsError,
     LiveJobStorage,
     ProjectStorage,
+    TaskStatus,
     TaskStorage,
+    UniquenessError,
 )
 from platform_neuro_flow_api.storage.postgres import PostgresStorage
 from tests.unit.test_in_memory_storage import (
@@ -77,6 +82,81 @@ class TestPostgresBakeStorage(_TestBakeStorage):
         postgres_storage: PostgresStorage,
     ) -> BakeStorage:
         return postgres_storage.bakes
+
+    async def test_get_by_name_simple(self, storage: BakeStorage) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        result_create = await storage.create(data)
+        result_get = await storage.get_by_name(data.project_id, "test")
+        assert result_create == result_get
+
+    async def test_get_by_name_all_finished(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        bake1 = await postgres_storage.bakes.create(data)
+        attempt = await self.helper.gen_attempt_data(
+            bake_id=bake1.id, result=TaskStatus.SUCCEEDED
+        )
+        await postgres_storage.attempts.create(attempt)
+        data2 = await self.helper.gen_bake_data(project_id=data.project_id, name="test")
+        bake2 = await postgres_storage.bakes.create(data2)
+        attempt = await self.helper.gen_attempt_data(
+            bake_id=bake2.id, result=TaskStatus.SUCCEEDED
+        )
+        await postgres_storage.attempts.create(attempt)
+        result_get = await postgres_storage.bakes.get_by_name(data.project_id, "test")
+        assert bake2 == result_get
+
+    async def test_get_by_name_multiple_attempts(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        bake1 = await postgres_storage.bakes.create(data)
+        attempt = await self.helper.gen_attempt_data(
+            bake_id=bake1.id, result=TaskStatus.SUCCEEDED
+        )
+        await postgres_storage.attempts.create(attempt)
+        data2 = await self.helper.gen_bake_data(project_id=data.project_id, name="test")
+        bake2 = await postgres_storage.bakes.create(data2)
+        result_get = await postgres_storage.bakes.get_by_name(data.project_id, "test")
+        assert bake2 == result_get
+
+    async def test_no_duplicate_names_if_no_attempts(
+        self, storage: BakeStorage
+    ) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        await storage.create(data)
+        with pytest.raises(ExistsError):
+            await storage.create(data)
+
+    async def test_duplicate_names_if_status_completed(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        bake1 = await postgres_storage.bakes.create(data)
+        attempt = await self.helper.gen_attempt_data(
+            bake_id=bake1.id, result=TaskStatus.SUCCEEDED
+        )
+        await postgres_storage.attempts.create(attempt)
+        await postgres_storage.bakes.create(data)
+
+    async def test_cannot_add_attempt_if_name_conflict(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        bake1 = await postgres_storage.bakes.create(data)
+        attempt_data = await self.helper.gen_attempt_data(
+            number=1, bake_id=bake1.id, result=TaskStatus.SUCCEEDED
+        )
+        attempt = await postgres_storage.attempts.create(attempt_data)
+        await postgres_storage.bakes.create(data)
+
+        attempt = replace(attempt, result=TaskStatus.PENDING)
+        attempt_data_2 = replace(attempt_data, number=2, result=TaskStatus.PENDING)
+        with pytest.raises(UniquenessError):
+            await postgres_storage.attempts.create(attempt_data_2)
+        with pytest.raises(UniquenessError):
+            await postgres_storage.attempts.update(attempt)
 
 
 class TestPostgresAttemptStorage(_TestAttemptStorage):

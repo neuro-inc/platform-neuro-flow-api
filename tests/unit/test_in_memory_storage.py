@@ -108,6 +108,7 @@ class MockDataHelper:
             graphs={},
             params=None,
             tags=(),
+            name=secrets.token_hex(8),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
@@ -408,6 +409,29 @@ class TestBakeStorage:
         async for item in storage.list(tags={"tag-1", "tag-2"}):
             found.append(item.batch)
         assert len(found) == 1
+
+    async def test_list_by_name(self, storage: BakeStorage) -> None:
+        for name_id in range(5):
+            data = await self.helper.gen_bake_data(name=f"name-{name_id}")
+            await storage.create(data)
+
+        data = await self.helper.gen_bake_data(name="name-1")
+        await storage.create(data)
+
+        found = []
+        async for item in storage.list(name="name-1"):
+            found.append(item.batch)
+        assert len(found) == 2
+
+        found = []
+        async for item in storage.list(name="name-3"):
+            found.append(item.batch)
+        assert len(found) == 1
+
+        found = []
+        async for item in storage.list(name="unknown"):
+            found.append(item.batch)
+        assert len(found) == 0
 
 
 class TestAttemptStorage:

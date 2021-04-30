@@ -36,6 +36,10 @@ class ExistsError(StorageError):
     pass
 
 
+class UniquenessError(StorageError):
+    pass
+
+
 FullID = Tuple[str, ...]
 
 
@@ -100,6 +104,7 @@ class BakeData:
     # prefix -> { id -> deps }
     graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
     params: Optional[Mapping[str, str]] = None
+    name: Optional[str] = None
     tags: Sequence[str] = ()
 
     def __post_init__(self) -> None:
@@ -253,8 +258,13 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
     def list(
         self,
         project_id: Optional[str] = None,
+        name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
     ) -> AsyncIterator[Bake]:
+        pass
+
+    @abstractmethod
+    async def get_by_name(self, project_id: str, name: str) -> Bake:
         pass
 
 
