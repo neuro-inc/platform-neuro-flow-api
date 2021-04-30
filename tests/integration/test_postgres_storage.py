@@ -89,6 +89,24 @@ class TestPostgresBakeStorage(_TestBakeStorage):
         result_get = await storage.get_by_name(data.project_id, "test")
         assert result_create == result_get
 
+    async def test_get_by_name_all_finished(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        data = await self.helper.gen_bake_data(name="test")
+        bake1 = await postgres_storage.bakes.create(data)
+        attempt = await self.helper.gen_attempt_data(
+            bake_id=bake1.id, result=TaskStatus.SUCCEEDED
+        )
+        await postgres_storage.attempts.create(attempt)
+        data2 = await self.helper.gen_bake_data(project_id=data.project_id, name="test")
+        bake2 = await postgres_storage.bakes.create(data2)
+        attempt = await self.helper.gen_attempt_data(
+            bake_id=bake2.id, result=TaskStatus.SUCCEEDED
+        )
+        await postgres_storage.attempts.create(attempt)
+        result_get = await postgres_storage.bakes.get_by_name(data.project_id, "test")
+        assert bake2 == result_get
+
     async def test_get_by_name_multiple_attempts(
         self, postgres_storage: PostgresStorage
     ) -> None:
@@ -98,7 +116,8 @@ class TestPostgresBakeStorage(_TestBakeStorage):
             bake_id=bake1.id, result=TaskStatus.SUCCEEDED
         )
         await postgres_storage.attempts.create(attempt)
-        bake2 = await postgres_storage.bakes.create(data)
+        data2 = await self.helper.gen_bake_data(project_id=data.project_id, name="test")
+        bake2 = await postgres_storage.bakes.create(data2)
         result_get = await postgres_storage.bakes.get_by_name(data.project_id, "test")
         assert bake2 == result_get
 

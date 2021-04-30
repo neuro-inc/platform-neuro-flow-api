@@ -436,14 +436,8 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             self._table.select()
             .where(self._table.c.project_id == project_id)
             .where(self._table.c.name == name)
-            .where(
-                self._table.c.status.in_(
-                    [
-                        TaskStatus.PENDING,
-                        TaskStatus.RUNNING,
-                    ]
-                )
-            )
+            .order_by(self._table.c.created_at.desc())
+            .limit(1)
         )
         record = await self._fetchrow(query)
         if not record:
