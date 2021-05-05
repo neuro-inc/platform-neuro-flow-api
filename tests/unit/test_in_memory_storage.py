@@ -122,6 +122,7 @@ class MockDataHelper:
             number=secrets.randbits(20),
             created_at=datetime.now(timezone.utc),
             result=TaskStatus.PENDING,
+            executor_id=secrets.token_hex(8),
             configs_meta=ConfigsMeta(
                 workspace=secrets.token_hex(8),
                 flow_config_id=secrets.token_hex(8),

@@ -150,6 +150,7 @@ class AttemptSchema(Schema):
     created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
     result = TaskStatusField(required=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
+    executor_id = fields.String(required=True, allow_none=True)
 
     @post_load
     def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> AttemptData:

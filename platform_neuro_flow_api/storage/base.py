@@ -144,10 +144,11 @@ class AttemptData:
     created_at: datetime.datetime
     result: TaskStatus
     configs_meta: ConfigsMeta
+    executor_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class Attempt(HasId, AttemptData):
+class Attempt(AttemptData, HasId):
     pass
 
 

@@ -566,13 +566,13 @@ class AttemptApiHandler:
             },
         },
     )
-    @request_schema(AttemptSchema())
+    @request_schema(AttemptSchema(partial=["executor_id"]))
     async def create(
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        schema = AttemptSchema()
+        schema = AttemptSchema(partial=["executor_id"])
         attempt_data = schema.load(await request.json())
         bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
@@ -641,21 +641,23 @@ class AttemptApiHandler:
             },
         },
     )
-    @request_schema(AttemptSchema())
+    @request_schema(AttemptSchema(partial=["executor_id"]))
     @response_schema(AttemptSchema(), HTTPOk.status_code)
     async def replace(
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        schema = AttemptSchema()
+        schema = AttemptSchema(partial=["executor_id"])
         attempt_data = schema.load(await request.json())
         attempt = await self.storage.attempts.get_by_number(
             attempt_data.bake_id, attempt_data.number
         )
         bake = await self._get_bake(attempt_data.bake_id)
         await self._check_project(username, bake.project_id)
-        new_attempt = replace(attempt, result=attempt_data.result)
+        new_attempt = replace(
+            attempt, result=attempt_data.result, executor_id=attempt_data.executor_id
+        )
         await self.storage.attempts.update(new_attempt)
         return aiohttp.web.json_response(
             data=schema.dump(attempt_data), status=HTTPOk.status_code
