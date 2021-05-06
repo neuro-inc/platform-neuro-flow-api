@@ -91,7 +91,9 @@ class BakeSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     project_id = fields.String(required=True)
     batch = fields.String(required=True)
-    created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
+    created_at = fields.AwareDateTime(
+        default=lambda: datetime.now(timezone.utc)
+    )  # when
     graphs = fields.Dict(
         keys=FullIDField(),
         values=fields.Dict(keys=FullIDField(), values=fields.List(FullIDField())),
@@ -102,7 +104,7 @@ class BakeSchema(Schema):
 
     @post_load
     def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeData:
-        return BakeData(created_at=datetime.now(timezone.utc), **data)
+        return BakeData(**data)
 
 
 class ConfigFileSchema(Schema):
@@ -146,13 +148,15 @@ class AttemptSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     bake_id = fields.String(required=True)
     number = fields.Integer(required=True, strict=True)
-    created_at = fields.AwareDateTime(required=True, dump_only=True)  # when
+    created_at = fields.AwareDateTime(
+        default=lambda: datetime.now(timezone.utc)
+    )  # when
     result = TaskStatusField(required=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
 
     @post_load
     def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> AttemptData:
-        return AttemptData(created_at=datetime.now(timezone.utc), **data)
+        return AttemptData(**data)
 
 
 class TaskStatusItemSchema(Schema):
@@ -194,7 +198,7 @@ class CacheEntrySchema(Schema):
     task_id = FullIDField(required=True)
     batch = fields.String(required=True)
     key = fields.String(required=True)
-    created_at = fields.AwareDateTime(required=True, dump_only=True)
+    created_at = fields.AwareDateTime(default=lambda: datetime.now(timezone.utc))
     outputs = fields.Dict(values=fields.String(), required=True)
     state = fields.Dict(values=fields.String(), required=True)
 
@@ -202,7 +206,7 @@ class CacheEntrySchema(Schema):
     def make_cache_entry_data(
         self, data: Dict[str, Any], **kwargs: Any
     ) -> CacheEntryData:
-        return CacheEntryData(created_at=datetime.now(timezone.utc), **data)
+        return CacheEntryData(**data)
 
 
 class ClientErrorSchema(Schema):
