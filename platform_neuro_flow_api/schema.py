@@ -92,7 +92,7 @@ class BakeSchema(Schema):
     project_id = fields.String(required=True)
     batch = fields.String(required=True)
     created_at = fields.AwareDateTime(
-        default=lambda: datetime.now(timezone.utc)
+        missing=lambda: datetime.now(timezone.utc)
     )  # when
     graphs = fields.Dict(
         keys=FullIDField(),
@@ -149,7 +149,7 @@ class AttemptSchema(Schema):
     bake_id = fields.String(required=True)
     number = fields.Integer(required=True, strict=True)
     created_at = fields.AwareDateTime(
-        default=lambda: datetime.now(timezone.utc)
+        missing=lambda: datetime.now(timezone.utc)
     )  # when
     result = TaskStatusField(required=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
@@ -198,7 +198,7 @@ class CacheEntrySchema(Schema):
     task_id = FullIDField(required=True)
     batch = fields.String(required=True)
     key = fields.String(required=True)
-    created_at = fields.AwareDateTime(default=lambda: datetime.now(timezone.utc))
+    created_at = fields.AwareDateTime(missing=lambda: datetime.now(timezone.utc))
     outputs = fields.Dict(values=fields.String(), required=True)
     state = fields.Dict(values=fields.String(), required=True)
 
