@@ -1058,7 +1058,7 @@ class CacheEntryApiHandler:
         await self.storage.cache_entries.delete_all(
             project_id=project_id,
             batch=batch,
-            task_id=tuple(task_id.split("")) if task_id else None,
+            task_id=tuple(task_id.split(".")) if task_id else None,
         )
         return aiohttp.web.Response(status=HTTPNoContent.status_code)
 
