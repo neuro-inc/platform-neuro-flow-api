@@ -1761,7 +1761,7 @@ class TestCacheEntryApi:
             url=neuro_flow_api.cache_entries_url,
             params={"project_id": project1.id},
             headers=regular_user.headers,
-        ) as resp:
+        ):
             pass
         async with client.get(
             url=neuro_flow_api.cache_entry_url(project_to_entry_id[project1.id]),
@@ -1771,6 +1771,43 @@ class TestCacheEntryApi:
 
         async with client.get(
             url=neuro_flow_api.cache_entry_url(project_to_entry_id[project2.id]),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+
+    async def test_delete_single_task(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        entries = []
+        for index in range(2):
+            request_payload = self.make_payload(project.id)
+            request_payload["task_id"] = f"test.task{index}"
+            async with client.post(
+                url=neuro_flow_api.cache_entries_url,
+                json=request_payload,
+                headers=regular_user.headers,
+            ) as resp:
+                assert resp.status == HTTPCreated.status_code, await resp.text()
+                entries.append(await resp.json())
+        async with client.delete(
+            url=neuro_flow_api.cache_entries_url,
+            params={"project_id": project.id, "task_id": entries[0]["task_id"]},
+            headers=regular_user.headers,
+        ):
+            pass
+        async with client.get(
+            url=neuro_flow_api.cache_entry_url(entries[0]["id"]),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+
+        async with client.get(
+            url=neuro_flow_api.cache_entry_url(entries[1]["id"]),
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
