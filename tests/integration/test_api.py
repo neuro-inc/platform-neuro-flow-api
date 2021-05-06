@@ -1102,6 +1102,7 @@ class TestAttemptApi:
                     "created_at": created_at,
                     "result": "pending",
                     "configs_meta": self.CONFIGS_META,
+                    "executor_id": None,
                 }
             ]
 
@@ -1141,6 +1142,7 @@ class TestAttemptApi:
                 "created_at": created_at,
                 "result": "pending",
                 "configs_meta": self.CONFIGS_META,
+                "executor_id": None,
             }
 
     async def test_get_by_number(
@@ -1158,6 +1160,7 @@ class TestAttemptApi:
                 "number": 1,
                 "result": "pending",
                 "configs_meta": self.CONFIGS_META,
+                "executor_id": "test-id",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -1183,6 +1186,7 @@ class TestAttemptApi:
                 "created_at": created_at,
                 "result": "pending",
                 "configs_meta": self.CONFIGS_META,
+                "executor_id": "test-id",
             }
 
     async def test_get_last(
@@ -1237,6 +1241,7 @@ class TestAttemptApi:
                 "created_at": created_at,
                 "result": "pending",
                 "configs_meta": self.CONFIGS_META,
+                "executor_id": None,
             }
 
     async def test_replace(
@@ -1268,6 +1273,7 @@ class TestAttemptApi:
                 "bake_id": bake.id,
                 "number": 1,
                 "result": "succeeded",
+                "executor_id": "test_id",
                 "configs_meta": self.CONFIGS_META,
             },
             headers=regular_user.headers,
@@ -1287,6 +1293,7 @@ class TestAttemptApi:
                 "created_at": created_at,
                 "result": "succeeded",
                 "configs_meta": self.CONFIGS_META,
+                "executor_id": "test_id",
             }
 
 
