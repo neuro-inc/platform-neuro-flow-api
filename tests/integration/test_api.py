@@ -1,3 +1,4 @@
+import asyncio
 import secrets
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -378,6 +379,44 @@ class TestProjectsApi:
                 assert item["cluster"] == "test-cluster"
                 names.add(item["name"])
             assert names == {f"test-{index}" for index in range(5)}
+
+    async def test_projects_list_unclosed_connection(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        for index in range(200):
+            async with client.post(
+                url=neuro_flow_api.projects_url,
+                json={
+                    "name": f"test-{index}" + secrets.token_hex(200),
+                    "cluster": "test-cluster",
+                },
+                headers=regular_user.headers,
+            ) as resp:
+                assert resp.status == HTTPCreated.status_code, await resp.text()
+
+        async def _list_partial() -> None:
+            async with client.get(
+                url=neuro_flow_api.projects_url,
+                headers={
+                    **regular_user.headers,
+                    "Accept": "application/x-ndjson",
+                },
+            ) as resp:
+                assert resp.status == HTTPOk.status_code, await resp.text()
+                cnt = 0
+                async for _ in resp.content:
+                    if cnt:
+                        await asyncio.sleep(0.01)
+                        break
+                    cnt += 1
+            await asyncio.sleep(0.01)
+
+        for _ in range(50):
+            # Should not lock connection and block processing
+            await asyncio.wait_for(_list_partial(), timeout=0.5)
 
     async def test_projects_list_only_owned(
         self,

@@ -49,7 +49,7 @@ from .schema import (
 )
 from .storage.base import Attempt, Bake, ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
-from .utils import ndjson_error_handler
+from .utils import auto_close, ndjson_error_handler
 
 
 logger = logging.getLogger(__name__)
@@ -111,22 +111,23 @@ class ProjectsApiHandler:
         projects = self.storage.projects.list(
             owner=username, name=name, cluster=cluster
         )
-        if accepts_ndjson(request):
-            response = aiohttp.web.StreamResponse()
-            response.headers["Content-Type"] = "application/x-ndjson"
-            await response.prepare(request)
-            async with ndjson_error_handler(request, response):
-                async for project in projects:
-                    payload_line = ProjectSchema().dumps(project)
-                    await response.write(payload_line.encode() + b"\n")
-            return response
-        else:
-            response_payload = [
-                ProjectSchema().dump(project) async for project in projects
-            ]
-            return aiohttp.web.json_response(
-                data=response_payload, status=HTTPOk.status_code
-            )
+        async with auto_close(projects):
+            if accepts_ndjson(request):
+                response = aiohttp.web.StreamResponse()
+                response.headers["Content-Type"] = "application/x-ndjson"
+                await response.prepare(request)
+                async with ndjson_error_handler(request, response):
+                    async for project in projects:
+                        payload_line = ProjectSchema().dumps(project)
+                        await response.write(payload_line.encode() + b"\n")
+                return response
+            else:
+                response_payload = [
+                    ProjectSchema().dump(project) async for project in projects
+                ]
+                return aiohttp.web.json_response(
+                    data=response_payload, status=HTTPOk.status_code
+                )
 
     @docs(
         tags=["projects"],
@@ -237,22 +238,23 @@ class LiveJobApiHandler:
         username = await check_authorized(request)
         await self._check_project(username, project_id)
         live_jobs = self.storage.live_jobs.list(project_id=project_id)
-        if accepts_ndjson(request):
-            response = aiohttp.web.StreamResponse()
-            response.headers["Content-Type"] = "application/x-ndjson"
-            await response.prepare(request)
-            async with ndjson_error_handler(request, response):
-                async for live_job in live_jobs:
-                    payload_line = LiveJobSchema().dumps(live_job)
-                    await response.write(payload_line.encode() + b"\n")
-            return response
-        else:
-            response_payload = [
-                LiveJobSchema().dump(live_job) async for live_job in live_jobs
-            ]
-            return aiohttp.web.json_response(
-                data=response_payload, status=HTTPOk.status_code
-            )
+        async with auto_close(live_jobs):
+            if accepts_ndjson(request):
+                response = aiohttp.web.StreamResponse()
+                response.headers["Content-Type"] = "application/x-ndjson"
+                await response.prepare(request)
+                async with ndjson_error_handler(request, response):
+                    async for live_job in live_jobs:
+                        payload_line = LiveJobSchema().dumps(live_job)
+                        await response.write(payload_line.encode() + b"\n")
+                return response
+            else:
+                response_payload = [
+                    LiveJobSchema().dump(live_job) async for live_job in live_jobs
+                ]
+                return aiohttp.web.json_response(
+                    data=response_payload, status=HTTPOk.status_code
+                )
 
     @docs(
         tags=["live_jobs"],
@@ -398,7 +400,7 @@ class BakeApiHandler:
         bakes = self.storage.bakes.list(
             project_id=project_id, name=name, tags=set(tags)
         )
-        try:
+        async with auto_close(bakes):
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -413,8 +415,6 @@ class BakeApiHandler:
                 return aiohttp.web.json_response(
                     data=response_payload, status=HTTPOk.status_code
                 )
-        finally:
-            del bakes
 
     @docs(
         tags=["bakes"],
@@ -538,22 +538,23 @@ class AttemptApiHandler:
         bake = await self._get_bake(bake_id)
         await self._check_project(username, bake.project_id)
         attempts = self.storage.attempts.list(bake_id=bake_id)
-        if accepts_ndjson(request):
-            response = aiohttp.web.StreamResponse()
-            response.headers["Content-Type"] = "application/x-ndjson"
-            await response.prepare(request)
-            async with ndjson_error_handler(request, response):
-                async for attempt in attempts:
-                    payload_line = AttemptSchema().dumps(bake)
-                    await response.write(payload_line.encode() + b"\n")
-            return response
-        else:
-            response_payload = [
-                AttemptSchema().dump(attempt) async for attempt in attempts
-            ]
-            return aiohttp.web.json_response(
-                data=response_payload, status=HTTPOk.status_code
-            )
+        async with auto_close(attempts):
+            if accepts_ndjson(request):
+                response = aiohttp.web.StreamResponse()
+                response.headers["Content-Type"] = "application/x-ndjson"
+                await response.prepare(request)
+                async with ndjson_error_handler(request, response):
+                    async for attempt in attempts:
+                        payload_line = AttemptSchema().dumps(bake)
+                        await response.write(payload_line.encode() + b"\n")
+                return response
+            else:
+                response_payload = [
+                    AttemptSchema().dump(attempt) async for attempt in attempts
+                ]
+                return aiohttp.web.json_response(
+                    data=response_payload, status=HTTPOk.status_code
+                )
 
     @docs(
         tags=["attempts"],
@@ -720,20 +721,21 @@ class TaskApiHandler:
         bake = await self._get_bake(attempt.bake_id)
         await self._check_project(username, bake.project_id)
         tasks = self.storage.tasks.list(attempt_id=attempt_id)
-        if accepts_ndjson(request):
-            response = aiohttp.web.StreamResponse()
-            response.headers["Content-Type"] = "application/x-ndjson"
-            await response.prepare(request)
-            async with ndjson_error_handler(request, response):
-                async for task in tasks:
-                    payload_line = TaskSchema().dumps(task)
-                    await response.write(payload_line.encode() + b"\n")
-            return response
-        else:
-            response_payload = [TaskSchema().dump(task) async for task in tasks]
-            return aiohttp.web.json_response(
-                data=response_payload, status=HTTPOk.status_code
-            )
+        async with auto_close(tasks):
+            if accepts_ndjson(request):
+                response = aiohttp.web.StreamResponse()
+                response.headers["Content-Type"] = "application/x-ndjson"
+                await response.prepare(request)
+                async with ndjson_error_handler(request, response):
+                    async for task in tasks:
+                        payload_line = TaskSchema().dumps(task)
+                        await response.write(payload_line.encode() + b"\n")
+                return response
+            else:
+                response_payload = [TaskSchema().dump(task) async for task in tasks]
+                return aiohttp.web.json_response(
+                    data=response_payload, status=HTTPOk.status_code
+                )
 
     @docs(
         tags=["tasks"],

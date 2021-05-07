@@ -1,8 +1,8 @@
 import asyncio
 import json
 import logging
-from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from contextlib import asynccontextmanager, suppress
+from typing import AsyncGenerator, AsyncIterator, TypeVar
 
 import aiohttp.web
 
@@ -24,3 +24,18 @@ async def ndjson_error_handler(
         logging.exception(msg_str)
         payload = {"error": msg_str}
         await response.write(json.dumps(payload).encode())
+
+
+T_co = TypeVar("T_co", covariant=True)
+T_contra = TypeVar("T_contra", contravariant=True)
+
+
+@asynccontextmanager
+async def auto_close(
+    gen: AsyncGenerator[T_co, T_contra]
+) -> AsyncIterator[AsyncGenerator[T_co, T_contra]]:
+    try:
+        yield gen
+    finally:
+        with suppress(StopIteration):
+            await gen.aclose()
