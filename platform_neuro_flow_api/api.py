@@ -398,20 +398,23 @@ class BakeApiHandler:
         bakes = self.storage.bakes.list(
             project_id=project_id, name=name, tags=set(tags)
         )
-        if accepts_ndjson(request):
-            response = aiohttp.web.StreamResponse()
-            response.headers["Content-Type"] = "application/x-ndjson"
-            await response.prepare(request)
-            async with ndjson_error_handler(request, response):
-                async for bake in bakes:
-                    payload_line = BakeSchema().dumps(bake)
-                    await response.write(payload_line.encode() + b"\n")
-            return response
-        else:
-            response_payload = [BakeSchema().dump(bake) async for bake in bakes]
-            return aiohttp.web.json_response(
-                data=response_payload, status=HTTPOk.status_code
-            )
+        try:
+            if accepts_ndjson(request):
+                response = aiohttp.web.StreamResponse()
+                response.headers["Content-Type"] = "application/x-ndjson"
+                await response.prepare(request)
+                async with ndjson_error_handler(request, response):
+                    async for bake in bakes:
+                        payload_line = BakeSchema().dumps(bake)
+                        await response.write(payload_line.encode() + b"\n")
+                return response
+            else:
+                response_payload = [BakeSchema().dump(bake) async for bake in bakes]
+                return aiohttp.web.json_response(
+                    data=response_payload, status=HTTPOk.status_code
+                )
+        finally:
+            del bakes
 
     @docs(
         tags=["bakes"],
