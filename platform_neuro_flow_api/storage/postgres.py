@@ -13,6 +13,7 @@ from asyncpg import Connection, UniqueViolationError
 from asyncpg.cursor import CursorFactory
 from asyncpg.pool import Pool
 from asyncpg.protocol.protocol import Record
+from platform_logging import trace
 
 from .base import (
     Attempt,
@@ -231,6 +232,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
     async def after_update(self, data: _E, conn: Connection) -> None:
         pass
 
+    @trace
     async def insert(self, data: _E) -> None:
         values = self._to_values(data)
         query = self._table.insert().values(values)
@@ -241,11 +243,13 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
                 raise ExistsError
             await self.after_insert(data, conn)
 
+    @trace
     async def create(self, data: _D) -> _E:
         entry = self._make_entry(self._gen_id(), data)
         await self.insert(entry)
         return entry
 
+    @trace
     async def update(self, data: _E) -> None:
         values = self._to_values(data)
         id = values.pop("id")
@@ -263,6 +267,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
                 raise NotExistsError
             await self.after_update(data, conn)
 
+    @trace
     async def get(self, id: str) -> _E:
         query = self._table.select(self._table.c.id == id)
         record = await self._fetchrow(query)
@@ -290,6 +295,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         payload["cluster"] = record["cluster"]
         return Project(**payload)
 
+    @trace
     async def get_by_name(self, name: str, owner: str, cluster: str) -> Project:
         query = (
             self._table.select()
@@ -341,6 +347,7 @@ class PostgresLiveJobsStorage(
         payload["tags"] = json.loads(record["tags"])
         return LiveJob(**payload)
 
+    @trace
     async def get_by_yaml_id(self, yaml_id: str, project_id: str) -> LiveJob:
         query = (
             self._table.select()
@@ -352,6 +359,7 @@ class PostgresLiveJobsStorage(
             raise NotExistsError
         return self._from_record(record)
 
+    @trace
     async def update_or_create(self, data: LiveJobData) -> LiveJob:
         try:
             job = await self.get_by_yaml_id(data.yaml_id, data.project_id)
@@ -431,6 +439,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             async for record in self._cursor(query, conn=conn):
                 yield self._from_record(record)
 
+    @trace
     async def get_by_name(self, project_id: str, name: str) -> Bake:
         query = (
             self._table.select()
@@ -506,6 +515,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
                     "There can be only one running bake with given name"
                 )
 
+    @trace
     async def get_by_number(self, bake_id: str, number: int) -> Attempt:
         if number == -1:
             query = (
@@ -568,6 +578,7 @@ class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
         ]
         return Task(**payload)
 
+    @trace
     async def get_by_yaml_id(self, yaml_id: FullID, attempt_id: str) -> Task:
         query = (
             self._table.select()
@@ -616,6 +627,7 @@ class PostgresCacheEntryStorage(
         payload["created_at"] = record["created_at"]
         return CacheEntry(**payload)
 
+    @trace
     async def get_by_key(
         self, project_id: str, task_id: FullID, batch: str, key: str
     ) -> CacheEntry:
@@ -631,6 +643,7 @@ class PostgresCacheEntryStorage(
             raise NotExistsError
         return self._from_record(record)
 
+    @trace
     async def delete_all(
         self,
         project_id: Optional[str] = None,

@@ -1,13 +1,12 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
-from typing import AsyncIterator, Awaitable, Callable, Optional, Sequence
+from typing import AsyncIterator, Awaitable, Callable, List, Optional, Sequence
 
 import aiohttp
 import aiohttp.web
 import aiohttp_cors
 import pkg_resources
-import sentry_sdk
 from aiohttp.web import (
     HTTPBadRequest,
     HTTPInternalServerError,
@@ -24,14 +23,19 @@ from aiohttp.web_exceptions import (
     HTTPNotFound,
     HTTPOk,
 )
+from aiohttp.web_urldispatcher import AbstractRoute
 from aiohttp_apispec import docs, request_schema, response_schema, setup_aiohttp_apispec
 from aiohttp_security import check_authorized
 from marshmallow import fields
 from neuro_auth_client import AuthClient
 from neuro_auth_client.security import AuthScheme, setup_security
-from platform_logging import init_logging
-from sentry_sdk import set_tag
-from sentry_sdk.integrations.aiohttp import AioHttpIntegration
+from platform_logging import (
+    init_logging,
+    notrace,
+    setup_sentry,
+    setup_zipkin,
+    setup_zipkin_tracer,
+)
 
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
@@ -61,17 +65,19 @@ def accepts_ndjson(request: aiohttp.web.Request) -> bool:
 
 
 class ApiHandler:
-    def register(self, app: aiohttp.web.Application) -> None:
-        app.add_routes(
+    def register(self, app: aiohttp.web.Application) -> List[AbstractRoute]:
+        return app.add_routes(
             [
                 aiohttp.web.get("/ping", self.handle_ping),
                 aiohttp.web.get("/secured-ping", self.handle_secured_ping),
             ]
         )
 
+    @notrace
     async def handle_ping(self, request: Request) -> Response:
         return Response(text="Pong")
 
+    @notrace
     async def handle_secured_ping(self, request: Request) -> Response:
         await check_authorized(request)
         return Response(text="Secured Pong")
@@ -1088,13 +1094,6 @@ async def handle_exceptions(
         return json_response(payload, status=HTTPInternalServerError.status_code)
 
 
-async def create_api_v1_app() -> aiohttp.web.Application:
-    api_v1_app = aiohttp.web.Application()
-    api_v1_handler = ApiHandler()
-    api_v1_handler.register(api_v1_app)
-    return api_v1_app
-
-
 async def create_projects_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
     handler = ProjectsApiHandler(app, config)
@@ -1211,7 +1210,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     app.cleanup_ctx.append(_init_app)
 
-    api_v1_app = await create_api_v1_app()
+    api_v1_app = aiohttp.web.Application()
+    api_v1_handler = ApiHandler()
+    probes_routes = api_v1_handler.register(api_v1_app)
     app["api_v1_app"] = api_v1_app
 
     projects_app = await create_projects_app(config)
@@ -1262,20 +1263,36 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     app.on_response_prepare.append(add_version_to_header)
 
+    if config.zipkin:
+        setup_zipkin(app, skip_routes=probes_routes)
+
     return app
+
+
+def setup_tracing(config: Config) -> None:
+    if config.zipkin:
+        setup_zipkin_tracer(
+            config.zipkin.app_name,
+            config.server.host,
+            config.server.port,
+            config.zipkin.url,
+            config.zipkin.sample_rate,
+        )
+
+    if config.sentry:
+        setup_sentry(
+            config.sentry.dsn,
+            app_name=config.sentry.app_name,
+            cluster_name=config.sentry.cluster_name,
+            sample_rate=config.sentry.sample_rate,
+        )
 
 
 def main() -> None:  # pragma: no coverage
     init_logging()
     config = EnvironConfigFactory().create()
     logging.info("Loaded config: %r", config)
-
-    if config.sentry:
-        sentry_sdk.init(dsn=config.sentry.url, integrations=[AioHttpIntegration()])
-
-        set_tag("cluster", config.sentry.cluster)
-        set_tag("app", "platformneuroflowapi")
-
+    setup_tracing(config)
     aiohttp.web.run_app(
         create_app(config), host=config.server.host, port=config.server.port
     )
