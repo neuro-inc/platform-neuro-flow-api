@@ -37,9 +37,9 @@ postgres-db-init:
 
 secrets: []
 
-sentry:
-  url:
-  cluster:
+zipkin: {}
+
+sentry: {}
 
 authUrl: http://platformauthapi:8080
 

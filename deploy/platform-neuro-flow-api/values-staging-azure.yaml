@@ -6,8 +6,9 @@ ingress:
   hosts: [staging.neu.ro]
 
 sentry:
-  url: https://007c28df2e15451baefdd022386bbb47@o489136.ingest.sentry.io/5553359
-  cluster: staging-azure
+  dsn: https://007c28df2e15451baefdd022386bbb47@o489136.ingest.sentry.io/5553359
+  clusterName: staging
+  sampleRate: 0.1
 
 platform:
   token:

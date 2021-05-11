@@ -24,9 +24,18 @@ class CORSConfig:
 
 
 @dataclass(frozen=True)
+class ZipkinConfig:
+    url: URL
+    app_name: str = "platform-neuro-flow-api"
+    sample_rate: float = 0.0
+
+
+@dataclass(frozen=True)
 class SentryConfig:
-    url: str
-    cluster: str
+    dsn: URL
+    cluster_name: str
+    app_name: str = "platform-neuro-flow-api"
+    sample_rate: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -50,5 +59,6 @@ class Config:
     platform_auth: PlatformAuthConfig
     cors: CORSConfig
     postgres: PostgresConfig
-    sentry: Optional[SentryConfig]
     enable_docs: bool = False
+    zipkin: Optional[ZipkinConfig] = None
+    sentry: Optional[SentryConfig] = None
