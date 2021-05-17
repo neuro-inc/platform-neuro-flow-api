@@ -9,9 +9,11 @@ from marshmallow import Schema, fields, post_load
 from platform_neuro_flow_api.storage.base import (
     AttemptData,
     BakeData,
+    BakeImageData,
     CacheEntryData,
     ConfigFileData,
     FullID,
+    ImageStatus,
     LiveJobData,
     ProjectData,
     TaskData,
@@ -209,6 +211,41 @@ class CacheEntrySchema(Schema):
         self, data: Dict[str, Any], **kwargs: Any
     ) -> CacheEntryData:
         return CacheEntryData(**data)
+
+
+class ImageStatusField(fields.String):
+    def _deserialize(self, *args: Any, **kwargs: Any) -> ImageStatus:
+        res: str = super()._deserialize(*args, **kwargs)
+        return ImageStatus(res)
+
+    def _serialize(
+        self, value: Optional[ImageStatus], *args: Any, **kwargs: Any
+    ) -> Optional[str]:
+        if value is None:
+            return None
+        return super()._serialize(value.value, *args, **kwargs)
+
+
+class BakeImageSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    bake_id = fields.String(required=True)
+    ref = fields.String(required=True)
+    status = ImageStatusField(required=True)
+    prefix = FullIDField(required=True)
+    yaml_id = fields.String(required=True)
+    context_on_storage = fields.String(required=True, allow_none=True)
+    dockerfile_rel = fields.String(required=True, allow_none=True)
+    builder_job_id = fields.String(required=True, allow_none=True)
+
+    @post_load
+    def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> BakeImageData:
+
+        return BakeImageData(**data)
+
+
+class BakeImagePatchSchema(Schema):
+    status = ImageStatusField(required=False, allow_none=True)
+    builder_job_id = fields.String(required=False, allow_none=True)
 
 
 class ClientErrorSchema(Schema):

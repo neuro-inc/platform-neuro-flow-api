@@ -135,6 +135,21 @@ class NeuroFlowApiEndpoints:
     def config_file_url(self, id: str) -> str:
         return f"{self.config_files_url}/{id}"
 
+    @property
+    def bake_images_url(self) -> str:
+        return f"{self.server_base_url}/api/v1/flow/bake_images"
+
+    def bake_image_url(self, id: str) -> str:
+        return f"{self.bake_images_url}/{id}"
+
+    @property
+    def bake_image_replace_url(self) -> str:
+        return f"{self.bake_images_url}/replace"
+
+    @property
+    def bake_image_by_ref(self) -> str:
+        return f"{self.bake_images_url}/by_ref"
+
 
 @pytest.fixture
 async def neuro_flow_api(config: Config) -> AsyncIterator[NeuroFlowApiEndpoints]:
@@ -1894,3 +1909,253 @@ class TestCacheEntryApi:
             headers=user2.headers,
         ) as resp:
             assert resp.status == HTTPNotFound.status_code, await resp.text()
+
+
+class TestBakeImagesApi:
+    async def test_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bake_images_url,
+            json={
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "pending",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["bake_id"] == bake.id
+            assert payload["ref"] == "image:test"
+            assert payload["prefix"] == "foo.bar"
+            assert payload["context_on_storage"] == "storage://default/user/ctx"
+            assert payload["dockerfile_rel"] == "Dockerfile"
+            assert payload["status"] == "pending"
+            assert payload["builder_job_id"] is None
+            assert "id" in payload
+
+    async def test_list(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bake_images_url,
+            json={
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "status": "pending",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            image_id = payload["id"]
+
+        async with client.get(
+            url=neuro_flow_api.bake_images_url,
+            params={
+                "bake_id": bake.id,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == [
+                {
+                    "id": image_id,
+                    "bake_id": bake.id,
+                    "ref": "image:test",
+                    "prefix": "foo.bar",
+                    "yaml_id": "test",
+                    "context_on_storage": None,
+                    "dockerfile_rel": None,
+                    "status": "pending",
+                    "builder_job_id": None,
+                }
+            ]
+
+    async def test_get(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bake_images_url,
+            json={
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "pending",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            image_id = payload["id"]
+
+        async with client.get(
+            url=neuro_flow_api.bake_image_url(image_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": image_id,
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "pending",
+                "builder_job_id": None,
+            }
+
+    async def test_get_by_ref(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bake_images_url,
+            json={
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "pending",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            image_id = payload["id"]
+
+        async with client.get(
+            url=neuro_flow_api.bake_image_by_ref,
+            params={
+                "bake_id": bake.id,
+                "ref": "image:test",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": image_id,
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "pending",
+                "builder_job_id": None,
+            }
+
+    async def test_replace(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bake_images_url,
+            json={
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "pending",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            image_id = payload["id"]
+
+        async with client.patch(
+            url=neuro_flow_api.bake_image_url(image_id),
+            json={
+                "status": "building",
+                "builder_job_id": "job-id-here",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+
+        async with client.get(
+            url=neuro_flow_api.bake_image_url(image_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": image_id,
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "building",
+                "builder_job_id": "job-id-here",
+            }
+
+        async with client.patch(
+            url=neuro_flow_api.bake_image_url(image_id),
+            json={
+                "status": "built",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+
+        async with client.get(
+            url=neuro_flow_api.bake_image_url(image_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": image_id,
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "built",
+                "builder_job_id": "job-id-here",
+            }

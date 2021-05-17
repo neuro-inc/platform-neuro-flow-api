@@ -42,6 +42,8 @@ from .config_factory import EnvironConfigFactory
 from .postgres import create_postgres_pool
 from .schema import (
     AttemptSchema,
+    BakeImagePatchSchema,
+    BakeImageSchema,
     BakeSchema,
     CacheEntrySchema,
     ClientErrorSchema,
@@ -1076,6 +1078,188 @@ class CacheEntryApiHandler:
         return aiohttp.web.Response(status=HTTPNoContent.status_code)
 
 
+class BakeImagesApiHandler:
+    def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
+        self._app = app
+        self._config = config
+
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            [
+                aiohttp.web.get("", self.list),
+                aiohttp.web.post("", self.create),
+                aiohttp.web.get("/by_ref", self.get_by_ref),
+                aiohttp.web.patch("/{id}", self.patch),
+                aiohttp.web.get("/{id}", self.get),
+            ]
+        )
+
+    @property
+    def storage(self) -> Storage:
+        return self._app["storage"]
+
+    async def _check_project(self, username: str, project_id: str) -> None:
+        try:
+            project = await self.storage.projects.get(project_id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+
+    async def _get_bake(self, bake_id: str) -> Bake:
+        try:
+            return await self.storage.bakes.get(bake_id)
+        except NotExistsError:
+            raise HTTPNotFound
+
+    @docs(tags=["bake_images"], summary="List bakes images in given bake")
+    @query_schema(bake_id=fields.String(required=True))
+    @response_schema(BakeImageSchema(many=True), HTTPOk.status_code)
+    async def list(
+        self,
+        request: aiohttp.web.Request,
+        bake_id: str,
+    ) -> aiohttp.web.StreamResponse:
+        username = await check_authorized(request)
+        bake = await self._get_bake(bake_id)
+        await self._check_project(username, bake.project_id)
+        bake_images = self.storage.bake_images.list(bake_id=bake_id)
+        async with auto_close(bake_images):
+            if accepts_ndjson(request):
+                response = aiohttp.web.StreamResponse()
+                response.headers["Content-Type"] = "application/x-ndjson"
+                await response.prepare(request)
+                async with ndjson_error_handler(request, response):
+                    async for image in bake_images:
+                        payload_line = BakeImageSchema().dumps(image)
+                        await response.write(payload_line.encode() + b"\n")
+                return response
+            else:
+                response_payload = [
+                    BakeImageSchema().dump(image) async for image in bake_images
+                ]
+                return aiohttp.web.json_response(
+                    data=response_payload, status=HTTPOk.status_code
+                )
+
+    @docs(
+        tags=["bake_images"],
+        summary="Create bake image",
+        responses={
+            HTTPCreated.status_code: {
+                "description": "Bake image created",
+                "schema": BakeImageSchema(),
+            },
+            HTTPConflict.status_code: {
+                "description": "Bake image with such bake and ref exists",
+                "schema": ClientErrorSchema(),
+            },
+        },
+    )
+    @request_schema(
+        BakeImageSchema(
+            partial=["context_on_storage", "dockerfile_rel", "builder_job_id"]
+        )
+    )
+    async def create(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        schema = BakeImageSchema(
+            partial=["context_on_storage", "dockerfile_rel", "builder_job_id"]
+        )
+        image_data = schema.load(await request.json())
+        bake = await self._get_bake(image_data.bake_id)
+        await self._check_project(username, bake.project_id)
+        try:
+            image = await self.storage.bake_images.create(image_data)
+        except ExistsError:
+            return json_response(
+                {
+                    "code": "unique",
+                    "description": "Bake image with such bake and ref exists",
+                },
+                status=HTTPConflict.status_code,
+            )
+        return aiohttp.web.json_response(
+            data=schema.dump(image), status=HTTPCreated.status_code
+        )
+
+    @docs(tags=["bake_images"], summary="Get attempt by id")
+    @response_schema(BakeImageSchema(), HTTPOk.status_code)
+    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            image = await self.storage.bake_images.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        bake = await self._get_bake(image.bake_id)
+        await self._check_project(username, bake.project_id)
+        return aiohttp.web.json_response(
+            data=BakeImageSchema().dump(image), status=HTTPOk.status_code
+        )
+
+    @docs(tags=["bake_images"], summary="Get bake image by bake and ref")
+    @query_schema(
+        bake_id=fields.String(required=True),
+        ref=fields.String(required=True),
+    )
+    @response_schema(BakeImageSchema(), HTTPOk.status_code)
+    async def get_by_ref(
+        self,
+        request: aiohttp.web.Request,
+        bake_id: str,
+        ref: str,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        bake = await self._get_bake(bake_id)
+        await self._check_project(username, bake.project_id)
+        try:
+            image = await self.storage.bake_images.get_by_ref(
+                bake_id=bake_id,
+                ref=ref,
+            )
+        except NotExistsError:
+            raise HTTPNotFound
+        return aiohttp.web.json_response(
+            data=BakeImageSchema().dump(image), status=HTTPOk.status_code
+        )
+
+    @docs(
+        tags=["bake_images"],
+        summary="Update existing bake image",
+        responses={
+            HTTPOk.status_code: {
+                "description": "Bake image patched",
+                "schema": BakeImageSchema(),
+            },
+        },
+    )
+    @request_schema(BakeImagePatchSchema())
+    @response_schema(BakeImageSchema(), HTTPOk.status_code)
+    async def patch(
+        self,
+        request: aiohttp.web.Request,
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            image = await self.storage.bake_images.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        bake = await self._get_bake(image.bake_id)
+        await self._check_project(username, bake.project_id)
+        schema = BakeImagePatchSchema()
+        new_values = schema.load(await request.json())
+        new_image = replace(image, **new_values)
+        await self.storage.bake_images.update(new_image)
+        return aiohttp.web.json_response(
+            data=schema.dump(new_image), status=HTTPOk.status_code
+        )
+
+
 @middleware
 async def handle_exceptions(
     request: Request, handler: Callable[[Request], Awaitable[StreamResponse]]
@@ -1143,6 +1327,13 @@ async def create_cache_entries_app(config: Config) -> aiohttp.web.Application:
     return app
 
 
+async def create_bake_images_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+    handler = BakeImagesApiHandler(app, config)
+    handler.register(app)
+    return app
+
+
 @asynccontextmanager
 async def create_auth_client(config: PlatformAuthConfig) -> AsyncIterator[AuthClient]:
     async with AuthClient(config.url, config.token) as client:
@@ -1205,6 +1396,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             app["tasks_app"]["storage"] = storage
             app["cache_entries_app"]["storage"] = storage
             app["config_files_app"]["storage"] = storage
+            app["bake_images_app"]["storage"] = storage
 
             yield
 
@@ -1242,6 +1434,10 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     config_files_app = await create_config_files_app(config)
     app["config_files_app"] = config_files_app
     api_v1_app.add_subapp("/flow/config_files", config_files_app)
+
+    bake_images_app = await create_bake_images_app(config)
+    app["bake_images_app"] = bake_images_app
+    api_v1_app.add_subapp("/flow/bake_images", bake_images_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 

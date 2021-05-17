@@ -211,10 +211,10 @@ class BakeImageData:
     prefix: FullID
     yaml_id: str
     ref: str
-    context_on_storage: Optional[str]
-    dockerfile_rel: Optional[str]
     status: ImageStatus
-    builder_job_id: Optional[str]
+    context_on_storage: Optional[str] = None
+    dockerfile_rel: Optional[str] = None
+    builder_job_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
