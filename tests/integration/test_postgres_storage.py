@@ -5,6 +5,7 @@ from asyncpg import Pool
 
 from platform_neuro_flow_api.storage.base import (
     AttemptStorage,
+    BakeImageStorage,
     BakeStorage,
     CacheEntryStorage,
     ConfigFileStorage,
@@ -19,6 +20,7 @@ from platform_neuro_flow_api.storage.postgres import PostgresStorage
 from tests.unit.test_in_memory_storage import (
     MockDataHelper,
     TestAttemptStorage as _TestAttemptStorage,
+    TestBakeImageStorage as _TestBakeImageStorage,
     TestBakeStorage as _TestBakeStorage,
     TestCacheEntryStorage as _TestCacheEntryStorage,
     TestConfigFileStorage as _TestConfigFileStorage,
@@ -221,3 +223,19 @@ class TestPostgresConfigFileStorage(_TestConfigFileStorage):
         postgres_storage: PostgresStorage,
     ) -> ConfigFileStorage:
         return postgres_storage.config_files
+
+
+class TestPostgresBakeImageStorage(_TestBakeImageStorage):
+    @pytest.fixture(autouse=True)
+    def _helper(  # type: ignore
+        self,
+        postgres_storage: PostgresStorage,
+    ) -> None:
+        self.helper = MockDataHelper(postgres_storage)
+
+    @pytest.fixture
+    def storage(  # type: ignore
+        self,
+        postgres_storage: PostgresStorage,
+    ) -> BakeImageStorage:
+        return postgres_storage.bake_images

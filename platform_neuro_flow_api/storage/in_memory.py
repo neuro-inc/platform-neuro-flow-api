@@ -7,6 +7,9 @@ from .base import (
     AttemptStorage,
     Bake,
     BakeData,
+    BakeImage,
+    BakeImageData,
+    BakeImageStorage,
     BakeStorage,
     BaseStorage,
     CacheEntry,
@@ -251,6 +254,29 @@ class InMemoryConfigFileStorage(
     pass
 
 
+class InMemoryBakeImageStorage(
+    BakeImageStorage, InMemoryBaseStorage[BakeImageData, BakeImage]
+):
+    async def check_exists(self, data: BakeImageData) -> None:
+        try:
+            await self.get_by_ref(data.bake_id, data.ref)
+        except NotExistsError:
+            return
+        raise ExistsError
+
+    async def get_by_ref(self, bake_id: str, ref: str) -> BakeImage:
+        for item in self._items.values():
+            if item.bake_id == bake_id and item.ref == ref:
+                return item
+        raise NotExistsError
+
+    async def list(self, bake_id: Optional[str] = None) -> AsyncIterator[BakeImage]:
+        for item in self._items.values():
+            if bake_id is not None and item.bake_id != bake_id:
+                continue
+            yield item
+
+
 class InMemoryStorage(Storage):
     def __init__(self) -> None:
         self.projects = InMemoryProjectStorage(Project.from_data_obj)
@@ -260,3 +286,4 @@ class InMemoryStorage(Storage):
         self.tasks = InMemoryTaskStorage(Task.from_data_obj)
         self.cache_entries = InMemoryCacheEntryStorage(CacheEntry.from_data_obj)
         self.config_files = InMemoryConfigFileStorage(ConfigFile.from_data_obj)
+        self.bake_images = InMemoryBakeImageStorage(BakeImage.from_data_obj)
