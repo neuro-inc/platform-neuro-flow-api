@@ -54,6 +54,13 @@ class TaskStatus(str, enum.Enum):
     CACHED = "cached"
 
 
+class ImageStatus(str, enum.Enum):
+    PENDING = "pending"
+    BUILDING = "building"
+    BUILT = "built"
+    BUILD_FAILED = "build_failed"
+
+
 _C = TypeVar("_C", bound="HasId")
 
 
@@ -198,6 +205,23 @@ class CacheEntry(HasId, CacheEntryData):
     pass
 
 
+@dataclass(frozen=True)
+class BakeImageData:
+    bake_id: str
+    prefix: FullID
+    yaml_id: str
+    ref: str
+    status: ImageStatus
+    context_on_storage: Optional[str] = None
+    dockerfile_rel: Optional[str] = None
+    builder_job_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class BakeImage(BakeImageData, HasId):
+    pass
+
+
 _D = TypeVar("_D")
 _E = TypeVar("_E", bound=HasId)
 
@@ -310,6 +334,16 @@ class CacheEntryStorage(BaseStorage[CacheEntryData, CacheEntry], ABC):
         pass
 
 
+class BakeImageStorage(BaseStorage[BakeImageData, BakeImage], ABC):
+    @abstractmethod
+    async def get_by_ref(self, bake_id: str, ref: str) -> BakeImage:
+        pass
+
+    @abstractmethod
+    def list(self, bake_id: Optional[str] = None) -> AsyncIterator[BakeImage]:
+        pass
+
+
 class ConfigFileStorage(BaseStorage[ConfigFileData, ConfigFile], ABC):
     pass
 
@@ -322,3 +356,4 @@ class Storage(ABC):
     tasks: TaskStorage
     cache_entries: CacheEntryStorage
     config_files: ConfigFileStorage
+    bake_images: BakeImageStorage

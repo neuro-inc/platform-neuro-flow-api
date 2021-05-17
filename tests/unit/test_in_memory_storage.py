@@ -11,6 +11,9 @@ from platform_neuro_flow_api.storage.base import (
     AttemptStorage,
     Bake,
     BakeData,
+    BakeImage,
+    BakeImageData,
+    BakeImageStorage,
     BakeStorage,
     CacheEntry,
     CacheEntryData,
@@ -20,6 +23,7 @@ from platform_neuro_flow_api.storage.base import (
     ConfigFileStorage,
     ConfigsMeta,
     ExistsError,
+    ImageStatus,
     LiveJob,
     LiveJobData,
     LiveJobStorage,
@@ -182,6 +186,23 @@ class MockDataHelper:
             bake_id=secrets.token_hex(8),
             filename=secrets.token_hex(8),
             content=secrets.token_hex(8),
+        )
+        # Updating this way so constructor call is typechecked properly
+        for key, value in kwargs.items():
+            data = replace(data, **{key: value})
+        await self._ensure_bake_id(data.bake_id)
+        return data
+
+    async def gen_bake_image_data(self, **kwargs: Any) -> BakeImageData:
+        data = BakeImageData(
+            bake_id=secrets.token_hex(8),
+            ref=secrets.token_hex(20),
+            prefix=(),
+            yaml_id=secrets.token_hex(8),
+            context_on_storage=None,
+            dockerfile_rel=None,
+            status=ImageStatus.PENDING,
+            builder_job_id=None,
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
@@ -685,3 +706,69 @@ class TestConfigFileStorage:
             data = await self.helper.gen_config_file_data()
             item = ConfigFile.from_data_obj("test", data)
             await storage.update(item)
+
+
+class TestBakeImageStorage:
+    helper: MockDataHelper
+
+    @pytest.fixture
+    def storage(self, in_memory_storage: InMemoryStorage) -> BakeImageStorage:
+        return in_memory_storage.bake_images
+
+    @pytest.fixture(autouse=True)
+    def _helper(self, in_memory_storage: InMemoryStorage) -> None:
+        self.helper = MockDataHelper(in_memory_storage)
+
+    def compare_data(self, data1: BakeImageData, data2: BakeImageData) -> bool:
+        return BakeImageData.__eq__(data1, data2)
+
+    async def test_create_get_update(self, storage: BakeImageStorage) -> None:
+        data = await self.helper.gen_bake_image_data()
+        created = await storage.create(data)
+        assert self.compare_data(data, created)
+        res = await storage.get(created.id)
+        assert self.compare_data(res, created)
+        assert res.id == created.id
+        updated = replace(res, ref="foo")
+        await storage.update(updated)
+        project = await storage.get(res.id)
+        assert project.bake_id == updated.bake_id
+
+    async def test_get_not_exists(self, storage: BakeImageStorage) -> None:
+        with pytest.raises(NotExistsError):
+            await storage.get("wrong-id")
+
+    async def test_update_not_exists(self, storage: BakeImageStorage) -> None:
+        with pytest.raises(NotExistsError):
+            data = await self.helper.gen_bake_image_data()
+            item = BakeImage.from_data_obj("test", data)
+            await storage.update(item)
+
+    async def test_get_by_ref(self, storage: BakeImageStorage) -> None:
+        data = await self.helper.gen_bake_image_data()
+        res = await storage.create(data)
+        result = await storage.get_by_ref(
+            bake_id=data.bake_id,
+            ref=data.ref,
+        )
+        assert result.id == res.id
+
+    async def test_cannot_create_duplicate(self, storage: BakeImageStorage) -> None:
+        data = await self.helper.gen_bake_image_data()
+        await storage.create(data)
+        with pytest.raises(ExistsError):
+            await storage.create(data)
+
+    async def test_list(self, storage: BakeImageStorage) -> None:
+        for bake_id in range(5):
+            for number in range(5):
+                data = await self.helper.gen_bake_image_data(
+                    bake_id=f"bake-id-{bake_id}",
+                    ref=str(number),
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(bake_id="bake-id-2"):
+            found.append(item.ref)
+        assert len(found) == 5
+        assert set(found) == {str(index) for index in range(5)}

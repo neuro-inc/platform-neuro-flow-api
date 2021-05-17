@@ -21,6 +21,9 @@ from .base import (
     AttemptStorage,
     Bake,
     BakeData,
+    BakeImage,
+    BakeImageData,
+    BakeImageStorage,
     BakeStorage,
     BaseStorage,
     CacheEntry,
@@ -33,6 +36,7 @@ from .base import (
     ExistsError,
     FullID,
     HasId,
+    ImageStatus,
     LiveJob,
     LiveJobData,
     LiveJobStorage,
@@ -55,7 +59,7 @@ def _full_id2str(full_id: FullID) -> str:
 
 
 def _str2full_id(full_id: str) -> FullID:
-    return tuple(full_id.split("."))
+    return () if full_id == "" else tuple(full_id.split("."))
 
 
 @dataclass(frozen=True)
@@ -67,6 +71,7 @@ class FlowTables:
     attempts: sa.Table
     tasks: sa.Table
     cache_entries: sa.Table
+    bake_images: sa.Table
 
     @classmethod
     def create(cls) -> "FlowTables":
@@ -169,6 +174,17 @@ class FlowTables:
             ),
             sa.Column("payload", sapg.JSONB(), nullable=False),
         )
+        bake_images_table = sa.Table(
+            "bake_images",
+            metadata,
+            sa.Column("id", sa.String(), primary_key=True),
+            sa.Column(
+                "bake_id", sa.String(), sa.ForeignKey(bakes_table.c.id), nullable=False
+            ),
+            sa.Column("ref", sa.String(), nullable=False),
+            sa.Column("status", sa.String(), nullable=False),
+            sa.Column("payload", sapg.JSONB(), nullable=False),
+        )
         return cls(
             projects=projects_table,
             live_jobs=live_jobs_table,
@@ -177,6 +193,7 @@ class FlowTables:
             attempts=attempts_table,
             tasks=tasks_table,
             cache_entries=cache_entries_table,
+            bake_images=bake_images_table,
         )
 
 
@@ -682,6 +699,53 @@ class PostgresConfigFileStorage(
         return ConfigFile(**payload)
 
 
+class PostgresBakeImageStorage(
+    BakeImageStorage, BasePostgresStorage[BakeImageData, BakeImage]
+):
+    def _to_values(self, item: BakeImage) -> Dict[str, Any]:
+        payload = asdict(item)
+        payload["prefix"] = _full_id2str(payload["prefix"])
+        return {
+            "id": payload.pop("id"),
+            "bake_id": payload.pop("bake_id"),
+            "ref": payload.pop("ref"),
+            "status": payload.pop("status"),
+            "payload": payload,
+        }
+
+    def _from_record(self, record: Record) -> BakeImage:
+        payload = json.loads(record["payload"])
+        payload["id"] = record["id"]
+        payload["bake_id"] = record["bake_id"]
+        payload["ref"] = record["ref"]
+        payload["prefix"] = _str2full_id(payload["prefix"])
+        payload["status"] = ImageStatus(record["status"])
+        return BakeImage(**payload)
+
+    @trace
+    async def get_by_ref(self, bake_id: str, ref: str) -> BakeImage:
+        query = (
+            self._table.select()
+            .where(self._table.c.bake_id == bake_id)
+            .where(self._table.c.ref == ref)
+        )
+        record = await self._fetchrow(query)
+        if not record:
+            raise NotExistsError
+        return self._from_record(record)
+
+    async def list(
+        self,
+        bake_id: Optional[str] = None,
+    ) -> AsyncIterator[BakeImage]:
+        query = self._table.select()
+        if bake_id is not None:
+            query = query.where(self._table.c.bake_id == bake_id)
+        async with self._pool.acquire() as conn, conn.transaction():
+            async for record in self._cursor(query, conn=conn):
+                yield self._from_record(record)
+
+
 class PostgresStorage(Storage):
     projects: PostgresProjectStorage
 
@@ -729,4 +793,10 @@ class PostgresStorage(Storage):
             pool=pool,
             id_prefix="config-file",
             make_entry=ConfigFile.from_data_obj,
+        )
+        self.bake_images = PostgresBakeImageStorage(
+            table=tables.bake_images,
+            pool=pool,
+            id_prefix="bake-image",
+            make_entry=BakeImage.from_data_obj,
         )
