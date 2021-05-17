@@ -553,7 +553,7 @@ class AttemptApiHandler:
                 await response.prepare(request)
                 async with ndjson_error_handler(request, response):
                     async for attempt in attempts:
-                        payload_line = AttemptSchema().dumps(bake)
+                        payload_line = AttemptSchema().dumps(attempt)
                         await response.write(payload_line.encode() + b"\n")
                 return response
             else:
