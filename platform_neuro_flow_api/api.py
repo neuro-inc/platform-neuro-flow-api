@@ -1256,7 +1256,7 @@ class BakeImagesApiHandler:
         new_image = replace(image, **new_values)
         await self.storage.bake_images.update(new_image)
         return aiohttp.web.json_response(
-            data=schema.dump(new_image), status=HTTPOk.status_code
+            data=BakeImageSchema().dump(new_image), status=HTTPOk.status_code
         )
 
 

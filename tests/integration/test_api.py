@@ -2114,6 +2114,18 @@ class TestBakeImagesApi:
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": image_id,
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "building",
+                "builder_job_id": "job-id-here",
+            }
 
         async with client.get(
             url=neuro_flow_api.bake_image_url(image_id),
@@ -2141,6 +2153,18 @@ class TestBakeImagesApi:
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "id": image_id,
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "prefix": "foo.bar",
+                "yaml_id": "test",
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "built",
+                "builder_job_id": "job-id-here",
+            }
 
         async with client.get(
             url=neuro_flow_api.bake_image_url(image_id),
