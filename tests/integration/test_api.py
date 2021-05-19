@@ -727,6 +727,20 @@ class TestLiveJobsApi:
                 yaml_ids.add(item["yaml_id"])
             assert yaml_ids == {f"test-job-{index}" for index in range(5)}
 
+    async def test_list_no_project(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.get(
+            url=neuro_flow_api.live_jobs_url,
+            params={"project_id": "random_value"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            assert await resp.json() == []
+
     async def test_projects_list_only_from_project(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -806,7 +820,8 @@ class TestLiveJobsApi:
             params={"project_id": project.id},
             headers=user2.headers,
         ) as resp:
-            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            assert resp.status == HTTPOk.status_code
+            assert await resp.json() == []
 
 
 class TestBakeApi:
@@ -935,6 +950,20 @@ class TestBakeApi:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             assert payload == []
+
+    async def test_list_no_project(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            params={"project_id": "random_value"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            assert await resp.json() == []
 
     async def test_list_something(
         self,
@@ -1159,6 +1188,22 @@ class TestAttemptApi:
                     "executor_id": None,
                 }
             ]
+
+    async def test_list_no_bake(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.get(
+            url=neuro_flow_api.attempts_url,
+            params={
+                "bake_id": "random value",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            assert await resp.json() == []
 
     async def test_get(
         self,
@@ -1519,6 +1564,22 @@ class TestTaskApi:
                     "statuses": [],
                 }
             ]
+
+    async def test_list_no_attempt(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.get(
+            url=neuro_flow_api.tasks_url,
+            params={
+                "attempt_id": "random value",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            assert await resp.json() == []
 
     async def test_get(
         self,
@@ -1989,6 +2050,22 @@ class TestBakeImagesApi:
                     "builder_job_id": None,
                 }
             ]
+
+    async def test_list_no_bake(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.get(
+            url=neuro_flow_api.bake_images_url,
+            params={
+                "bake_id": "random value",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            assert await resp.json() == []
 
     async def test_get(
         self,
