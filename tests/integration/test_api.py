@@ -875,6 +875,7 @@ class TestBakeApi:
             assert payload["tags"] == ["foo", "bar"]
             assert payload["id"] == bake_id
             assert payload["created_at"] == payload1["created_at"]
+            assert payload["last_attempt"] is None
 
     async def test_get_by_name(
         self,
@@ -916,6 +917,7 @@ class TestBakeApi:
             assert payload["id"] == bake_id
             assert payload["created_at"] == payload1["created_at"]
             assert payload["name"] == payload1["name"]
+            assert payload["last_attempt"] is None
 
     async def test_list_empty(
         self,
@@ -979,6 +981,7 @@ class TestBakeApi:
                     "created_at": payload1["created_at"],
                     "tags": [],
                     "name": None,
+                    "last_attempt": None,
                 }
             ]
 
@@ -1346,6 +1349,49 @@ class TestAttemptApi:
                 "number": 1,
                 "created_at": created_at,
                 "result": "succeeded",
+                "configs_meta": self.CONFIGS_META,
+                "executor_id": "test_id",
+            }
+
+    async def test_get_bake_with_last_attempt(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            attempt = await resp.json()
+
+        async with client.get(
+            url=neuro_flow_api.bake_url(bake.id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["project_id"] == bake.project_id
+            assert payload["batch"] == "test-batch"
+            assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
+            assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == ["foo", "bar"]
+            assert payload["id"] == bake.id
+            assert payload["last_attempt"] == {
+                "id": attempt["id"],
+                "bake_id": bake.id,
+                "number": 1,
+                "created_at": attempt["created_at"],
+                "result": "pending",
                 "configs_meta": self.CONFIGS_META,
                 "executor_id": "test_id",
             }

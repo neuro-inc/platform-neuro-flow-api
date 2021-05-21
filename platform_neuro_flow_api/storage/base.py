@@ -113,6 +113,7 @@ class BakeData:
     params: Optional[Mapping[str, str]] = None
     name: Optional[str] = None
     tags: Sequence[str] = ()
+    attempt: Optional["Attempt"] = None
 
     def __post_init__(self) -> None:
         # Ensure that tags is a tuple for correct __eq__
