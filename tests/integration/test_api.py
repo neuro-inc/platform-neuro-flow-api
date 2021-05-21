@@ -1478,7 +1478,7 @@ class TestAttemptApi:
                     "batch": "test-batch",
                     "graphs": {"": {"a": [], "b": ["a"]}},
                     "params": {},
-                    "created_at": bake.created_at.isoformat(),
+                    "created_at": bake.created_at,
                     "tags": [],
                     "name": None,
                     "last_attempt": {
