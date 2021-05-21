@@ -399,7 +399,29 @@ class PostgresLiveJobsStorage(
                 yield self._from_record(record)
 
 
+def _attempt_from_record(record: Record) -> Attempt:
+    payload = json.loads(record["payload"])
+    payload["id"] = record["id"]
+    payload["bake_id"] = record["bake_id"]
+    payload["number"] = record["number"]
+    payload["created_at"] = record["created_at"]
+    payload["result"] = TaskStatus(record["result"])
+    payload["configs_meta"] = ConfigsMeta(**payload["configs_meta"])
+    return Attempt(**payload)
+
+
 class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
+    def __init__(
+        self,
+        bakes_table: sa.Table,
+        attempts_table: sa.Table,
+        pool: Pool,
+        id_prefix: str,
+        make_entry: Callable[[str, BakeData], Bake],
+    ):
+        super().__init__(bakes_table, pool, id_prefix, make_entry)
+        self._attempts_table = attempts_table
+
     def _to_values(self, item: Bake) -> Dict[str, Any]:
         payload = asdict(item)
         graphs = {}
@@ -439,13 +461,24 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["graphs"] = graphs
         return Bake(**payload)
 
+    def _make_q(self, fetch_last_attempt: bool) -> sasql.Selectable:
+        if fetch_last_attempt:
+            join = self._table.outerjoin(
+                self._attempts_table, self._table.c.id == self._attempts_table.c.bake_id
+            )
+            return sasql.select([self._table, self._attempts_table]).select_from(join)
+        else:
+            return self._table.select()
+
     async def list(
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
+        *,
+        fetch_last_attempt: bool = False,
     ) -> AsyncIterator[Bake]:
-        query = self._table.select()
+        query = self._make_q(fetch_last_attempt)
         if project_id is not None:
             query = query.where(self._table.c.project_id == project_id)
         if name is not None:
@@ -457,9 +490,24 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
                 yield self._from_record(record)
 
     @trace
-    async def get_by_name(self, project_id: str, name: str) -> Bake:
+    async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
+        query = self._make_q(fetch_last_attempt)
+        query = query.where(self._table.c.id == id)
+        record = await self._fetchrow(query)
+        if not record:
+            raise NotExistsError
+        return self._from_record(record)
+
+    @trace
+    async def get_by_name(
+        self,
+        project_id: str,
+        name: str,
+        *,
+        fetch_last_attempt: bool = False,
+    ) -> Bake:
         query = (
-            self._table.select()
+            self._make_q(fetch_last_attempt)
             .where(self._table.c.project_id == project_id)
             .where(self._table.c.name == name)
             .order_by(self._table.c.created_at.desc())
@@ -495,14 +543,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         }
 
     def _from_record(self, record: Record) -> Attempt:
-        payload = json.loads(record["payload"])
-        payload["id"] = record["id"]
-        payload["bake_id"] = record["bake_id"]
-        payload["number"] = record["number"]
-        payload["created_at"] = record["created_at"]
-        payload["result"] = TaskStatus(record["result"])
-        payload["configs_meta"] = ConfigsMeta(**payload["configs_meta"])
-        return Attempt(**payload)
+        return _attempt_from_record(record)
 
     async def after_insert(self, data: Attempt, conn: Connection) -> None:
         await self._sync_bake_status(data, conn)
@@ -764,7 +805,8 @@ class PostgresStorage(Storage):
             make_entry=LiveJob.from_data_obj,
         )
         self.bakes = PostgresBakeStorage(
-            table=tables.bakes,
+            bakes_table=tables.bakes,
+            attempts_table=tables.attempts,
             pool=pool,
             id_prefix="bake",
             make_entry=Bake.from_data_obj,

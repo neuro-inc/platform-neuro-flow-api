@@ -74,7 +74,7 @@ class HasId:
 
         return cls(  # type: ignore
             id=id,
-            **{field.name: getattr(data_obj, field.name) for field in fields(data_obj)}
+            **{field.name: getattr(data_obj, field.name) for field in fields(data_obj)},
         )
 
 
@@ -286,11 +286,23 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
         project_id: Optional[str] = None,
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
+        *,
+        fetch_last_attempt: bool = False,
     ) -> AsyncIterator[Bake]:
         pass
 
     @abstractmethod
-    async def get_by_name(self, project_id: str, name: str) -> Bake:
+    async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
+        pass
+
+    @abstractmethod
+    async def get_by_name(
+        self,
+        project_id: str,
+        name: str,
+        *,
+        fetch_last_attempt: bool = False,
+    ) -> Bake:
         pass
 
 

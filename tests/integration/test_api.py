@@ -1377,7 +1377,7 @@ class TestAttemptApi:
 
         async with client.get(
             url=neuro_flow_api.bake_url(bake.id),
-            params={"attach_last_attempt": "1"},
+            params={"fetch_last_attempt": "1"},
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
@@ -1421,7 +1421,7 @@ class TestAttemptApi:
             params={
                 "project_id": bake.project_id,
                 "name": "test-name",
-                "attach_last_attempt": "1",
+                "fetch_last_attempt": "1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -1465,7 +1465,7 @@ class TestAttemptApi:
             url=neuro_flow_api.bakes_url,
             params={
                 "project_id": bake.project_id,
-                "attach_last_attempt": "1",
+                "fetch_last_attempt": "1",
             },
             headers=regular_user.headers,
         ) as resp:
