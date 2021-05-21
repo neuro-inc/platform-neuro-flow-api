@@ -104,28 +104,6 @@ class LiveJob(HasId, LiveJobData):
 
 
 @dataclass(frozen=True)
-class BakeData:
-    project_id: str
-    batch: str
-    created_at: datetime.datetime
-    # prefix -> { id -> deps }
-    graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
-    params: Optional[Mapping[str, str]] = None
-    name: Optional[str] = None
-    tags: Sequence[str] = ()
-    attempt: Optional["Attempt"] = None
-
-    def __post_init__(self) -> None:
-        # Ensure that tags is a tuple for correct __eq__
-        object.__setattr__(self, "tags", tuple(self.tags))
-
-
-@dataclass(frozen=True)
-class Bake(BakeData, HasId):
-    pass
-
-
-@dataclass(frozen=True)
 class ConfigFileData:
     bake_id: str
     filename: str
@@ -187,6 +165,28 @@ class TaskData:
 
 @dataclass(frozen=True)
 class Task(HasId, TaskData):
+    pass
+
+
+@dataclass(frozen=True)
+class BakeData:
+    project_id: str
+    batch: str
+    created_at: datetime.datetime
+    # prefix -> { id -> deps }
+    graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
+    params: Optional[Mapping[str, str]] = None
+    name: Optional[str] = None
+    tags: Sequence[str] = ()
+    attempt: Optional[Attempt] = None
+
+    def __post_init__(self) -> None:
+        # Ensure that tags is a tuple for correct __eq__
+        object.__setattr__(self, "tags", tuple(self.tags))
+
+
+@dataclass(frozen=True)
+class Bake(BakeData, HasId):
     pass
 
 
