@@ -442,7 +442,8 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         }
 
     def _from_record(self, record: Record, fetch_last_attempt: bool = False) -> Bake:
-        raise RuntimeError(f"!!!!!!!!!! {list(record.keys())}")
+        if fetch_last_attempt:
+            raise RuntimeError(f"!!!!!!!!!! {list(record.keys())}")
         payload = json.loads(record["payload"])
         payload["id"] = record["id"]
         payload["project_id"] = record["project_id"]
@@ -471,7 +472,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
                 [self._table, self._attempts_table], use_labels=True
             ).select_from(join)
         else:
-            return self._table.select(use_labels=True)
+            return self._table.select()
 
     async def list(
         self,
