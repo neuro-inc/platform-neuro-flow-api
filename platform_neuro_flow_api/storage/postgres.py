@@ -399,13 +399,19 @@ class PostgresLiveJobsStorage(
                 yield self._from_record(record)
 
 
-def _attempt_from_record(record: Record) -> Attempt:
-    payload = json.loads(record["payload"])
-    payload["id"] = record["id"]
-    payload["bake_id"] = record["bake_id"]
-    payload["number"] = record["number"]
-    payload["created_at"] = record["created_at"]
-    payload["result"] = TaskStatus(record["result"])
+def _attempt_from_record(record: Record, prefix: str = "") -> Attempt:
+    def key(name: str) -> str:
+        if prefix:
+            return prefix + "_" + name
+        else:
+            return name
+
+    payload = json.loads(record[key("payload")])
+    payload["id"] = record[key("id")]
+    payload["bake_id"] = record[key("bake_id")]
+    payload["number"] = record[key("number")]
+    payload["created_at"] = record[key("created_at")]
+    payload["result"] = TaskStatus(record[key("result")])
     payload["configs_meta"] = ConfigsMeta(**payload["configs_meta"])
     return Attempt(**payload)
 
@@ -442,18 +448,30 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         }
 
     def _from_record(self, record: Record, fetch_last_attempt: bool = False) -> Bake:
+        attempt = None
         if fetch_last_attempt:
-            raise RuntimeError(f"!!!!!!!!!! {list(record.keys())}")
-        payload = json.loads(record["payload"])
-        payload["id"] = record["id"]
-        payload["project_id"] = record["project_id"]
-        payload["batch"] = record["batch"]
-        payload["created_at"] = record["created_at"]
-        payload["name"] = record["name"]
-        if record["tags"] is None:
-            payload["tags"] = []
+            prefix = "bakes"
+            if record["attempts_id"] is not None:
+                attempt = _attempt_from_record(record, fetch_last_attempt=True)
         else:
-            payload["tags"] = json.loads(record["tags"])
+            prefix = ""
+
+        def key(name: str) -> str:
+            if prefix:
+                return prefix + "_" + name
+            else:
+                return name
+
+        payload = json.loads(record[key("payload")])
+        payload["id"] = record[key("id")]
+        payload["project_id"] = record[key("project_id")]
+        payload["batch"] = record[key("batch")]
+        payload["created_at"] = record[key("created_at")]
+        payload["name"] = record[key("name")]
+        if record[key("tags")] is None:
+            payload[key("tags")] = []
+        else:
+            payload["tags"] = json.loads(record[key("tags")])
         graphs = {}
         for key, subgraph in payload["graphs"].items():
             subgr = {}
@@ -461,6 +479,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
                 subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
             graphs[_str2full_id(key)] = subgr
         payload["graphs"] = graphs
+        payload["last_attempt"] = attempt
         return Bake(**payload)
 
     def _make_q(self, fetch_last_attempt: bool) -> sasql.Selectable:
