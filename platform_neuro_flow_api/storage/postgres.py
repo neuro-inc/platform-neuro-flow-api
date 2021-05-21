@@ -468,9 +468,11 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             join = self._table.outerjoin(
                 self._attempts_table, self._table.c.id == self._attempts_table.c.bake_id
             )
-            return sasql.select([self._table, self._attempts_table]).select_from(join)
+            return sasql.select(
+                [self._table, self._attempts_table], use_labels=True
+            ).select_from(join)
         else:
-            return self._table.select()
+            return self._table.select(use_labels=True)
 
     async def list(
         self,
