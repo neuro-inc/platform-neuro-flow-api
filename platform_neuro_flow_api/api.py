@@ -487,6 +487,11 @@ class BakeApiHandler:
             raise HTTPNotFound
         await self._check_project(username, bake.project_id)
         bake = await self.attach_last_attempt_maybe(bake, attach_last_attempt)
+        print("++++++++++++++++++++")
+        from pprint import pprint
+
+        pprint(bake)
+        pprint(BakeSchema().dump(bake))
         return aiohttp.web.json_response(
             data=BakeSchema().dump(bake), status=HTTPOk.status_code
         )
