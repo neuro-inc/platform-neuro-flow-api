@@ -1117,6 +1117,7 @@ class TestBakeApi:
                         "project_id": project.id,
                         "since": bakes[r][1].isoformat(),
                         "until": bakes[l][1].isoformat(),
+                        "reverse": "true",
                     },
                     headers=regular_user.headers,
                 ) as resp:

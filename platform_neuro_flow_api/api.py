@@ -400,6 +400,7 @@ class BakeApiHandler:
         tags=fields.List(fields.String(), missing=tuple()),
         since=fields.AwareDateTime(missing=None),
         until=fields.AwareDateTime(missing=None),
+        reverse=fields.Boolean(missing=False),
     )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
     async def list(
@@ -410,6 +411,7 @@ class BakeApiHandler:
         tags: Sequence[str],
         since: Optional[datetime],
         until: Optional[datetime],
+        reverse: bool,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         try:
@@ -417,7 +419,12 @@ class BakeApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bakes = self.storage.bakes.list(
-            project_id=project_id, name=name, tags=set(tags), since=since, until=until
+            project_id=project_id,
+            name=name,
+            tags=set(tags),
+            since=since,
+            until=until,
+            reverse=reverse,
         )
         async with auto_close(bakes):
             if accepts_ndjson(request):

@@ -144,6 +144,7 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         tags: AbstractSet[str] = frozenset(),
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
+        reverse: bool = False,
     ) -> AsyncIterator[Bake]:
         unsorted: List[Bake] = []
         for item in self._items.values():
@@ -158,7 +159,10 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
             if until is not None and item.created_at >= until:
                 continue
             unsorted.append(item)
-        for item in reversed(sorted(unsorted, key=lambda it: it.created_at)):
+        res = sorted(unsorted, key=lambda it: it.created_at)
+        if reverse:
+            res = reversed(res)
+        for item in res:
             yield item
 
     async def get_by_name(self, project_id: str, name: str) -> Bake:

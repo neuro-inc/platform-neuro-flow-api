@@ -287,6 +287,7 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
         tags: AbstractSet[str] = frozenset(),
         since: Optional[datetime.datetime] = None,
         until: Optional[datetime.datetime] = None,
+        reverse: bool = False,
     ) -> AsyncIterator[Bake]:
         pass
 

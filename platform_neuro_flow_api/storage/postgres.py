@@ -14,7 +14,7 @@ from asyncpg.cursor import CursorFactory
 from asyncpg.pool import Pool
 from asyncpg.protocol.protocol import Record
 from platform_logging import trace
-from sqlalchemy import desc
+from sqlalchemy import asc, desc
 
 from .base import (
     Attempt,
@@ -447,6 +447,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         tags: AbstractSet[str] = frozenset(),
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
+        reverse: bool = False,
     ) -> AsyncIterator[Bake]:
         query = self._table.select()
         if project_id is not None:
@@ -459,7 +460,10 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             query = query.where(self._table.c.created_at >= since)
         if until:
             query = query.where(self._table.c.created_at <= until)
-        query = query.order_by(desc(self._table.c.created_at))
+        if reverse:
+            query = query.order_by(desc(self._table.c.created_at))
+        else:
+            query = query.order_by(asc(self._table.c.created_at))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):
                 yield self._from_record(record)
