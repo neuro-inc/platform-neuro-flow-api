@@ -442,6 +442,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         }
 
     def _from_record(self, record: Record) -> Bake:
+        raise KeyError(f"!!!!!!!!!! {record.keys()}")
         payload = json.loads(record["payload"])
         payload["id"] = record["id"]
         payload["project_id"] = record["project_id"]
