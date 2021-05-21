@@ -212,17 +212,20 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
                 continue
             if not fetch_last_attempt:
                 yield item
-            try:
-                attempt = self.attempts.get_by_number(item.id, number=-1)
-                yield replace(item, last_attempt=attempt)
-            except NotExistsError:
-                yield item
+            else:
+                try:
+                    attempt = await self.attempts.get_by_number(item.id, number=-1)
+                    yield replace(item, last_attempt=attempt)
+                except NotExistsError:
+                    yield item
 
     async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
-        ret = await super().get(id)
+        ret = self._items.get(id)
+        if ret is None:
+            raise NotExistsError
         if fetch_last_attempt:
             try:
-                attempt = self.attempts.get_by_number(ret.id, number=-1)
+                attempt = await self.attempts.get_by_number(ret.id, number=-1)
                 return replace(ret, last_attempt=attempt)
             except NotExistsError:
                 return ret
