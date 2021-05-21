@@ -1440,6 +1440,59 @@ class TestAttemptApi:
                 "executor_id": None,
             }
 
+    async def test_list_bakes_with_last_attempt(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            attempt = await resp.json()
+
+        async with client.get(
+            url=neuro_flow_api.bakes_url,
+            params={
+                "project_id": bake.project_id,
+                "attach_last_attempt": "1",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == [
+                {
+                    "id": bake.id,
+                    "project_id": bake.project_id,
+                    "batch": "test-batch",
+                    "graphs": {"": {"a": [], "b": ["a"]}},
+                    "params": {},
+                    "created_at": bake.created_at.isoformat(),
+                    "tags": [],
+                    "name": None,
+                    "last_attempt": {
+                        "id": attempt["id"],
+                        "bake_id": bake.id,
+                        "number": 1,
+                        "created_at": attempt["created_at"],
+                        "result": "pending",
+                        "configs_meta": self.CONFIGS_META,
+                        "executor_id": None,
+                    },
+                }
+            ]
+
 
 class TestConfigFileApi:
     async def test_create(
