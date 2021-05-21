@@ -1,4 +1,5 @@
 import secrets
+from dataclasses import replace
 from typing import AbstractSet, AsyncIterator, Callable, Dict, Optional, TypeVar
 
 from .base import (
@@ -135,26 +136,6 @@ class InMemoryLiveJobStorage(LiveJobStorage, InMemoryBaseStorage[LiveJobData, Li
             yield item
 
 
-class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
-    async def list(
-        self,
-        project_id: Optional[str] = None,
-        name: Optional[str] = None,
-        tags: AbstractSet[str] = frozenset(),
-    ) -> AsyncIterator[Bake]:
-        for item in self._items.values():
-            if project_id is not None and item.project_id != project_id:
-                continue
-            if name is not None and item.name != name:
-                continue
-            if not set(tags).issubset(set(item.tags)):
-                continue
-            yield item
-
-    async def get_by_name(self, project_id: str, name: str) -> Bake:
-        raise NotImplementedError("Name uniqueness is not enforced for InMemoryStorage")
-
-
 class InMemoryAttemptStorage(AttemptStorage, InMemoryBaseStorage[AttemptData, Attempt]):
     async def check_exists(self, data: AttemptData) -> None:
         try:
@@ -205,6 +186,55 @@ class InMemoryTaskStorage(TaskStorage, InMemoryBaseStorage[TaskData, Task]):
             if attempt_id is not None and item.attempt_id != attempt_id:
                 continue
             yield item
+
+
+class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
+    def __init__(
+        self, make_entity: Callable[[str, BakeData], Bake], attempts: AttemptStorage
+    ) -> None:
+        super().__init__(make_entity)
+        self.attempts = attempts
+
+    async def list(
+        self,
+        project_id: Optional[str] = None,
+        name: Optional[str] = None,
+        tags: AbstractSet[str] = frozenset(),
+        *,
+        fetch_last_attempt: bool = False
+    ) -> AsyncIterator[Bake]:
+        for item in self._items.values():
+            if project_id is not None and item.project_id != project_id:
+                continue
+            if name is not None and item.name != name:
+                continue
+            if not set(tags).issubset(set(item.tags)):
+                continue
+            if not fetch_last_attempt:
+                yield item
+            else:
+                try:
+                    attempt = await self.attempts.get_by_number(item.id, number=-1)
+                    yield replace(item, last_attempt=attempt)
+                except NotExistsError:
+                    yield item
+
+    async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
+        ret = self._items.get(id)
+        if ret is None:
+            raise NotExistsError
+        if fetch_last_attempt:
+            try:
+                attempt = await self.attempts.get_by_number(ret.id, number=-1)
+                return replace(ret, last_attempt=attempt)
+            except NotExistsError:
+                return ret
+        return ret
+
+    async def get_by_name(
+        self, project_id: str, name: str, *, fetch_last_attempt: bool = False
+    ) -> Bake:
+        raise NotImplementedError("Name uniqueness is not enforced for InMemoryStorage")
 
 
 class InMemoryCacheEntryStorage(
@@ -281,9 +311,9 @@ class InMemoryStorage(Storage):
     def __init__(self) -> None:
         self.projects = InMemoryProjectStorage(Project.from_data_obj)
         self.live_jobs = InMemoryLiveJobStorage(LiveJob.from_data_obj)
-        self.bakes = InMemoryBakeStorage(Bake.from_data_obj)
         self.attempts = InMemoryAttemptStorage(Attempt.from_data_obj)
         self.tasks = InMemoryTaskStorage(Task.from_data_obj)
+        self.bakes = InMemoryBakeStorage(Bake.from_data_obj, self.attempts)
         self.cache_entries = InMemoryCacheEntryStorage(CacheEntry.from_data_obj)
         self.config_files = InMemoryConfigFileStorage(ConfigFile.from_data_obj)
         self.bake_images = InMemoryBakeImageStorage(BakeImage.from_data_obj)

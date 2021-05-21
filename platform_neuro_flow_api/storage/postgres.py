@@ -399,7 +399,35 @@ class PostgresLiveJobsStorage(
                 yield self._from_record(record)
 
 
+def _attempt_from_record(record: Record, use_labels: bool = False) -> Attempt:
+    def key(name: str) -> str:
+        if use_labels:
+            return "attempts_" + name
+        else:
+            return name
+
+    payload = json.loads(record[key("payload")])
+    payload["id"] = record[key("id")]
+    payload["bake_id"] = record[key("bake_id")]
+    payload["number"] = record[key("number")]
+    payload["created_at"] = record[key("created_at")]
+    payload["result"] = TaskStatus(record[key("result")])
+    payload["configs_meta"] = ConfigsMeta(**payload["configs_meta"])
+    return Attempt(**payload)
+
+
 class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
+    def __init__(
+        self,
+        bakes_table: sa.Table,
+        attempts_table: sa.Table,
+        pool: Pool,
+        id_prefix: str,
+        make_entry: Callable[[str, BakeData], Bake],
+    ):
+        super().__init__(bakes_table, pool, id_prefix, make_entry)
+        self._attempts_table = attempts_table
+
     def _to_values(self, item: Bake) -> Dict[str, Any]:
         payload = asdict(item)
         graphs = {}
@@ -419,33 +447,58 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             "payload": payload,
         }
 
-    def _from_record(self, record: Record) -> Bake:
-        payload = json.loads(record["payload"])
-        payload["id"] = record["id"]
-        payload["project_id"] = record["project_id"]
-        payload["batch"] = record["batch"]
-        payload["created_at"] = record["created_at"]
-        payload["name"] = record["name"]
-        if record["tags"] is None:
-            payload["tags"] = []
+    def _from_record(self, record: Record, fetch_last_attempt: bool = False) -> Bake:
+        attempt = None
+        if fetch_last_attempt:
+            if record["attempts_id"] is not None:
+                attempt = _attempt_from_record(record, use_labels=True)
+
+        def key(name: str) -> str:
+            if fetch_last_attempt:
+                return "bakes_" + name
+            else:
+                return name
+
+        payload = json.loads(record[key("payload")])
+        payload["id"] = record[key("id")]
+        payload["project_id"] = record[key("project_id")]
+        payload["batch"] = record[key("batch")]
+        payload["created_at"] = record[key("created_at")]
+        payload["name"] = record[key("name")]
+        if record[key("tags")] is None:
+            payload[key("tags")] = []
         else:
-            payload["tags"] = json.loads(record["tags"])
+            payload["tags"] = json.loads(record[key("tags")])
         graphs = {}
-        for key, subgraph in payload["graphs"].items():
+        for grkey, subgraph in payload["graphs"].items():
             subgr = {}
             for node, deps in subgraph.items():
                 subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
-            graphs[_str2full_id(key)] = subgr
+            graphs[_str2full_id(grkey)] = subgr
         payload["graphs"] = graphs
+        payload["last_attempt"] = attempt
         return Bake(**payload)
+
+    def _make_q(self, fetch_last_attempt: bool) -> sasql.Selectable:
+        if fetch_last_attempt:
+            join = self._table.outerjoin(
+                self._attempts_table, self._table.c.id == self._attempts_table.c.bake_id
+            )
+            return sasql.select(
+                [self._table, self._attempts_table], use_labels=True
+            ).select_from(join)
+        else:
+            return self._table.select()
 
     async def list(
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
+        *,
+        fetch_last_attempt: bool = False,
     ) -> AsyncIterator[Bake]:
-        query = self._table.select()
+        query = self._make_q(fetch_last_attempt)
         if project_id is not None:
             query = query.where(self._table.c.project_id == project_id)
         if name is not None:
@@ -454,12 +507,27 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             query = query.where(self._table.c.tags.contains(list(tags)))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):
-                yield self._from_record(record)
+                yield self._from_record(record, fetch_last_attempt)
 
     @trace
-    async def get_by_name(self, project_id: str, name: str) -> Bake:
+    async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
+        query = self._make_q(fetch_last_attempt)
+        query = query.where(self._table.c.id == id)
+        record = await self._fetchrow(query)
+        if not record:
+            raise NotExistsError
+        return self._from_record(record, fetch_last_attempt)
+
+    @trace
+    async def get_by_name(
+        self,
+        project_id: str,
+        name: str,
+        *,
+        fetch_last_attempt: bool = False,
+    ) -> Bake:
         query = (
-            self._table.select()
+            self._make_q(fetch_last_attempt)
             .where(self._table.c.project_id == project_id)
             .where(self._table.c.name == name)
             .order_by(self._table.c.created_at.desc())
@@ -468,7 +536,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         record = await self._fetchrow(query)
         if not record:
             raise NotExistsError
-        return self._from_record(record)
+        return self._from_record(record, fetch_last_attempt)
 
 
 class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, Attempt]):
@@ -495,14 +563,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         }
 
     def _from_record(self, record: Record) -> Attempt:
-        payload = json.loads(record["payload"])
-        payload["id"] = record["id"]
-        payload["bake_id"] = record["bake_id"]
-        payload["number"] = record["number"]
-        payload["created_at"] = record["created_at"]
-        payload["result"] = TaskStatus(record["result"])
-        payload["configs_meta"] = ConfigsMeta(**payload["configs_meta"])
-        return Attempt(**payload)
+        return _attempt_from_record(record)
 
     async def after_insert(self, data: Attempt, conn: Connection) -> None:
         await self._sync_bake_status(data, conn)
@@ -764,7 +825,8 @@ class PostgresStorage(Storage):
             make_entry=LiveJob.from_data_obj,
         )
         self.bakes = PostgresBakeStorage(
-            table=tables.bakes,
+            bakes_table=tables.bakes,
+            attempts_table=tables.attempts,
             pool=pool,
             id_prefix="bake",
             make_entry=Bake.from_data_obj,

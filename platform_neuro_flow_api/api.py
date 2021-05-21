@@ -397,6 +397,7 @@ class BakeApiHandler:
         project_id=fields.String(required=True),
         name=fields.String(missing=None),
         tags=fields.List(fields.String(), missing=tuple()),
+        fetch_last_attempt=fields.Boolean(missing=False),
     )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
     async def list(
@@ -405,6 +406,7 @@ class BakeApiHandler:
         project_id: str,
         name: Optional[str],
         tags: Sequence[str],
+        fetch_last_attempt: bool,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         try:
@@ -412,7 +414,10 @@ class BakeApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bakes = self.storage.bakes.list(
-            project_id=project_id, name=name, tags=set(tags)
+            project_id=project_id,
+            name=name,
+            tags=set(tags),
+            fetch_last_attempt=fetch_last_attempt,
         )
         async with auto_close(bakes):
             if accepts_ndjson(request):
@@ -468,12 +473,19 @@ class BakeApiHandler:
         )
 
     @docs(tags=["bakes"], summary="Get bake by id")
+    @query_schema(
+        fetch_last_attempt=fields.Boolean(missing=False),
+    )
     @response_schema(BakeSchema(), HTTPOk.status_code)
-    async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+    async def get(
+        self, request: aiohttp.web.Request, fetch_last_attempt: bool
+    ) -> aiohttp.web.Response:
         username = await check_authorized(request)
         id = request.match_info["id"]
         try:
-            bake = await self.storage.bakes.get(id)
+            bake = await self.storage.bakes.get(
+                id, fetch_last_attempt=fetch_last_attempt
+            )
         except NotExistsError:
             raise HTTPNotFound
         await self._check_project(username, bake.project_id)
@@ -485,6 +497,7 @@ class BakeApiHandler:
     @query_schema(
         project_id=fields.String(required=True),
         name=fields.String(required=True),
+        fetch_last_attempt=fields.Boolean(missing=False),
     )
     @response_schema(BakeSchema(), HTTPOk.status_code)
     async def get_by_name(
@@ -492,11 +505,12 @@ class BakeApiHandler:
         request: aiohttp.web.Request,
         project_id: str,
         name: str,
+        fetch_last_attempt: bool,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
         try:
             bake = await self.storage.bakes.get_by_name(
-                project_id=project_id, name=name
+                project_id=project_id, name=name, fetch_last_attempt=fetch_last_attempt
             )
         except NotExistsError:
             raise HTTPNotFound
