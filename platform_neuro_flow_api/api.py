@@ -528,6 +528,7 @@ class BakeApiHandler:
                 bake_id=bake.id,
                 number=-1,
             )
+            print("!!!!!!!!!!!!!!!!!")
         except NotExistsError:
             return bake
         return replace(bake, last_attempt=attempt)
