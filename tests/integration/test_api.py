@@ -1477,10 +1477,10 @@ class TestAttemptApi:
                     "project_id": bake.project_id,
                     "batch": "test-batch",
                     "graphs": {"": {"a": [], "b": ["a"]}},
-                    "params": {},
+                    "params": {"p1": "v1"},
                     "created_at": bake.created_at,
-                    "tags": [],
-                    "name": None,
+                    "tags": ["tag"],
+                    "name": "test-name",
                     "last_attempt": {
                         "id": attempt["id"],
                         "bake_id": bake.id,
