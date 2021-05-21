@@ -161,7 +161,7 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
             unsorted.append(item)
         res = sorted(unsorted, key=lambda it: it.created_at)
         if reverse:
-            res = reversed(res)
+            res = list(reversed(res))
         for item in res:
             yield item
 
