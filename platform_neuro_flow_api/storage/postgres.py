@@ -399,10 +399,10 @@ class PostgresLiveJobsStorage(
                 yield self._from_record(record)
 
 
-def _attempt_from_record(record: Record, prefix: str = "") -> Attempt:
+def _attempt_from_record(record: Record, use_labels: bool = False) -> Attempt:
     def key(name: str) -> str:
-        if prefix:
-            return prefix + "_" + name
+        if use_labels:
+            return "attempts_" + name
         else:
             return name
 
@@ -450,15 +450,12 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     def _from_record(self, record: Record, fetch_last_attempt: bool = False) -> Bake:
         attempt = None
         if fetch_last_attempt:
-            prefix = "bakes"
             if record["attempts_id"] is not None:
-                attempt = _attempt_from_record(record, fetch_last_attempt=True)
-        else:
-            prefix = ""
+                attempt = _attempt_from_record(record, use_labels=True)
 
         def key(name: str) -> str:
-            if prefix:
-                return prefix + "_" + name
+            if fetch_last_attempt:
+                return "bakes_" + name
             else:
                 return name
 
@@ -473,11 +470,11 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         else:
             payload["tags"] = json.loads(record[key("tags")])
         graphs = {}
-        for key, subgraph in payload["graphs"].items():
+        for grkey, subgraph in payload["graphs"].items():
             subgr = {}
             for node, deps in subgraph.items():
                 subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
-            graphs[_str2full_id(key)] = subgr
+            graphs[_str2full_id(grkey)] = subgr
         payload["graphs"] = graphs
         payload["last_attempt"] = attempt
         return Bake(**payload)
