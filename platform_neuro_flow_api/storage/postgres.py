@@ -441,8 +441,9 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             "payload": payload,
         }
 
-    def _from_record(self, record: Record) -> Bake:
-        raise KeyError(f"!!!!!!!!!! {record.keys()}")
+    def _from_record(self, record: Record, fetch_last_attempt: bool = False) -> Bake:
+        if fetch_last_attempt:
+            raise RuntimeError(f"!!!!!!!!!! {record.keys()}")
         payload = json.loads(record["payload"])
         payload["id"] = record["id"]
         payload["project_id"] = record["project_id"]
@@ -488,7 +489,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             query = query.where(self._table.c.tags.contains(list(tags)))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):
-                yield self._from_record(record)
+                yield self._from_record(record, fetch_last_attempt)
 
     @trace
     async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
@@ -497,7 +498,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         record = await self._fetchrow(query)
         if not record:
             raise NotExistsError
-        return self._from_record(record)
+        return self._from_record(record, fetch_last_attempt)
 
     @trace
     async def get_by_name(
@@ -517,7 +518,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         record = await self._fetchrow(query)
         if not record:
             raise NotExistsError
-        return self._from_record(record)
+        return self._from_record(record, fetch_last_attempt)
 
 
 class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, Attempt]):

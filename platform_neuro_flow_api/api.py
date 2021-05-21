@@ -513,20 +513,6 @@ class BakeApiHandler:
             data=BakeSchema().dump(bake), status=HTTPOk.status_code
         )
 
-    async def fetch_last_attempt_maybe(
-        self, bake: Bake, fetch_last_attempt: bool
-    ) -> Bake:
-        if not fetch_last_attempt:
-            return bake
-        try:
-            attempt = await self.storage.attempts.get_by_number(
-                bake_id=bake.id,
-                number=-1,
-            )
-        except NotExistsError:
-            return bake
-        return replace(bake, last_attempt=attempt)
-
 
 class AttemptApiHandler:
     def __init__(self, app: aiohttp.web.Application, config: Config) -> None:
