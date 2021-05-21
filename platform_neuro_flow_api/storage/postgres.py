@@ -443,7 +443,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
 
     def _from_record(self, record: Record, fetch_last_attempt: bool = False) -> Bake:
         if fetch_last_attempt:
-            raise RuntimeError(f"!!!!!!!!!! {record.keys()}")
+            raise RuntimeError(f"!!!!!!!!!! {list(record.keys())}")
         payload = json.loads(record["payload"])
         payload["id"] = record["id"]
         payload["project_id"] = record["project_id"]
