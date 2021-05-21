@@ -1072,6 +1072,7 @@ def bake_factory(
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
                 "tags": ["tag"],
+                "name": "test-name",
             },
             headers=user.headers,
         ) as resp:
@@ -1376,15 +1377,58 @@ class TestAttemptApi:
 
         async with client.get(
             url=neuro_flow_api.bake_url(bake.id),
+            params={"attach_last_attempt": "1"},
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             assert payload["project_id"] == bake.project_id
             assert payload["batch"] == "test-batch"
-            assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
-            assert payload["params"] == {"p1": "v1"}
-            assert payload["tags"] == ["foo", "bar"]
+            assert payload["id"] == bake.id
+            assert payload["last_attempt"] == {
+                "id": attempt["id"],
+                "bake_id": bake.id,
+                "number": 1,
+                "created_at": attempt["created_at"],
+                "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+                "executor_id": "test_id",
+            }
+
+    async def test_get_bake_by_name_with_last_attempt(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "result": "pending",
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            attempt = await resp.json()
+
+        async with client.get(
+            url=neuro_flow_api.bake_by_name_url,
+            params={
+                "project_id": bake.project_id,
+                "name": "test-name",
+                "attach_last_attempt": "1",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["project_id"] == bake.project_id
+            assert payload["batch"] == "test-batch"
             assert payload["id"] == bake.id
             assert payload["last_attempt"] == {
                 "id": attempt["id"],
