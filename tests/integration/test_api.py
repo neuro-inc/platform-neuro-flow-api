@@ -1392,7 +1392,7 @@ class TestAttemptApi:
                 "created_at": attempt["created_at"],
                 "result": "pending",
                 "configs_meta": self.CONFIGS_META,
-                "executor_id": "test_id",
+                "executor_id": None,
             }
 
     async def test_get_bake_by_name_with_last_attempt(
@@ -1437,7 +1437,7 @@ class TestAttemptApi:
                 "created_at": attempt["created_at"],
                 "result": "pending",
                 "configs_meta": self.CONFIGS_META,
-                "executor_id": "test_id",
+                "executor_id": None,
             }
 
 
