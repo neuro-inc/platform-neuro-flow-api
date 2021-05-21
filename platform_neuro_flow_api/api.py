@@ -244,7 +244,10 @@ class LiveJobApiHandler:
         project_id: str,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
-        await self._check_project(username, project_id)
+        try:
+            await self._check_project(username, project_id)
+        except HTTPNotFound:
+            return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         live_jobs = self.storage.live_jobs.list(project_id=project_id)
         async with auto_close(live_jobs):
             if accepts_ndjson(request):
@@ -404,7 +407,10 @@ class BakeApiHandler:
         tags: Sequence[str],
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
-        await self._check_project(username, project_id)
+        try:
+            await self._check_project(username, project_id)
+        except HTTPNotFound:
+            return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bakes = self.storage.bakes.list(
             project_id=project_id, name=name, tags=set(tags)
         )
@@ -543,8 +549,11 @@ class AttemptApiHandler:
         bake_id: str,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
-        bake = await self._get_bake(bake_id)
-        await self._check_project(username, bake.project_id)
+        try:
+            bake = await self._get_bake(bake_id)
+            await self._check_project(username, bake.project_id)
+        except HTTPNotFound:
+            return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         attempts = self.storage.attempts.list(bake_id=bake_id)
         async with auto_close(attempts):
             if accepts_ndjson(request):
@@ -725,9 +734,12 @@ class TaskApiHandler:
         attempt_id: str,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
-        attempt = await self._get_attempt(attempt_id)
-        bake = await self._get_bake(attempt.bake_id)
-        await self._check_project(username, bake.project_id)
+        try:
+            attempt = await self._get_attempt(attempt_id)
+            bake = await self._get_bake(attempt.bake_id)
+            await self._check_project(username, bake.project_id)
+        except HTTPNotFound:
+            return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         tasks = self.storage.tasks.list(attempt_id=attempt_id)
         async with auto_close(tasks):
             if accepts_ndjson(request):
@@ -1121,8 +1133,11 @@ class BakeImagesApiHandler:
         bake_id: str,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
-        bake = await self._get_bake(bake_id)
-        await self._check_project(username, bake.project_id)
+        try:
+            bake = await self._get_bake(bake_id)
+            await self._check_project(username, bake.project_id)
+        except HTTPNotFound:
+            return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bake_images = self.storage.bake_images.list(bake_id=bake_id)
         async with auto_close(bake_images):
             if accepts_ndjson(request):
