@@ -2,7 +2,7 @@ import asyncio
 import secrets
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Tuple
 
 import aiohttp
 import pytest
@@ -1079,6 +1079,52 @@ class TestBakeApi:
             payload = await resp.json()
             ids = {item["id"] for item in payload}
             assert {bake2_id} == ids
+
+    async def test_list_since_until(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        bakes: List[Tuple[str, datetime]] = []
+        for _ in range(5):
+            async with client.post(
+                url=neuro_flow_api.bakes_url,
+                json={
+                    "project_id": project.id,
+                    "batch": "test-batch",
+                    "graphs": {"": {"a": [], "b": ["a"]}},
+                    "params": {"p1": "v1"},
+                    "tags": [],
+                },
+                headers=regular_user.headers,
+            ) as resp:
+                assert resp.status == HTTPCreated.status_code, await resp.text()
+                payload = await resp.json()
+                bakes.append(
+                    (payload["id"], datetime.fromisoformat(payload["created_at"]))
+                )
+
+        bakes = list(reversed(bakes))
+
+        for l in range(5):  # noqa: E741
+            for r in range(l, 5):
+                async with client.get(
+                    url=neuro_flow_api.bakes_url,
+                    params={
+                        "project_id": project.id,
+                        "since": bakes[r][1].isoformat(),
+                        "until": bakes[l][1].isoformat(),
+                    },
+                    headers=regular_user.headers,
+                ) as resp:
+                    assert resp.status == HTTPOk.status_code, await resp.text()
+                    payload = await resp.json()
+                    assert len(payload) == r - l + 1
+                    for index, bake_data in enumerate(payload):
+                        assert bake_data["id"] == bakes[l + index][0]
 
 
 @pytest.fixture()

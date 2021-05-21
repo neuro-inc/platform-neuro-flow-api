@@ -1,6 +1,7 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
+from datetime import datetime
 from typing import AsyncIterator, Awaitable, Callable, List, Optional, Sequence
 
 import aiohttp
@@ -397,6 +398,8 @@ class BakeApiHandler:
         project_id=fields.String(required=True),
         name=fields.String(missing=None),
         tags=fields.List(fields.String(), missing=tuple()),
+        since=fields.AwareDateTime(missing=None),
+        until=fields.AwareDateTime(missing=None),
     )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
     async def list(
@@ -405,6 +408,8 @@ class BakeApiHandler:
         project_id: str,
         name: Optional[str],
         tags: Sequence[str],
+        since: Optional[datetime],
+        until: Optional[datetime],
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         try:
@@ -412,7 +417,7 @@ class BakeApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bakes = self.storage.bakes.list(
-            project_id=project_id, name=name, tags=set(tags)
+            project_id=project_id, name=name, tags=set(tags), since=since, until=until
         )
         async with auto_close(bakes):
             if accepts_ndjson(request):

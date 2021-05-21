@@ -1,5 +1,6 @@
 import secrets
-from typing import AbstractSet, AsyncIterator, Callable, Dict, Optional, TypeVar
+from datetime import datetime
+from typing import AbstractSet, AsyncIterator, Callable, Dict, List, Optional, TypeVar
 
 from .base import (
     Attempt,
@@ -141,7 +142,10 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         project_id: Optional[str] = None,
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
     ) -> AsyncIterator[Bake]:
+        unsorted: List[Bake] = []
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
                 continue
@@ -149,6 +153,12 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
                 continue
             if not set(tags).issubset(set(item.tags)):
                 continue
+            if since is not None and item.created_at <= since:
+                continue
+            if until is not None and item.created_at >= until:
+                continue
+            unsorted.append(item)
+        for item in reversed(sorted(unsorted, key=lambda it: it.created_at)):
             yield item
 
     async def get_by_name(self, project_id: str, name: str) -> Bake:

@@ -285,6 +285,8 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
         project_id: Optional[str] = None,
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
+        since: Optional[datetime.datetime] = None,
+        until: Optional[datetime.datetime] = None,
     ) -> AsyncIterator[Bake]:
         pass
 

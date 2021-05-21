@@ -1,6 +1,6 @@
 import secrets
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -454,6 +454,55 @@ class TestBakeStorage:
         async for item in storage.list(name="unknown"):
             found.append(item.batch)
         assert len(found) == 0
+
+    async def test_list_order(self, storage: BakeStorage) -> None:
+        now = datetime.now()
+        for batch_id in range(5):
+            for project_id in range(5):
+                data = await self.helper.gen_bake_data(
+                    batch=f"batch-id-{batch_id}",
+                    project_id=f"project-{project_id}",
+                    created_at=now + timedelta(seconds=batch_id),
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(project_id="project-2"):
+            found.append(item.batch)
+        assert found == [f"batch-id-{index}" for index in range(4, -1, -1)]
+
+    async def test_list_since(self, storage: BakeStorage) -> None:
+        now = datetime.now()
+        for batch_id in range(5):
+            for project_id in range(5):
+                data = await self.helper.gen_bake_data(
+                    batch=f"batch-id-{batch_id}",
+                    project_id=f"project-{project_id}",
+                    created_at=now + timedelta(seconds=batch_id),
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(
+            project_id="project-2", since=now + timedelta(seconds=2.5)
+        ):
+            found.append(item.batch)
+        assert found == [f"batch-id-{index}" for index in range(4, 2, -1)]
+
+    async def test_list_until(self, storage: BakeStorage) -> None:
+        now = datetime.now()
+        for batch_id in range(5):
+            for project_id in range(5):
+                data = await self.helper.gen_bake_data(
+                    batch=f"batch-id-{batch_id}",
+                    project_id=f"project-{project_id}",
+                    created_at=now + timedelta(seconds=batch_id),
+                )
+                await storage.create(data)
+        found = []
+        async for item in storage.list(
+            project_id="project-2", until=now + timedelta(seconds=2.5)
+        ):
+            found.append(item.batch)
+        assert found == [f"batch-id-{index}" for index in range(2, -1, -1)]
 
 
 class TestAttemptStorage:
