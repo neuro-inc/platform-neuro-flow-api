@@ -74,7 +74,7 @@ class HasId:
 
         return cls(  # type: ignore
             id=id,
-            **{field.name: getattr(data_obj, field.name) for field in fields(data_obj)}
+            **{field.name: getattr(data_obj, field.name) for field in fields(data_obj)},
         )
 
 
@@ -100,27 +100,6 @@ class LiveJobData:
 
 @dataclass(frozen=True)
 class LiveJob(HasId, LiveJobData):
-    pass
-
-
-@dataclass(frozen=True)
-class BakeData:
-    project_id: str
-    batch: str
-    created_at: datetime.datetime
-    # prefix -> { id -> deps }
-    graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
-    params: Optional[Mapping[str, str]] = None
-    name: Optional[str] = None
-    tags: Sequence[str] = ()
-
-    def __post_init__(self) -> None:
-        # Ensure that tags is a tuple for correct __eq__
-        object.__setattr__(self, "tags", tuple(self.tags))
-
-
-@dataclass(frozen=True)
-class Bake(BakeData, HasId):
     pass
 
 
@@ -186,6 +165,28 @@ class TaskData:
 
 @dataclass(frozen=True)
 class Task(HasId, TaskData):
+    pass
+
+
+@dataclass(frozen=True)
+class BakeData:
+    project_id: str
+    batch: str
+    created_at: datetime.datetime
+    # prefix -> { id -> deps }
+    graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
+    params: Optional[Mapping[str, str]] = None
+    name: Optional[str] = None
+    tags: Sequence[str] = ()
+    last_attempt: Optional[Attempt] = None
+
+    def __post_init__(self) -> None:
+        # Ensure that tags is a tuple for correct __eq__
+        object.__setattr__(self, "tags", tuple(self.tags))
+
+
+@dataclass(frozen=True)
+class Bake(BakeData, HasId):
     pass
 
 
@@ -285,14 +286,26 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
         project_id: Optional[str] = None,
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
+        *,
+        reverse: bool = False,
         since: Optional[datetime.datetime] = None,
         until: Optional[datetime.datetime] = None,
-        reverse: bool = False,
+        fetch_last_attempt: bool = False,
     ) -> AsyncIterator[Bake]:
         pass
 
     @abstractmethod
-    async def get_by_name(self, project_id: str, name: str) -> Bake:
+    async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
+        pass
+
+    @abstractmethod
+    async def get_by_name(
+        self,
+        project_id: str,
+        name: str,
+        *,
+        fetch_last_attempt: bool = False,
+    ) -> Bake:
         pass
 
 
