@@ -1,6 +1,7 @@
 import secrets
 from dataclasses import replace
-from typing import AbstractSet, AsyncIterator, Callable, Dict, Optional, TypeVar
+from datetime import datetime
+from typing import AbstractSet, AsyncIterator, Callable, Dict, List, Optional, TypeVar
 
 from .base import (
     Attempt,
@@ -201,8 +202,13 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         name: Optional[str] = None,
         tags: AbstractSet[str] = frozenset(),
         *,
-        fetch_last_attempt: bool = False
+        fetch_last_attempt: bool = False,
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
+        reverse: bool = False,
     ) -> AsyncIterator[Bake]:
+
+        unsorted: List[Bake] = []
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
                 continue
@@ -210,14 +216,23 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
                 continue
             if not set(tags).issubset(set(item.tags)):
                 continue
+            if since is not None and item.created_at <= since:
+                continue
+            if until is not None and item.created_at >= until:
+                continue
             if not fetch_last_attempt:
-                yield item
+                unsorted.append(item)
             else:
                 try:
                     attempt = await self.attempts.get_by_number(item.id, number=-1)
-                    yield replace(item, last_attempt=attempt)
+                    unsorted.append(replace(item, last_attempt=attempt))
                 except NotExistsError:
-                    yield item
+                    unsorted.append(item)
+        res = sorted(unsorted, key=lambda it: it.created_at)
+        if reverse:
+            res = list(reversed(res))
+        for item in res:
+            yield item
 
     async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
         ret = self._items.get(id)

@@ -1,6 +1,7 @@
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
+from datetime import datetime
 from typing import AsyncIterator, Awaitable, Callable, List, Optional, Sequence
 
 import aiohttp
@@ -397,6 +398,9 @@ class BakeApiHandler:
         project_id=fields.String(required=True),
         name=fields.String(missing=None),
         tags=fields.List(fields.String(), missing=tuple()),
+        since=fields.AwareDateTime(missing=None),
+        until=fields.AwareDateTime(missing=None),
+        reverse=fields.Boolean(missing=False),
         fetch_last_attempt=fields.Boolean(missing=False),
     )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
@@ -406,6 +410,9 @@ class BakeApiHandler:
         project_id: str,
         name: Optional[str],
         tags: Sequence[str],
+        since: Optional[datetime],
+        until: Optional[datetime],
+        reverse: bool,
         fetch_last_attempt: bool,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
@@ -417,6 +424,9 @@ class BakeApiHandler:
             project_id=project_id,
             name=name,
             tags=set(tags),
+            since=since,
+            until=until,
+            reverse=reverse,
             fetch_last_attempt=fetch_last_attempt,
         )
         async with auto_close(bakes):
