@@ -11,7 +11,7 @@ install_requires = (
     "aiohttp-cors==0.7.0",
     "aiozipkin==1.1.0",
     "sentry-sdk==1.1.0",
-    "marshmallow==3.10.0",
+    "marshmallow==3.12.1",
     "aiohttp-apispec==2.2.1",
     "alembic==1.6.4",
     "psycopg2-binary==2.8.6",
