@@ -33,10 +33,15 @@ jobs:
         with:
           python-version: "3.7.7"
       - name: Cache packages
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-py-3.7.7-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
+      - name: Cache pre-commit hooks
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit|py3.7|${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Install dependencies
         run: make setup
       - name: Lint
