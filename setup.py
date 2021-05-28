@@ -16,7 +16,7 @@ install_requires = (
     "alembic==1.6.5",
     "psycopg2-binary==2.8.6",
     "asyncpgsa==0.27.1",
-    "sqlalchemy~=1.3.0",
+    "sqlalchemy>=1.3,<1.5",
 )
 
 setup(
