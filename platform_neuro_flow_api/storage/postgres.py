@@ -467,7 +467,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         payload["created_at"] = record[key("created_at")]
         payload["name"] = record[key("name")]
         if record[key("tags")] is None:
-            payload[key("tags")] = []
+            payload["tags"] = []
         else:
             payload["tags"] = json.loads(record[key("tags")])
         graphs = {}
