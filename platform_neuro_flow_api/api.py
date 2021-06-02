@@ -1020,13 +1020,13 @@ class CacheEntryApiHandler:
             },
         },
     )
-    @request_schema(CacheEntrySchema())
+    @request_schema(CacheEntrySchema(partial=["raw_id"]))
     async def create(
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
-        schema = CacheEntrySchema()
+        schema = CacheEntrySchema(partial=["raw_id"])
         data = schema.load(await request.json())
         await self._check_project(username, data.project_id)
         try:
@@ -1043,7 +1043,7 @@ class CacheEntryApiHandler:
             )
             await self.storage.cache_entries.update(cache_entry)
         return aiohttp.web.json_response(
-            data=schema.dump(cache_entry), status=HTTPCreated.status_code
+            data=CacheEntrySchema().dump(cache_entry), status=HTTPCreated.status_code
         )
 
     @docs(tags=["cache_entries"], summary="Get cache entry by id")
