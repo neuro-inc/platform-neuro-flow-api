@@ -209,13 +209,22 @@ class CacheEntry(HasId, CacheEntryData):
 @dataclass(frozen=True)
 class BakeImageData:
     bake_id: str
-    prefix: FullID
-    yaml_id: str
+    yaml_defs: Sequence[FullID]
     ref: str
     status: ImageStatus
     context_on_storage: Optional[str] = None
     dockerfile_rel: Optional[str] = None
     builder_job_id: Optional[str] = None
+
+    @property
+    def prefix(self) -> FullID:
+        *prefix, _ = self.yaml_defs[0]
+        return tuple(prefix)
+
+    @property
+    def yaml_id(self) -> str:
+        *_, yaml_id = self.yaml_defs[0]
+        return yaml_id
 
 
 @dataclass(frozen=True)
