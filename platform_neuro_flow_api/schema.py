@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, TypeVar
 
 import aiohttp.web
 from aiohttp_apispec import querystring_schema
-from marshmallow import Schema, fields, post_load
+from marshmallow import Schema, fields, post_load, pre_load, validate
 
 from platform_neuro_flow_api.storage.base import (
     AttemptData,
@@ -232,15 +232,38 @@ class BakeImageSchema(Schema):
     bake_id = fields.String(required=True)
     ref = fields.String(required=True)
     status = ImageStatusField(required=True)
-    prefix = FullIDField(required=True)
-    yaml_id = fields.String(required=True)
+    yaml_defs = fields.List(FullIDField, required=True, validate=validate.Length(min=1))
     context_on_storage = fields.String(required=True, allow_none=True)
     dockerfile_rel = fields.String(required=True, allow_none=True)
     builder_job_id = fields.String(required=True, allow_none=True)
 
-    @post_load
-    def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> BakeImageData:
+    # Deprecated, same as first entry in yaml_defs
+    prefix = FullIDField(required=True)
+    yaml_id = fields.String(required=True)
 
+    @pre_load
+    def prepare_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        # This is code work backward compatibility, it allows client to specify either
+        # prefix + yaml_id or yaml_defs
+        prefix = data.get("prefix")
+        yaml_id = data.get("yaml_id")
+        yaml_defs = data.get("yaml_defs")
+        if (
+            isinstance(yaml_defs, list)
+            and len(yaml_defs) > 0
+            and isinstance(yaml_defs[0], str)
+        ):
+            prefix, _, yaml_id = yaml_defs[0].rpartition(".")
+            data["prefix"] = prefix
+            data["yaml_id"] = yaml_id
+        elif isinstance(prefix, str) and isinstance(yaml_id, str):
+            data["yaml_defs"] = [data["prefix"] + "." + data["yaml_id"]]
+        return data
+
+    @post_load
+    def make_image_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeImageData:
+        data.pop("prefix")
+        data.pop("yaml_id")
         return BakeImageData(**data)
 
 

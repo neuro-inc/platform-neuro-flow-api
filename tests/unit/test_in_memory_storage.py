@@ -197,8 +197,7 @@ class MockDataHelper:
         data = BakeImageData(
             bake_id=secrets.token_hex(8),
             ref=secrets.token_hex(20),
-            prefix=(),
-            yaml_id=secrets.token_hex(8),
+            yaml_defs=[(secrets.token_hex(8),)],
             context_on_storage=None,
             dockerfile_rel=None,
             status=ImageStatus.PENDING,

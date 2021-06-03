@@ -5,6 +5,7 @@ from asyncpg import Pool
 
 from platform_neuro_flow_api.storage.base import (
     AttemptStorage,
+    BakeImage,
     BakeImageStorage,
     BakeStorage,
     CacheEntryStorage,
@@ -16,7 +17,11 @@ from platform_neuro_flow_api.storage.base import (
     TaskStorage,
     UniquenessError,
 )
-from platform_neuro_flow_api.storage.postgres import PostgresStorage
+from platform_neuro_flow_api.storage.postgres import (
+    PostgresBakeImageStorage,
+    PostgresStorage,
+    _full_id2str,
+)
 from tests.unit.test_in_memory_storage import (
     MockDataHelper,
     TestAttemptStorage as _TestAttemptStorage,
@@ -239,3 +244,20 @@ class TestPostgresBakeImageStorage(_TestBakeImageStorage):
         postgres_storage: PostgresStorage,
     ) -> BakeImageStorage:
         return postgres_storage.bake_images
+
+    async def test_read_old_entry(
+        self,
+        storage: BakeImageStorage,
+    ) -> None:
+        assert isinstance(storage, PostgresBakeImageStorage)
+        data = await self.helper.gen_bake_image_data()
+        image = BakeImage.from_data_obj("test-id", data)
+        values = storage._to_values(image)
+        values["payload"].pop("yaml_defs")
+        values["payload"]["prefix"] = _full_id2str(image.prefix)
+        values["payload"]["yaml_id"] = image.yaml_id
+        query = storage._table.insert().values(values)
+        await storage._execute(query)
+
+        image_from_db = await storage.get("test-id")
+        assert image == image_from_db

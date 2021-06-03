@@ -777,7 +777,9 @@ class PostgresBakeImageStorage(
 ):
     def _to_values(self, item: BakeImage) -> Dict[str, Any]:
         payload = asdict(item)
-        payload["prefix"] = _full_id2str(payload["prefix"])
+        payload["yaml_defs"] = [
+            _full_id2str(yaml_def) for yaml_def in payload["yaml_defs"]
+        ]
         return {
             "id": payload.pop("id"),
             "bake_id": payload.pop("bake_id"),
@@ -791,8 +793,17 @@ class PostgresBakeImageStorage(
         payload["id"] = record["id"]
         payload["bake_id"] = record["bake_id"]
         payload["ref"] = record["ref"]
-        payload["prefix"] = _str2full_id(payload["prefix"])
         payload["status"] = ImageStatus(record["status"])
+        if "yaml_defs" in payload:
+            payload["yaml_defs"] = [
+                _str2full_id(yaml_def) for yaml_def in payload["yaml_defs"]
+            ]
+        elif "prefix" in payload:
+            # This is old entry
+            payload["yaml_defs"] = [
+                _str2full_id(payload.pop("prefix")) + (payload.pop("yaml_id"),)
+            ]
+
         return BakeImage(**payload)
 
     @trace
