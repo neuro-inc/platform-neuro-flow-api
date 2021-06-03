@@ -243,7 +243,7 @@ class BakeImageSchema(Schema):
 
     @pre_load
     def prepare_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        # This is code work backward compatibility, it allows client to specify either
+        # This code is for backward compatibility, it allows client to specify either
         # prefix + yaml_id or yaml_defs
         prefix = data.get("prefix")
         yaml_id = data.get("yaml_id")
