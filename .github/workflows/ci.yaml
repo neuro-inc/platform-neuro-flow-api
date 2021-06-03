@@ -264,6 +264,6 @@ jobs:
       - name: Set tag
         run: echo "TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
       - name: Install helm
-        run: make -C server helm_install
+        run: make helm_install
       - name: Deploy to kubernetes
-        run: make -C server helm_deploy
+        run: make helm_deploy
