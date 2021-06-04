@@ -230,7 +230,7 @@ jobs:
   deploy_mts:
     name: Deploy to MTS
     runs-on: ubuntu-latest
-    needs: release
+    needs: deploy_staging
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
     env:
       ARTIFACTORY_DOCKER_REPO: ${{ secrets.ARTIFACTORY_DOCKER_REPO }}
