@@ -204,6 +204,7 @@ class CacheEntrySchema(Schema):
     batch = fields.String(required=True)
     key = fields.String(required=True)
     created_at = fields.AwareDateTime(missing=lambda: datetime.now(timezone.utc))
+    raw_id = fields.String(missing="")
     outputs = fields.Dict(values=fields.String(), required=True)
     state = fields.Dict(values=fields.String(), required=True)
 

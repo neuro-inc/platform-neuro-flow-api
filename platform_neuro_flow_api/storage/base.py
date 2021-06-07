@@ -199,10 +199,11 @@ class CacheEntryData:
     created_at: datetime.datetime
     outputs: Mapping[str, str]
     state: Mapping[str, str]
+    raw_id: str = ""
 
 
 @dataclass(frozen=True)
-class CacheEntry(HasId, CacheEntryData):
+class CacheEntry(CacheEntryData, HasId):
     pass
 
 

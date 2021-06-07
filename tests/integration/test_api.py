@@ -1921,6 +1921,7 @@ class TestCacheEntryApi:
             "task_id": "test.task",
             "batch": "seq",
             "key": "key",
+            "raw_id": "test",
             "outputs": {"foo": "bar"},
             "state": {"foo_state": "bar_state"},
         }
