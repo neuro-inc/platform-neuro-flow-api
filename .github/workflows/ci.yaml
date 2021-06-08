@@ -86,6 +86,8 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     env:
+      ARTIFACTORY_DOCKER_REPO: ${{ secrets.ARTIFACTORY_DOCKER_REPO }}
+      ARTIFACTORY_HELM_REPO: ${{ secrets.ARTIFACTORY_HELM_REPO }}
       ARTIFACTORY_HELM_VIRTUAL_REPO: ${{ secrets.ARTIFACTORY_HELM_VIRTUAL_REPO }}
       ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
       ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
@@ -225,7 +227,7 @@ jobs:
       - name: Install helm
         run: make helm_install
       - name: Deploy to kubernetes
-        run: make helm_deploy
+        run: make artifactory_helm_deploy
 
   deploy_mts:
     name: Deploy to MTS
@@ -255,4 +257,4 @@ jobs:
       - name: Install helm
         run: make helm_install
       - name: Deploy to kubernetes
-        run: make helm_deploy
+        run: make artifactory_helm_deploy
