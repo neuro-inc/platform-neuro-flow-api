@@ -6,7 +6,7 @@ setup_requires = ("setuptools_scm",)
 
 install_requires = (
     "aiohttp==3.7.4",
-    "neuro_auth_client==21.5.28",
+    "neuro_auth_client==21.6.8",
     "platform-logging==21.5.27",
     "aiohttp-cors==0.7.0",
     "aiozipkin==1.1.0",
