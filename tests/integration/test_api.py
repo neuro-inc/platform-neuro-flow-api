@@ -497,6 +497,34 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["yaml_id"] == "test-job"
+            assert payload["project_id"] == project.id
+            assert not payload["multi"]
+            assert payload["tags"] == ["11", "22"]
+            assert payload["raw_id"] == "job-f50b735c-e087-41e6-bddc-4783bb4d14c1"
+            assert "id" in payload
+
+    async def test_create_without_raw_id(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.live_jobs_url,
+            json={
+                "yaml_id": "test-job",
+                "project_id": project.id,
+                "multi": False,
+                "tags": ["11", "22"],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -523,6 +551,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-d0ec0e83-39bd-412e-8f1d-6d62d4c341a6",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -532,6 +561,7 @@ class TestLiveJobsApi:
             assert payload["project_id"] == project.id
             assert not payload["multi"]
             assert payload["tags"] == ["11", "22"]
+            assert payload["raw_id"] == "job-d0ec0e83-39bd-412e-8f1d-6d62d4c341a6"
             assert "id" in payload
 
     async def test_replace_existing(
@@ -549,6 +579,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -558,6 +589,7 @@ class TestLiveJobsApi:
             assert payload["project_id"] == project.id
             assert not payload["multi"]
             assert payload["tags"] == ["11", "22"]
+            assert payload["raw_id"] == "job-f50b735c-e087-41e6-bddc-4783bb4d14c1"
             assert "id" in payload
         async with client.put(
             url=neuro_flow_api.live_job_replace_url,
@@ -566,6 +598,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22", "33"],
+                "raw_id": "job-d0ec0e83-39bd-412e-8f1d-6d62d4c341a6",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -575,6 +608,7 @@ class TestLiveJobsApi:
             assert payload["project_id"] == project.id
             assert not payload["multi"]
             assert payload["tags"] == ["11", "22", "33"]
+            assert payload["raw_id"] == "job-d0ec0e83-39bd-412e-8f1d-6d62d4c341a6"
             assert "id" in payload
 
     async def test_get_by_id(
@@ -592,6 +626,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -607,6 +642,7 @@ class TestLiveJobsApi:
             assert payload["project_id"] == project.id
             assert not payload["multi"]
             assert payload["tags"] == ["11", "22"]
+            assert payload["raw_id"] == "job-f50b735c-e087-41e6-bddc-4783bb4d14c1"
             assert payload["id"] == job_id
 
     async def test_get_by_yaml_id(
@@ -624,6 +660,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -640,6 +677,7 @@ class TestLiveJobsApi:
             assert payload["project_id"] == project.id
             assert not payload["multi"]
             assert payload["tags"] == ["11", "22"]
+            assert payload["raw_id"] == "job-f50b735c-e087-41e6-bddc-4783bb4d14c1"
             assert payload["id"] == job_id
 
     async def test_create_duplicate_fail(
@@ -657,6 +695,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -668,6 +707,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -686,6 +726,7 @@ class TestLiveJobsApi:
                 "project_id": "not-exists",
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=regular_user.headers,
         ) as resp:
@@ -707,6 +748,7 @@ class TestLiveJobsApi:
                     "project_id": project.id,
                     "multi": False,
                     "tags": ["11", "22"],
+                    "raw_id": "job-f50b735c-e087-41e6-bddc-" + str(index) * 12,
                 },
                 headers=regular_user.headers,
             ) as resp:
@@ -720,12 +762,17 @@ class TestLiveJobsApi:
             items = await resp.json()
             assert len(items) == 5
             yaml_ids = set()
+            raw_ids = set()
             for item in items:
                 assert item["project_id"] == project.id
                 assert not item["multi"]
                 assert item["tags"] == ["11", "22"]
                 yaml_ids.add(item["yaml_id"])
+                raw_ids.add(item["raw_id"])
             assert yaml_ids == {f"test-job-{index}" for index in range(5)}
+            assert raw_ids == {
+                f"job-f50b735c-e087-41e6-bddc-{str(index) * 12}" for index in range(5)
+            }
 
     async def test_list_no_project(
         self,
@@ -759,6 +806,7 @@ class TestLiveJobsApi:
                         "project_id": project.id,
                         "multi": False,
                         "tags": ["11", "22"],
+                        "raw_id": "job-f50b735c-e087-41e6-bddc-" + str(index) * 12,
                     },
                     headers=regular_user.headers,
                 ) as resp:
@@ -772,12 +820,17 @@ class TestLiveJobsApi:
             items = await resp.json()
             assert len(items) == 5
             yaml_ids = set()
+            raw_ids = set()
             for item in items:
                 assert item["project_id"] == project1.id
                 assert not item["multi"]
                 assert item["tags"] == ["11", "22"]
                 yaml_ids.add(item["yaml_id"])
+                raw_ids.add(item["raw_id"])
             assert yaml_ids == {f"test-job-{index}" for index in range(5)}
+            assert raw_ids == {
+                f"job-f50b735c-e087-41e6-bddc-{str(index) * 12}" for index in range(5)
+            }
 
     async def test_projects_cannot_access_not_owner(
         self,
@@ -796,6 +849,7 @@ class TestLiveJobsApi:
                 "project_id": project.id,
                 "multi": False,
                 "tags": ["11", "22"],
+                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
             },
             headers=user1.headers,
         ) as resp:

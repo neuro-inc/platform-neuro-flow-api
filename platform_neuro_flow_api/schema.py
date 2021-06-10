@@ -69,6 +69,7 @@ class LiveJobSchema(Schema):
     project_id = fields.String(required=True)
     multi = fields.Boolean(required=True)
     tags = fields.List(fields.String(), required=True)
+    raw_id = fields.String(missing="")
 
     @post_load
     def make_live_job_data(self, data: Mapping[str, Any], **kwargs: Any) -> LiveJobData:
