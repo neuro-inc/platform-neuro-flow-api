@@ -96,6 +96,7 @@ class LiveJobData:
     project_id: str
     multi: bool
     tags: Sequence[str]
+    raw_id: Optional[str]
 
 
 @dataclass(frozen=True)

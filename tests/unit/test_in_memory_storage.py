@@ -97,6 +97,7 @@ class MockDataHelper:
             project_id=secrets.token_hex(8),
             multi=False,
             tags=[secrets.token_hex(8), secrets.token_hex(8)],
+            raw_id=secrets.token_hex(8),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
