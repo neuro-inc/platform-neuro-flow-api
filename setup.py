@@ -14,7 +14,7 @@ install_requires = (
     "marshmallow==3.12.1",
     "aiohttp-apispec==2.2.1",
     "alembic==1.6.5",
-    "psycopg2-binary==2.8.6",
+    "psycopg2-binary==2.9.1",
     "asyncpgsa==0.27.1",
     "sqlalchemy~=1.3.0",
 )
