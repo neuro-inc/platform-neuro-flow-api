@@ -96,11 +96,11 @@ class LiveJobData:
     project_id: str
     multi: bool
     tags: Sequence[str]
-    raw_id: Optional[str]
+    raw_id: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class LiveJob(HasId, LiveJobData):
+class LiveJob(LiveJobData, HasId):
     pass
 
 
