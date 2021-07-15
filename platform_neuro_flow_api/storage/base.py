@@ -59,6 +59,7 @@ class ImageStatus(str, enum.Enum):
     BUILDING = "building"
     BUILT = "built"
     BUILD_FAILED = "build_failed"
+    CACHED = "cached"
 
 
 _C = TypeVar("_C", bound="HasId")
