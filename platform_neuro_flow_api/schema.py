@@ -69,7 +69,7 @@ class LiveJobSchema(Schema):
     project_id = fields.String(required=True)
     multi = fields.Boolean(required=True)
     tags = fields.List(fields.String(), required=True)
-    raw_id = fields.String(missing="")
+    raw_id = fields.String(load_default="")
 
     @post_load
     def make_live_job_data(self, data: Mapping[str, Any], **kwargs: Any) -> LiveJobData:
@@ -95,7 +95,7 @@ class BakeSchema(Schema):
     project_id = fields.String(required=True)
     batch = fields.String(required=True)
     created_at = fields.AwareDateTime(
-        missing=lambda: datetime.now(timezone.utc)
+        load_default=lambda: datetime.now(timezone.utc)
     )  # when
     graphs = fields.Dict(
         keys=FullIDField(),
@@ -154,7 +154,7 @@ class AttemptSchema(Schema):
     bake_id = fields.String(required=True)
     number = fields.Integer(required=True, strict=True)
     created_at = fields.AwareDateTime(
-        missing=lambda: datetime.now(timezone.utc)
+        load_default=lambda: datetime.now(timezone.utc)
     )  # when
     result = TaskStatusField(required=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
@@ -204,8 +204,8 @@ class CacheEntrySchema(Schema):
     task_id = FullIDField(required=True)
     batch = fields.String(required=True)
     key = fields.String(required=True)
-    created_at = fields.AwareDateTime(missing=lambda: datetime.now(timezone.utc))
-    raw_id = fields.String(missing="")
+    created_at = fields.AwareDateTime(load_default=lambda: datetime.now(timezone.utc))
+    raw_id = fields.String(load_default="")
     outputs = fields.Dict(values=fields.String(), required=True)
     state = fields.Dict(values=fields.String(), required=True)
 
