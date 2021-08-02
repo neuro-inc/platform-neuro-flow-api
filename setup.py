@@ -7,7 +7,7 @@ setup_requires = ("setuptools_scm",)
 install_requires = (
     "aiohttp==3.7.4",
     "neuro_auth_client==21.7.27",
-    "platform-logging==21.5.27",
+    "neuro-logging==21.8.2",
     "aiohttp-cors==0.7.0",
     "aiozipkin==1.1.0",
     "sentry-sdk==1.3.1",

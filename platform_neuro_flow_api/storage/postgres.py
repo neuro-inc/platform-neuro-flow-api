@@ -13,7 +13,7 @@ from asyncpg import Connection, UniqueViolationError
 from asyncpg.cursor import CursorFactory
 from asyncpg.pool import Pool
 from asyncpg.protocol.protocol import Record
-from platform_logging import trace
+from neuro_logging import trace
 from sqlalchemy import asc, desc
 
 from .base import (

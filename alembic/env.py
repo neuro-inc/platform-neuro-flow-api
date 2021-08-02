@@ -1,6 +1,6 @@
 import sys
 
-from platform_logging import init_logging
+from neuro_logging import init_logging
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context

@@ -30,7 +30,7 @@ from aiohttp_security import check_authorized
 from marshmallow import fields
 from neuro_auth_client import AuthClient
 from neuro_auth_client.security import AuthScheme, setup_security
-from platform_logging import (
+from neuro_logging import (
     init_logging,
     notrace,
     setup_sentry,
