@@ -13,7 +13,7 @@ install_requires = (
     "sentry-sdk==1.3.1",
     "marshmallow==3.12.2",
     "aiohttp-apispec==2.2.1",
-    "alembic==1.6.5",
+    "alembic==1.7.1",
     "psycopg2-binary==2.9.1",
     "asyncpgsa==0.27.1",
     "sqlalchemy~=1.3.0",
