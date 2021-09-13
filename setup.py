@@ -24,7 +24,7 @@ setup(
     use_scm_version={
         "git_describe_command": "git describe --dirty --tags --long --match v*.*.*",
     },
-    url="https://github.com/neuromation/platform-neuro-flow-api",
+    url="https://github.com/neuro-inc/platform-neuro-flow-api",
     packages=find_packages(),
     install_requires=install_requires,
     setup_requires=setup_requires,
