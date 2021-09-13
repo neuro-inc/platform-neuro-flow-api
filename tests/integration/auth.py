@@ -178,7 +178,7 @@ async def regular_user_factory(
             name = f"user-{random_name()}"
         user = User(name=name, clusters=[Cluster(name=cluster_name)])
         await auth_client.add_user(user, token=admin_token)
-        return _User(name=user.name, token=token_factory(user.name))  # type: ignore
+        return _User(name=user.name, token=token_factory(user.name))
 
     yield _factory
 
