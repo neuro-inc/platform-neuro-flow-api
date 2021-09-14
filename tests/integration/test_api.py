@@ -2249,6 +2249,38 @@ class TestBakeImagesApi:
             assert payload["builder_job_id"] is None
             assert "id" in payload
 
+    async def test_create_cached(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+    ) -> None:
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bake_images_url,
+            json={
+                "bake_id": bake.id,
+                "ref": "image:test",
+                "yaml_defs": ["foo.bar.test"],
+                "context_on_storage": "storage://default/user/ctx",
+                "dockerfile_rel": "Dockerfile",
+                "status": "cached",
+                "builder_job_id": "job-id",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["bake_id"] == bake.id
+            assert payload["ref"] == "image:test"
+            assert payload["yaml_defs"] == ["foo.bar.test"]
+            assert payload["context_on_storage"] == "storage://default/user/ctx"
+            assert payload["dockerfile_rel"] == "Dockerfile"
+            assert payload["status"] == "cached"
+            assert payload["builder_job_id"] == "job-id"
+            assert "id" in payload
+
     async def test_create_old_api(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
