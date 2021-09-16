@@ -12,6 +12,7 @@ from platform_neuro_flow_api.storage.base import (
     ConfigFileStorage,
     ExistsError,
     LiveJobStorage,
+    NotExistsError,
     ProjectStorage,
     TaskStatus,
     TaskStorage,
@@ -165,6 +166,14 @@ class TestPostgresBakeStorage(_TestBakeStorage):
         with pytest.raises(UniquenessError):
             await postgres_storage.attempts.update(attempt)
 
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        bake = await postgres_storage.bakes.create(await self.helper.gen_bake_data())
+        await postgres_storage.projects.delete(bake.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.bakes.get(bake.id)
+
 
 class TestPostgresAttemptStorage(_TestAttemptStorage):
     @pytest.fixture(autouse=True)
@@ -180,6 +189,17 @@ class TestPostgresAttemptStorage(_TestAttemptStorage):
         postgres_storage: PostgresStorage,
     ) -> AttemptStorage:
         return postgres_storage.attempts
+
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        attempt = await postgres_storage.attempts.create(
+            await self.helper.gen_attempt_data()
+        )
+        bake = await postgres_storage.bakes.get(attempt.bake_id)
+        await postgres_storage.projects.delete(bake.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.attempts.get(attempt.id)
 
 
 class TestPostgresTaskStorage(_TestTaskStorage):
@@ -197,6 +217,16 @@ class TestPostgresTaskStorage(_TestTaskStorage):
     ) -> TaskStorage:
         return postgres_storage.tasks
 
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        task = await postgres_storage.tasks.create(await self.helper.gen_task_data())
+        attempt = await postgres_storage.attempts.get(task.attempt_id)
+        bake = await postgres_storage.bakes.get(attempt.bake_id)
+        await postgres_storage.projects.delete(bake.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.tasks.get(task.id)
+
 
 class TestPostgresCacheEntryStorage(_TestCacheEntryStorage):
     @pytest.fixture(autouse=True)
@@ -213,6 +243,16 @@ class TestPostgresCacheEntryStorage(_TestCacheEntryStorage):
     ) -> CacheEntryStorage:
         return postgres_storage.cache_entries
 
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        entry = await postgres_storage.cache_entries.create(
+            await self.helper.gen_cache_entry_data()
+        )
+        await postgres_storage.projects.delete(entry.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.cache_entries.get(entry.id)
+
 
 class TestPostgresConfigFileStorage(_TestConfigFileStorage):
     @pytest.fixture(autouse=True)
@@ -228,6 +268,17 @@ class TestPostgresConfigFileStorage(_TestConfigFileStorage):
         postgres_storage: PostgresStorage,
     ) -> ConfigFileStorage:
         return postgres_storage.config_files
+
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        file = await postgres_storage.config_files.create(
+            await self.helper.gen_config_file_data()
+        )
+        bake = await postgres_storage.bakes.get(file.bake_id)
+        await postgres_storage.projects.delete(bake.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.config_files.get(file.id)
 
 
 class TestPostgresBakeImageStorage(_TestBakeImageStorage):
@@ -261,3 +312,14 @@ class TestPostgresBakeImageStorage(_TestBakeImageStorage):
 
         image_from_db = await storage.get("test-id")
         assert image == image_from_db
+
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        image = await postgres_storage.bake_images.create(
+            await self.helper.gen_bake_image_data()
+        )
+        bake = await postgres_storage.bakes.get(image.bake_id)
+        await postgres_storage.projects.delete(bake.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.bake_images.get(image.id)

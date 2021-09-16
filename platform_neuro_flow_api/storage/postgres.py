@@ -293,6 +293,17 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
             raise NotExistsError
         return self._from_record(record)
 
+    @trace
+    async def delete(self, id: str) -> None:
+        query = (
+            self._table.delete()
+            .where(self._table.c.id == id)
+            .returning(self._table.c.id)
+        )
+        record = await self._fetchrow(query)
+        if not record:
+            raise NotExistsError
+
 
 class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Project]):
     def _to_values(self, item: Project) -> Dict[str, Any]:
