@@ -11,6 +11,7 @@ from aiohttp.web_exceptions import (
     HTTPConflict,
     HTTPCreated,
     HTTPForbidden,
+    HTTPNoContent,
     HTTPNotFound,
     HTTPUnauthorized,
 )
@@ -462,6 +463,33 @@ class TestProjectsApi:
                 assert item["cluster"] == "test-cluster"
                 names.add(item["name"])
             assert names == {f"test-{index}" for index in range(5)}
+
+    async def test_project_delete(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            project_id = payload["id"]
+
+        async with client.delete(
+            url=neuro_flow_api.project_url(project_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPNoContent.status_code, await resp.text()
+
+        async with client.get(
+            url=neuro_flow_api.project_url(project_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
 
 
 @pytest.fixture()

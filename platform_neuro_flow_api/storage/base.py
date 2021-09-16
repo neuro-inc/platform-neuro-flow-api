@@ -256,6 +256,10 @@ class BaseStorage(ABC, Generic[_D, _E]):
     async def get(self, id: str) -> _E:
         pass
 
+    @abstractmethod
+    async def delete(self, id: str) -> None:
+        pass
+
 
 class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
     @abstractmethod

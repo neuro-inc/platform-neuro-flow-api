@@ -98,6 +98,7 @@ class ProjectsApiHandler:
                 aiohttp.web.post("", self.create_project),
                 aiohttp.web.get("/by_name", self.get_project_by_name),
                 aiohttp.web.get("/{id}", self.get_project),
+                aiohttp.web.delete("/{id}", self.delete_project),
             ]
         )
 
@@ -206,6 +207,22 @@ class ProjectsApiHandler:
         return aiohttp.web.json_response(
             data=ProjectSchema().dump(project), status=HTTPOk.status_code
         )
+
+    @docs(tags=["projects"], summary="Delete project by id")
+    @response_schema(ProjectSchema(), HTTPOk.status_code)
+    async def delete_project(
+        self, request: aiohttp.web.Request
+    ) -> aiohttp.web.Response:
+        username = await check_authorized(request)
+        id = request.match_info["id"]
+        try:
+            project = await self.storage.projects.get(id)
+        except NotExistsError:
+            raise HTTPNotFound
+        if project.owner != username:
+            raise HTTPNotFound
+        await self.storage.projects.delete(id)
+        return aiohttp.web.Response(status=HTTPNoContent.status_code)
 
 
 class LiveJobApiHandler:

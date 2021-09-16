@@ -75,6 +75,11 @@ class InMemoryBaseStorage(BaseStorage[_D, _E]):
     async def check_exists(self, data: _D) -> None:
         pass
 
+    async def delete(self, id: str) -> None:
+        if id not in self._items:
+            raise NotExistsError
+        self._items.pop(id)
+
 
 class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Project]):
     async def check_exists(self, data: ProjectData) -> None:

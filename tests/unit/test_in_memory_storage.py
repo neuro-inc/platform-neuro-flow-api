@@ -285,6 +285,13 @@ class TestProjectStorage:
         assert len(found) == 5
         assert set(found) == {f"cluster-{index}" for index in range(5)}
 
+    async def test_delete(self, storage: ProjectStorage) -> None:
+        data = await self.helper.gen_project_data()
+        project = await storage.create(data)
+        await storage.delete(project.id)
+        with pytest.raises(NotExistsError):
+            await storage.get(project.id)
+
 
 class TestLiveJobStorage:
 
