@@ -41,7 +41,9 @@ jobs:
     - name: Install dependencies
       run: make setup
     - name: Lint
-      run: make lint
+      run: |
+        echo "::add-matcher::.github/actionlint-matcher.json"
+        make run
     - name: Run unit tests
       run: make test_unit
     - name: Configure AWS credentials
