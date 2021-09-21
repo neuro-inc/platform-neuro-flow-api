@@ -1,9 +1,11 @@
 from dataclasses import replace
+from typing import Optional
 
 import pytest
 from asyncpg import Pool
 
 from platform_neuro_flow_api.storage.base import (
+    Attempt,
     AttemptStorage,
     BakeImage,
     BakeImageStorage,
@@ -173,6 +175,58 @@ class TestPostgresBakeStorage(_TestBakeStorage):
         await postgres_storage.projects.delete(bake.project_id)
         with pytest.raises(NotExistsError):
             await postgres_storage.bakes.get(bake.id)
+
+    async def test_fetch_last_attempt(self, postgres_storage: PostgresStorage) -> None:
+        data1 = await self.helper.gen_bake_data(name="test1")
+        data2 = await self.helper.gen_bake_data(name="test2")
+        bake1 = await postgres_storage.bakes.create(data1)
+        bake2 = await postgres_storage.bakes.create(data2)
+
+        attempt1: Optional[Attempt] = None
+        for number in range(5):
+            attempt_data = await self.helper.gen_attempt_data(
+                number=number, bake_id=bake1.id, result=TaskStatus.SUCCEEDED
+            )
+            attempt1 = await postgres_storage.attempts.create(attempt_data)
+        attempt2: Optional[Attempt] = None
+        for number in range(5):
+            attempt_data = await self.helper.gen_attempt_data(
+                number=number, bake_id=bake2.id, result=TaskStatus.SUCCEEDED
+            )
+            attempt2 = await postgres_storage.attempts.create(attempt_data)
+
+        assert (
+            len(
+                [
+                    bake
+                    async for bake in postgres_storage.bakes.list(
+                        name=bake1.name, fetch_last_attempt=True
+                    )
+                ]
+            )
+            == 1
+        )
+
+        async for bake in postgres_storage.bakes.list(fetch_last_attempt=True):
+            if bake.id == bake1.id:
+                assert bake.last_attempt == attempt1
+            if bake.id == bake2.id:
+                assert bake.last_attempt == attempt2
+
+        bake_get = await postgres_storage.bakes.get(
+            id=bake1.id, fetch_last_attempt=True
+        )
+        assert bake_get.last_attempt == attempt1
+
+        bake_get = await postgres_storage.bakes.get(
+            id=bake2.id, fetch_last_attempt=True
+        )
+        assert bake_get.last_attempt == attempt2
+
+        bake_get = await postgres_storage.bakes.get_by_name(
+            project_id=bake1.project_id, name="test1", fetch_last_attempt=True
+        )
+        assert bake_get.last_attempt == attempt1
 
 
 class TestPostgresAttemptStorage(_TestAttemptStorage):

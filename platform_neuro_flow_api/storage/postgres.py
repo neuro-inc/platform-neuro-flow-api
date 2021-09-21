@@ -502,6 +502,12 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         else:
             return self._table.select()
 
+    def _filter_last_attempt(self, query: sasql.Selectable) -> sasql.Selectable:
+        # Only select single bake with last attempt
+        return query.distinct(self._table.c.id).order_by(
+            self._table.c.id, desc(self._attempts_table.c.number)
+        )
+
     async def list(
         self,
         project_id: Optional[str] = None,
@@ -524,10 +530,17 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             query = query.where(self._table.c.created_at >= since)
         if until:
             query = query.where(self._table.c.created_at <= until)
-        if reverse:
-            query = query.order_by(desc(self._table.c.created_at))
+        if fetch_last_attempt:
+            sub_query = self._filter_last_attempt(query).alias()
+            # To allow reordering, we need subquery
+            query = sasql.select(sub_query.c).select_from(sub_query)
+            created_at_field = sub_query.c.bakes_created_at
         else:
-            query = query.order_by(asc(self._table.c.created_at))
+            created_at_field = self._table.c.created_at
+        if reverse:
+            query = query.order_by(desc(created_at_field))
+        else:
+            query = query.order_by(asc(created_at_field))
         async with self._pool.acquire() as conn, conn.transaction():
             async for record in self._cursor(query, conn=conn):
                 yield self._from_record(record, fetch_last_attempt)
@@ -536,6 +549,8 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
     async def get(self, id: str, *, fetch_last_attempt: bool = False) -> Bake:
         query = self._make_q(fetch_last_attempt)
         query = query.where(self._table.c.id == id)
+        if fetch_last_attempt:
+            query = self._filter_last_attempt(query)
         record = await self._fetchrow(query)
         if not record:
             raise NotExistsError
@@ -553,9 +568,15 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             self._make_q(fetch_last_attempt)
             .where(self._table.c.project_id == project_id)
             .where(self._table.c.name == name)
-            .order_by(self._table.c.created_at.desc())
-            .limit(1)
         )
+        if fetch_last_attempt:
+            # To allow reordering, we need subquery
+            sub_query = self._filter_last_attempt(query).alias()
+            query = sasql.select(sub_query.c).select_from(sub_query)
+            created_at_field = sub_query.c.bakes_created_at
+        else:
+            created_at_field = self._table.c.created_at
+        query = query.order_by(desc(created_at_field)).limit(1)
         record = await self._fetchrow(query)
         if not record:
             raise NotExistsError
