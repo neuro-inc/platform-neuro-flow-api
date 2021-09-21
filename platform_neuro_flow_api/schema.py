@@ -127,7 +127,6 @@ class ConfigFileSchema(Schema):
 
 
 class ConfigsMetaSchema(Schema):
-    id = fields.String(required=True, dump_only=True)
     workspace = fields.String(required=True)
     flow_config_id = fields.String(required=True)
     project_config_id = fields.String(allow_none=True)
