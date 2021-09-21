@@ -722,7 +722,7 @@ class AttemptApiHandler:
         )
         await self.storage.attempts.update(new_attempt)
         return aiohttp.web.json_response(
-            data=schema.dump(attempt_data), status=HTTPOk.status_code
+            data=schema.dump(new_attempt), status=HTTPOk.status_code
         )
 
 
