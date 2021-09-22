@@ -77,6 +77,16 @@ class TestPostgresLiveJobsStorage(_TestLiveJobStorage):
     ) -> LiveJobStorage:
         return postgres_storage.live_jobs
 
+    async def test_removed_if_project_deleted(
+        self, postgres_storage: PostgresStorage
+    ) -> None:
+        live_job = await postgres_storage.live_jobs.create(
+            await self.helper.gen_live_job_data()
+        )
+        await postgres_storage.projects.delete(live_job.project_id)
+        with pytest.raises(NotExistsError):
+            await postgres_storage.live_jobs.get(live_job.id)
+
 
 class TestPostgresBakeStorage(_TestBakeStorage):
     @pytest.fixture(autouse=True)
