@@ -1715,6 +1715,7 @@ class TestAttemptApi:
                     "created_at": bake.created_at,
                     "tags": ["tag"],
                     "name": "test-name",
+                    "meta": {"git_info": None},
                     "last_attempt": {
                         "id": attempt["id"],
                         "bake_id": bake.id,
