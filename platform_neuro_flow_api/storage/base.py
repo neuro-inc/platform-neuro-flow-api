@@ -171,12 +171,25 @@ class Task(HasId, TaskData):
 
 
 @dataclass(frozen=True)
+class GitInfo:
+    sha: str
+    branch: str
+    tags: Sequence[str]
+
+
+@dataclass(frozen=True)
+class BakeMeta:
+    git_info: Optional[GitInfo]
+
+
+@dataclass(frozen=True)
 class BakeData:
     project_id: str
     batch: str
     created_at: datetime.datetime
     # prefix -> { id -> deps }
     graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
+    meta: BakeMeta = BakeMeta(None)
     params: Optional[Mapping[str, str]] = None
     name: Optional[str] = None
     tags: Sequence[str] = ()

@@ -935,6 +935,65 @@ class TestBakeApi:
             assert "id" in payload
             assert "created_at" in payload
 
+    async def test_create_with_meta(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+                "meta": {
+                    "git_info": {
+                        "sha": "test-sha",
+                        "branch": "test-branch",
+                        "tags": ["tag1", "tag2", "tag3"],
+                    }
+                },
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["meta"] == {
+                "git_info": {
+                    "sha": "test-sha",
+                    "branch": "test-branch",
+                    "tags": ["tag1", "tag2", "tag3"],
+                }
+            }
+
+    async def test_create_empty_meta(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        project = await project_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+                "meta": {"git_info": None},
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+
+            assert payload["meta"] == {"git_info": None}
+
     async def test_get(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -1091,6 +1150,7 @@ class TestBakeApi:
                     "params": {"p1": "v1"},
                     "created_at": payload1["created_at"],
                     "tags": [],
+                    "meta": {"git_info": None},
                     "name": None,
                     "last_attempt": None,
                 }

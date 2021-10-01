@@ -10,9 +10,11 @@ from platform_neuro_flow_api.storage.base import (
     AttemptData,
     BakeData,
     BakeImageData,
+    BakeMeta,
     CacheEntryData,
     ConfigFileData,
     FullID,
+    GitInfo,
     ImageStatus,
     LiveJobData,
     ProjectData,
@@ -90,13 +92,30 @@ class FullIDField(fields.String):
         return super()._serialize(".".join(value), *args, **kwargs)
 
 
+class GitInfoSchema(Schema):
+    sha = fields.String(required=True)
+    branch = fields.String(required=True)
+    tags = fields.List(fields.String(), required=True)
+
+    @post_load
+    def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> GitInfo:
+        return GitInfo(**data)
+
+
+class BakeMetaSchema(Schema):
+    git_info = fields.Nested(GitInfoSchema, required=True, allow_none=True)
+
+    @post_load
+    def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeMeta:
+        return BakeMeta(**data)
+
+
 class BakeSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     project_id = fields.String(required=True)
     batch = fields.String(required=True)
-    created_at = fields.AwareDateTime(
-        missing=lambda: datetime.now(timezone.utc)
-    )  # when
+    created_at = fields.AwareDateTime(missing=lambda: datetime.now(timezone.utc))
+    meta = fields.Nested(BakeMetaSchema, required=False, missing=lambda: BakeMeta(None))
     graphs = fields.Dict(
         keys=FullIDField(),
         values=fields.Dict(keys=FullIDField(), values=fields.List(FullIDField())),

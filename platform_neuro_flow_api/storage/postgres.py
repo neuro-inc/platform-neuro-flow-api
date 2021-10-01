@@ -25,6 +25,7 @@ from .base import (
     BakeImage,
     BakeImageData,
     BakeImageStorage,
+    BakeMeta,
     BakeStorage,
     BaseStorage,
     CacheEntry,
@@ -36,6 +37,7 @@ from .base import (
     ConfigsMeta,
     ExistsError,
     FullID,
+    GitInfo,
     HasId,
     ImageStatus,
     LiveJob,
@@ -449,6 +451,15 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
                 subgr[_full_id2str(node)] = [_full_id2str(dep) for dep in deps]
             graphs[_full_id2str(key)] = subgr
         payload["graphs"] = graphs
+        payload["meta"] = {
+            "git_info": {
+                "sha": item.meta.git_info.sha,
+                "branch": item.meta.git_info.branch,
+                "tags": item.meta.git_info.tags,
+            }
+            if item.meta.git_info
+            else None,
+        }
         return {
             "id": payload.pop("id"),
             "project_id": payload.pop("project_id"),
@@ -487,6 +498,15 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             for node, deps in subgraph.items():
                 subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
             graphs[_str2full_id(grkey)] = subgr
+        if "meta" in payload:
+            git_info: Optional[GitInfo] = None
+            if payload["meta"].get("git_info"):
+                git_info = GitInfo(
+                    sha=payload["meta"]["git_info"]["sha"],
+                    branch=payload["meta"]["git_info"]["branch"],
+                    tags=payload["meta"]["git_info"]["tags"],
+                )
+            payload["meta"] = BakeMeta(git_info)
         payload["graphs"] = graphs
         payload["last_attempt"] = attempt
         return Bake(**payload)
