@@ -1,5 +1,4 @@
 *
 !dist
-!platform_neuro_flow_api.egg-info
 !alembic
 !alembic.ini

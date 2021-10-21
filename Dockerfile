@@ -1,20 +1,13 @@
-FROM python:3.8.10-buster AS installer
+FROM python:3.8.10-slim-buster AS installer
 
-# Separate step for requirements to speed up docker builds
-COPY platform_neuro_flow_api.egg-info/requires.txt requires.txt
-RUN python -c 'from pkg_resources import Distribution, PathMetadata;\
-dist = Distribution(metadata=PathMetadata(".", "."));\
-print("\n".join(str(r) for r in dist.requires()));\
-' > requirements.txt
-RUN pip install -U pip && pip install --user -r requirements.txt
+# Copy to tmp folder to don't pollute home dir
+RUN mkdir -p /tmp/dist
+COPY dist /tmp/dist
 
-ARG DIST_FILENAME
+RUN ls /tmp/dist
+RUN pip install --user --find-links /tmp/dist platform-neuro-flow-api
 
-# Install service itself
-COPY dist/${DIST_FILENAME} ${DIST_FILENAME}
-RUN pip install --user $DIST_FILENAME
-
-FROM python:3.8.10-buster as service
+FROM python:3.8.10-slim-buster as service
 
 LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/platform-neuro-flow-api"
 
