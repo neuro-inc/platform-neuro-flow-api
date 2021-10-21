@@ -1,5 +1,7 @@
 FROM python:3.8.10-slim-buster AS installer
 
+ENV PATH=/root/.local/bin:$PATH
+
 # Copy to tmp folder to don't pollute home dir
 RUN mkdir -p /tmp/dist
 COPY dist /tmp/dist
