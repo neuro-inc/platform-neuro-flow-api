@@ -30,7 +30,7 @@ setup:
 	pre-commit install
 
 lint: format
-	mypy platform_neuro_flow_api tests setup.py
+	mypy platform_neuro_flow_api tests
 
 format:
 ifdef CI_LINT_RUN
@@ -46,10 +46,9 @@ test_integration:
 	pytest -vv --maxfail=3 --cov=platform_neuro_flow_api --cov-report xml:.coverage-integration.xml tests/integration
 
 docker_build:
-	python setup.py sdist
-	docker build \
-		--build-arg DIST_FILENAME=`python setup.py --fullname`.tar.gz \
-		-t $(IMAGE_NAME):latest .
+	pip install build
+	python -m build
+	docker build -t $(IMAGE_NAME):latest .
 
 docker_push: docker_build
 	docker tag $(IMAGE_NAME):latest $(IMAGE_REPO):$(TAG)

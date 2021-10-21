@@ -31,8 +31,8 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.8.10-${{ hashFiles('requirements/*.txt') }}-${{
-          hashFiles('setup.py') }}
+        key: ${{ runner.os }}-py-3.8.10-${{
+                 hashFiles('pyproject.toml', 'setup.cfg', 'requirements/*.txt') }}
     - name: Cache pre-commit hooks
       uses: actions/cache@v2
       with:
