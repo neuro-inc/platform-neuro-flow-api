@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import Optional
 
 import pytest
-from asyncpg import Pool
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from platform_neuro_flow_api.storage.base import (
     Attempt,
@@ -42,8 +42,8 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def postgres_storage(postgres_pool: Pool) -> PostgresStorage:
-    return PostgresStorage(postgres_pool)
+def postgres_storage(sqalchemy_engine: AsyncEngine) -> PostgresStorage:
+    return PostgresStorage(sqalchemy_engine)
 
 
 class TestPostgresProjectStorage(_TestProjectStorage):
