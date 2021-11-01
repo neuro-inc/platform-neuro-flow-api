@@ -10,6 +10,7 @@ import sqlalchemy.sql as sasql
 from asyncpg import UniqueViolationError
 from neuro_logging import trace
 from sqlalchemy import asc, desc
+from sqlalchemy.engine import Row
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
@@ -216,15 +217,16 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
 
     async def _execute(
         self, query: sasql.ClauseElement, conn: Optional[AsyncConnection] = None
-    ) -> Any:
+    ) -> None:
         if conn:
-            return await conn.execute(query)
+            await conn.execute(query)
+            return
         async with self._engine.connect() as conn:
-            return await conn.execute(query)
+            await conn.execute(query)
 
     async def _fetchrow(
         self, query: sasql.ClauseElement, conn: Optional[AsyncConnection] = None
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[Row]:
         if conn:
             result = await conn.execute(query)
             return result.one_or_none()
@@ -234,7 +236,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
 
     async def _cursor(
         self, query: sasql.ClauseElement, conn: AsyncConnection
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[Row]:
         return await conn.stream(query)
 
     def _gen_id(self) -> str:
@@ -245,7 +247,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
         pass
 
     @abstractmethod
-    def _from_record(self, record: Dict[str, Any]) -> _E:
+    def _from_record(self, record: Row) -> _E:
         pass
 
     async def after_insert(self, data: _E, conn: AsyncConnection) -> None:
@@ -322,7 +324,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> Project:
+    def _from_record(self, record: Row) -> Project:
         payload = record["payload"]
         payload["id"] = record["id"]
         payload["name"] = record["name"]
@@ -374,7 +376,7 @@ class PostgresLiveJobsStorage(
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> LiveJob:
+    def _from_record(self, record: Row) -> LiveJob:
         payload = record["payload"]
         payload["id"] = record["id"]
         payload["yaml_id"] = record["yaml_id"]
@@ -417,7 +419,7 @@ class PostgresLiveJobsStorage(
                 yield self._from_record(record)
 
 
-def _attempt_from_record(record: Dict[str, Any], use_labels: bool = False) -> Attempt:
+def _attempt_from_record(record: Row, use_labels: bool = False) -> Attempt:
     def key(name: str) -> str:
         if use_labels:
             return "attempts_" + name
@@ -474,9 +476,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             "payload": payload,
         }
 
-    def _from_record(
-        self, record: Dict[str, Any], fetch_last_attempt: bool = False
-    ) -> Bake:
+    def _from_record(self, record: Row, fetch_last_attempt: bool = False) -> Bake:
         attempt = None
         if fetch_last_attempt:
             if record["attempts_id"] is not None:
@@ -629,7 +629,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> Attempt:
+    def _from_record(self, record: Row) -> Attempt:
         return _attempt_from_record(record)
 
     async def after_insert(self, data: Attempt, conn: AsyncConnection) -> None:
@@ -646,7 +646,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         )
         result = await self._fetchrow(max_number_query, conn)
         assert result is not None
-        max_number = result[0]
+        (max_number,) = result
         if data.number == max_number:
             query = (
                 self._bakes_table.update()
@@ -711,7 +711,7 @@ class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> Task:
+    def _from_record(self, record: Row) -> Task:
         payload = record["payload"]
         payload["id"] = record["id"]
         payload["attempt_id"] = record["attempt_id"]
@@ -764,7 +764,7 @@ class PostgresCacheEntryStorage(
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> CacheEntry:
+    def _from_record(self, record: Row) -> CacheEntry:
         payload = record["payload"]
         payload["id"] = record["id"]
         payload["project_id"] = record["project_id"]
@@ -820,7 +820,7 @@ class PostgresConfigFileStorage(
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> ConfigFile:
+    def _from_record(self, record: Row) -> ConfigFile:
         payload = record["payload"]
         payload["id"] = record["id"]
         payload["bake_id"] = record["bake_id"]
@@ -845,7 +845,7 @@ class PostgresBakeImageStorage(
             "payload": payload,
         }
 
-    def _from_record(self, record: Dict[str, Any]) -> BakeImage:
+    def _from_record(self, record: Row) -> BakeImage:
         payload = record["payload"]
         payload["id"] = record["id"]
         payload["bake_id"] = record["bake_id"]
