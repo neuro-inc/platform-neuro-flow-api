@@ -308,9 +308,10 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
             .where(self._table.c.id == id)
             .returning(self._table.c.id)
         )
-        record = await self._fetchrow(query)
-        if not record:
-            raise NotExistsError
+        async with self._engine.begin() as conn:
+            record = await self._fetchrow(query, conn)
+            if not record:
+                raise NotExistsError
 
 
 class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Project]):
@@ -653,14 +654,15 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
                 .values({"status": data.result})
                 .where(self._bakes_table.c.id == data.bake_id)
             )
-            try:
-                await self._execute(query)
-            except IntegrityError as exc:
-                if isinstance(exc.orig.__cause__, UniqueViolationError):
-                    raise UniquenessError(
-                        "There can be only one running bake with given name"
-                    )
-                raise
+            async with self._engine.begin() as conn:
+                try:
+                    await self._execute(query, conn)
+                except IntegrityError as exc:
+                    if isinstance(exc.orig.__cause__, UniqueViolationError):
+                        raise UniquenessError(
+                            "There can be only one running bake with given name"
+                        )
+                    raise
 
     @trace
     async def get_by_number(self, bake_id: str, number: int) -> Attempt:
@@ -804,7 +806,8 @@ class PostgresCacheEntryStorage(
             query = query.where(self._table.c.task_id == _full_id2str(task_id))
         if batch is not None:
             query = query.where(self._table.c.batch == batch)
-        await self._execute(query)
+        async with self._engine.begin() as conn:
+            await self._execute(query, conn)
 
 
 class PostgresConfigFileStorage(

@@ -372,7 +372,8 @@ class TestPostgresBakeImageStorage(_TestBakeImageStorage):
         values["payload"]["prefix"] = _full_id2str(image.prefix)
         values["payload"]["yaml_id"] = image.yaml_id
         query = storage._table.insert().values(values)
-        await storage._execute(query)
+        async with storage._engine.begin() as conn:
+            await storage._execute(query, conn)
 
         image_from_db = await storage.get("test-id")
         assert image == image_from_db
