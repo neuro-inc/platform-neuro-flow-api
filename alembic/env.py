@@ -4,7 +4,10 @@ from neuro_logging import init_logging
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from platform_neuro_flow_api.config_factory import EnvironConfigFactory
+from platform_neuro_flow_api.config_factory import (
+    EnvironConfigFactory,
+    to_sync_postgres_dsn,
+)
 
 
 # this is the Alembic Config object, which provides
@@ -61,7 +64,8 @@ def run_migrations_online() -> None:
     """
     if not config.get_main_option("sqlalchemy.url"):
         db_config = EnvironConfigFactory().create_postgres()
-        config.set_main_option("sqlalchemy.url", db_config.postgres_dsn)
+        postgres_dsn = to_sync_postgres_dsn(db_config.postgres_dsn)
+        config.set_main_option("sqlalchemy.url", postgres_dsn)
 
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
