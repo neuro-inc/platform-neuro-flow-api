@@ -40,7 +40,7 @@ from neuro_logging import (
 
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
-from .postgres import create_postgres_pool
+from .postgres import make_async_engine
 from .schema import (
     AttemptSchema,
     BakeImagePatchSchema,
@@ -1432,13 +1432,12 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 create_auth_client(config.platform_auth)
             )
 
-            logger.info("Initializing Postgres connection pool")
-            postgres_pool = await exit_stack.enter_async_context(
-                create_postgres_pool(config.postgres)
-            )
+            logger.info("Initializing SQLAlchemy engine")
+            engine = make_async_engine(config.postgres)
+            exit_stack.push_async_callback(engine.dispose)
 
             logger.info("Initializing PostgresStorage")
-            storage: Storage = PostgresStorage(postgres_pool)
+            storage: Storage = PostgresStorage(engine)
 
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BEARER

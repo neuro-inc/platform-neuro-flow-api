@@ -2,7 +2,7 @@ from dataclasses import replace
 from typing import Optional
 
 import pytest
-from asyncpg import Pool
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from platform_neuro_flow_api.storage.base import (
     Attempt,
@@ -42,8 +42,8 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
-def postgres_storage(postgres_pool: Pool) -> PostgresStorage:
-    return PostgresStorage(postgres_pool)
+def postgres_storage(sqalchemy_engine: AsyncEngine) -> PostgresStorage:
+    return PostgresStorage(sqalchemy_engine)
 
 
 class TestPostgresProjectStorage(_TestProjectStorage):
@@ -372,7 +372,8 @@ class TestPostgresBakeImageStorage(_TestBakeImageStorage):
         values["payload"]["prefix"] = _full_id2str(image.prefix)
         values["payload"]["yaml_id"] = image.yaml_id
         query = storage._table.insert().values(values)
-        await storage._execute(query)
+        async with storage._engine.begin() as conn:
+            await storage._execute(query, conn)
 
         image_from_db = await storage.get("test-id")
         assert image == image_from_db
