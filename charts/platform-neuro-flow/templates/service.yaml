@@ -1,7 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: platformneuroflowapi
+  name: {{ include "platformNeuroFlow.fullname" . }}
+  labels: {{ include "platformNeuroFlow.labels.standard" . | nindent 4 }}
+    service: platform-neuro-flow
   annotations:
     traefik.ingress.kubernetes.io/affinity: "true"
     traefik.ingress.kubernetes.io/session-cookie-name: NEURO_NEURO_FLOW_API_SESSION
@@ -12,8 +14,11 @@ spec:
     port: {{ .Values.port }}
     targetPort: tcp-web
   selector:
-    service: platformneuroflowapi
+    app: {{ include "platformNeuroFlow.name" . }}
+    release: {{ .Release.Name }}
+    service: platform-neuro-flow
 ---
+# TODO: Old service definition. Check that it is not used elsewhere and remove.
 apiVersion: v1
 kind: Service
 metadata:
@@ -28,4 +33,6 @@ spec:
     port: {{ .Values.port }}
     targetPort: tcp-web
   selector:
-    service: platformneuroflowapi
+    app: {{ include "platformNeuroFlow.name" . }}
+    release: {{ .Release.Name }}
+    service: platform-neuro-flow
