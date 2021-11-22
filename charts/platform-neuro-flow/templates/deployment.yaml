@@ -1,12 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: platformneuroflowapi
+  name: {{ include "platformNeuroFlow.fullname" . }}
+  labels: {{ include "platformNeuroFlow.labels.standard" . | nindent 4 }}
+    service: platform-neuro-flow
 spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      service: platformneuroflowapi
+      app: {{ include "platformNeuroFlow.name" . }}
+      release: {{ .Release.Name }}
+      service: platform-neuro-flow
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -15,10 +19,12 @@ spec:
   template:
     metadata:
       labels:
-        service: platformneuroflowapi
+        app: {{ include "platformNeuroFlow.name" . }}
+        release: {{ .Release.Name }}
+        service: platform-neuro-flow
     spec:
       containers:
-      - name: platformneuroflowapi
+      - name: platform-neuro-flow
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         {{- if .Values.command }}
         command: {{ toYaml .Values.command | nindent 8 }}
@@ -50,13 +56,15 @@ spec:
         - name: NP_NEURO_FLOW_API_PORT
           value: {{ .Values.port | quote }}
         - name: NP_NEURO_FLOW_API_PLATFORM_AUTH_URL
-          value: {{ .Values.authUrl }}
+          value: {{ .Values.platform.authUrl }}
         - name: NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
+        {{- if .Values.cors.origins }}
         - name: NP_CORS_ORIGINS
-          value: {{ .Values.corsOrigins }}
+          value: {{ .Values.cors.origins | join "," }}
+        {{- end }}
         {{- if .Values.zipkin }}
         - name: NP_ZIPKIN_URL
           value: {{ .Values.zipkin.url }}
@@ -82,19 +90,3 @@ spec:
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets: {{ toYaml .Values.imagePullSecrets | nindent 6 }}
       {{- end }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: platformneuroflowapi
-  annotations:
-    traefik.ingress.kubernetes.io/affinity: "true"
-    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_NEURO_FLOW_API_SESSION
-spec:
-  type: ClusterIP
-  ports:
-  - name: http
-    port: {{ .Values.port }}
-    targetPort: tcp-web
-  selector:
-    service: platformneuroflowapi

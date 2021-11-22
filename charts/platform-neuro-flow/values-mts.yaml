@@ -42,4 +42,6 @@ postgres-db-init:
             name: platformneuroflowapi-postgres
             key: platformneuroflowapi-migrations-dsn
 
-corsOrigins: https://app.ml.cloud.mts.ru
+cors:
+  origins:
+  - https://app.ml.cloud.mts.ru

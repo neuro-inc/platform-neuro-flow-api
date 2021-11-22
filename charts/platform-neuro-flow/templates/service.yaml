@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: platformneuroflowapi
+  annotations:
+    traefik.ingress.kubernetes.io/affinity: "true"
+    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_NEURO_FLOW_API_SESSION
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: {{ .Values.port }}
+    targetPort: tcp-web
+  selector:
+    service: platformneuroflowapi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platformneuroflowapi
+  annotations:
+    traefik.ingress.kubernetes.io/affinity: "true"
+    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_NEURO_FLOW_API_SESSION
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: {{ .Values.port }}
+    targetPort: tcp-web
+  selector:
+    service: platformneuroflowapi

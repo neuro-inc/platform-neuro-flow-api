@@ -49,4 +49,8 @@ postgres-db-init:
             name: platformneuroflowapi-postgres
             key: platformneuroflowapi-migrations-dsn
 
-corsOrigins: https://neu.ro,https://app.neu.ro,https://mts.neu.ro
+cors:
+  origins:
+  - https://neu.ro
+  - https://app.neu.ro
+  - https://mts.neu.ro
