@@ -185,11 +185,21 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
+    - name: Login to AWS ECR
+      if: env.CLOUD_PROVIDER == 'aws'
+      uses: aws-actions/amazon-ecr-login@v1
     - name: Configure Azure credentials
       if: env.CLOUD_PROVIDER == 'azure'
       uses: azure/login@v1
       with:
         creds: ${{secrets.AZURE_CREDENTIALS}}
+    - name: Login to Azure ACR
+      if: env.CLOUD_PROVIDER == 'azure'
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.AZURE_STAGING_ACR_SERVER }}
+        username: ${{ secrets.AZURE_STAGING_ACR_USERNAME }}
+        password: ${{ secrets.AZURE_STAGING_ACR_PASSWORD }}
     - name: Set environment variables
       run: |
         VERSION="${GITHUB_REF#refs/tags/v}"
@@ -205,4 +215,4 @@ jobs:
     - name: Update kube config
       run: make ${{ env.CLOUD_PROVIDER }}_k8s_login
     - name: Deploy to kubernetes
-      run: make artifactory_helm_deploy
+      run: make helm_deploy
