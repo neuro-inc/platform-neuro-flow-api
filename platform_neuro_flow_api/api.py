@@ -2,7 +2,7 @@ import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import AsyncIterator, Awaitable, Callable, List, Optional, Sequence
+from typing import AsyncIterator, Awaitable, Callable, Optional, Sequence
 
 import aiohttp
 import aiohttp.web
@@ -68,7 +68,7 @@ def accepts_ndjson(request: aiohttp.web.Request) -> bool:
 
 
 class ApiHandler:
-    def register(self, app: aiohttp.web.Application) -> List[AbstractRoute]:
+    def register(self, app: aiohttp.web.Application) -> list[AbstractRoute]:
         return app.add_routes(
             [
                 aiohttp.web.get("/ping", self.handle_ping),

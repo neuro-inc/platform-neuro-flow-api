@@ -1,6 +1,6 @@
 import functools
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Mapping, Optional, TypeVar
+from typing import Any, Callable, Mapping, Optional, TypeVar
 
 import aiohttp.web
 from aiohttp_apispec import querystring_schema
@@ -98,7 +98,7 @@ class GitInfoSchema(Schema):
     tags = fields.List(fields.String(), required=True)
 
     @post_load
-    def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> GitInfo:
+    def make_bake_data(self, data: dict[str, Any], **kwargs: Any) -> GitInfo:
         return GitInfo(**data)
 
 
@@ -106,7 +106,7 @@ class BakeMetaSchema(Schema):
     git_info = fields.Nested(GitInfoSchema, required=True, allow_none=True)
 
     @post_load
-    def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeMeta:
+    def make_bake_data(self, data: dict[str, Any], **kwargs: Any) -> BakeMeta:
         return BakeMeta(**data)
 
 
@@ -127,7 +127,7 @@ class BakeSchema(Schema):
     last_attempt = fields.Nested(lambda: AttemptSchema(), dump_only=True)
 
     @post_load
-    def make_bake_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeData:
+    def make_bake_data(self, data: dict[str, Any], **kwargs: Any) -> BakeData:
         return BakeData(**data)
 
 
@@ -179,7 +179,7 @@ class AttemptSchema(Schema):
     executor_id = fields.String(required=True, allow_none=True)
 
     @post_load
-    def make_attempt(self, data: Dict[str, Any], **kwargs: Any) -> AttemptData:
+    def make_attempt(self, data: dict[str, Any], **kwargs: Any) -> AttemptData:
         return AttemptData(**data)
 
 
@@ -235,7 +235,7 @@ class CacheEntrySchema(Schema):
 
     @post_load
     def make_cache_entry_data(
-        self, data: Dict[str, Any], **kwargs: Any
+        self, data: dict[str, Any], **kwargs: Any
     ) -> CacheEntryData:
         return CacheEntryData(**data)
 
@@ -268,7 +268,7 @@ class BakeImageSchema(Schema):
     yaml_id = fields.String(required=True)
 
     @pre_load
-    def prepare_data(self, data: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+    def prepare_data(self, data: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         # This code is for backward compatibility, it allows client to specify either
         # prefix + yaml_id or yaml_defs
         prefix = data.get("prefix")
@@ -287,7 +287,7 @@ class BakeImageSchema(Schema):
         return data
 
     @post_load
-    def make_image_data(self, data: Dict[str, Any], **kwargs: Any) -> BakeImageData:
+    def make_image_data(self, data: dict[str, Any], **kwargs: Any) -> BakeImageData:
         data.pop("prefix")
         data.pop("yaml_id")
         return BakeImageData(**data)

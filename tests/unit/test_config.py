@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import ANY
 
 from yarl import URL
@@ -17,7 +17,7 @@ from platform_neuro_flow_api.config_factory import EnvironConfigFactory
 
 def test_create() -> None:
     dsn = "postgresql+asyncpg://postgres@localhost:5432/postgres"
-    environ: Dict[str, Any] = {
+    environ: dict[str, Any] = {
         "NP_NEURO_FLOW_API_HOST": "0.0.0.0",
         "NP_NEURO_FLOW_API_PORT": 8080,
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_URL": "http://platformauthapi/api/v1",

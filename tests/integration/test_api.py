@@ -2,7 +2,7 @@ import asyncio
 import secrets
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Tuple
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 import aiohttp
 import pytest
@@ -1233,7 +1233,7 @@ class TestBakeApi:
         project_factory: Callable[[_User], Awaitable[Project]],
     ) -> None:
         project = await project_factory(regular_user)
-        bakes: List[Tuple[str, datetime]] = []
+        bakes: list[tuple[str, datetime]] = []
         for _ in range(5):
             async with client.post(
                 url=neuro_flow_api.bakes_url,
@@ -2058,7 +2058,7 @@ class TestTaskApi:
 
 
 class TestCacheEntryApi:
-    def make_payload(self, project_id: str) -> Dict[str, Any]:
+    def make_payload(self, project_id: str) -> dict[str, Any]:
         return {
             "project_id": project_id,
             "task_id": "test.task",
@@ -2203,7 +2203,7 @@ class TestCacheEntryApi:
     ) -> None:
         project1 = await project_factory(regular_user)
         project2 = await project_factory(regular_user)
-        project_to_entry_id: Dict[str, str] = {}
+        project_to_entry_id: dict[str, str] = {}
         for project in [project1, project2]:
             request_payload = self.make_payload(project.id)
             async with client.post(
