@@ -1,5 +1,5 @@
 import secrets
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -222,15 +222,19 @@ class TestProjectStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: ProjectData, data2: ProjectData) -> bool:
-        return ProjectData.__eq__(data1, data2)
+    def compare_data(self, data1: ProjectData, data2: ProjectData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: ProjectStorage) -> None:
         data = await self.helper.gen_project_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, name="new-name")
         await storage.update(updated)
@@ -305,15 +309,19 @@ class TestLiveJobStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: LiveJobData, data2: LiveJobData) -> bool:
-        return LiveJobData.__eq__(data1, data2)
+    def compare_data(self, data1: LiveJobData, data2: LiveJobData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: LiveJobStorage) -> None:
         data = await self.helper.gen_live_job_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, yaml_id="new-yaml-id")
         await storage.update(updated)
@@ -371,15 +379,19 @@ class TestBakeStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: BakeData, data2: BakeData) -> bool:
-        return BakeData.__eq__(data1, data2)
+    def compare_data(self, data1: BakeData, data2: BakeData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: BakeStorage) -> None:
         data = await self.helper.gen_bake_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, batch="another_batch", tags=("foo", "bar"))
         await storage.update(updated)
@@ -528,15 +540,19 @@ class TestAttemptStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: AttemptData, data2: AttemptData) -> bool:
-        return AttemptData.__eq__(data1, data2)
+    def compare_data(self, data1: AttemptData, data2: AttemptData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: AttemptStorage) -> None:
         data = await self.helper.gen_attempt_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, number=42)
         await storage.update(updated)
@@ -594,15 +610,19 @@ class TestTaskStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: TaskData, data2: TaskData) -> bool:
-        return TaskData.__eq__(data1, data2)
+    def compare_data(self, data1: TaskData, data2: TaskData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: TaskStorage) -> None:
         data = await self.helper.gen_task_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, yaml_id=("new-yaml-id",))
         await storage.update(updated)
@@ -660,15 +680,19 @@ class TestCacheEntryStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: CacheEntryData, data2: CacheEntryData) -> bool:
-        return CacheEntryData.__eq__(data1, data2)
+    def compare_data(self, data1: CacheEntryData, data2: CacheEntryData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: CacheEntryStorage) -> None:
         data = await self.helper.gen_cache_entry_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, task_id=("new-yaml-id",))
         await storage.update(updated)
@@ -743,15 +767,19 @@ class TestConfigFileStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: ConfigFileData, data2: ConfigFileData) -> bool:
-        return ConfigFileData.__eq__(data1, data2)
+    def compare_data(self, data1: ConfigFileData, data2: ConfigFileData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: ConfigFileStorage) -> None:
         data = await self.helper.gen_config_file_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, content="new-content")
         await storage.update(updated)
@@ -780,15 +808,19 @@ class TestBakeImageStorage:
     def _helper(self, in_memory_storage: InMemoryStorage) -> None:
         self.helper = MockDataHelper(in_memory_storage)
 
-    def compare_data(self, data1: BakeImageData, data2: BakeImageData) -> bool:
-        return BakeImageData.__eq__(data1, data2)
+    def compare_data(self, data1: BakeImageData, data2: BakeImageData) -> None:
+        d1 = asdict(data1)
+        d1.pop("id", None)
+        d2 = asdict(data2)
+        d2.pop("id", None)
+        assert d1 == d2
 
     async def test_create_get_update(self, storage: BakeImageStorage) -> None:
         data = await self.helper.gen_bake_image_data()
         created = await storage.create(data)
-        assert self.compare_data(data, created)
+        self.compare_data(data, created)
         res = await storage.get(created.id)
-        assert self.compare_data(res, created)
+        self.compare_data(res, created)
         assert res.id == created.id
         updated = replace(res, ref="foo")
         await storage.update(updated)
