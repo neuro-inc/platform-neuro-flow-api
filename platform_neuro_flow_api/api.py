@@ -1,13 +1,14 @@
 import logging
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import AsyncIterator, Awaitable, Callable, List, Optional, Sequence
+from importlib.metadata import version
+from typing import Optional
 
 import aiohttp
 import aiohttp.web
 import aiohttp_cors
-import pkg_resources
 from aiohttp.web import (
     HTTPBadRequest,
     HTTPInternalServerError,
@@ -68,7 +69,7 @@ def accepts_ndjson(request: aiohttp.web.Request) -> bool:
 
 
 class ApiHandler:
-    def register(self, app: aiohttp.web.Application) -> List[AbstractRoute]:
+    def register(self, app: aiohttp.web.Application) -> list[AbstractRoute]:
         return app.add_routes(
             [
                 aiohttp.web.get("/ping", self.handle_ping),
@@ -1414,7 +1415,7 @@ def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> None:
         cors.add(route)
 
 
-package_version = pkg_resources.get_distribution("platform-neuro-flow-api").version
+package_version = version(__package__)
 
 
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:

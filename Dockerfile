@@ -1,4 +1,4 @@
-FROM python:3.8.10-slim-buster AS installer
+FROM python:3.9.9-slim-bullseye AS installer
 
 ENV PATH=/root/.local/bin:$PATH
 
@@ -9,7 +9,7 @@ COPY dist /tmp/dist
 RUN ls /tmp/dist
 RUN pip install --user --find-links /tmp/dist platform-neuro-flow-api
 
-FROM python:3.8.10-slim-buster as service
+FROM python:3.9.9-slim-bullseye as service
 
 LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/platform-neuro-flow-api"
 

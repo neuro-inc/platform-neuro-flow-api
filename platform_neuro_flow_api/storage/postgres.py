@@ -1,8 +1,9 @@
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Callable, Set
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import AbstractSet, Any, AsyncIterator, Callable, Dict, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as sapg
@@ -243,7 +244,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
         return f"{self._id_prefix}-{uuid.uuid4()}"
 
     @abstractmethod
-    def _to_values(self, item: _E) -> Dict[str, Any]:
+    def _to_values(self, item: _E) -> dict[str, Any]:
         pass
 
     @abstractmethod
@@ -315,7 +316,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
 
 
 class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Project]):
-    def _to_values(self, item: Project) -> Dict[str, Any]:
+    def _to_values(self, item: Project) -> dict[str, Any]:
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
@@ -367,7 +368,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
 class PostgresLiveJobsStorage(
     LiveJobStorage, BasePostgresStorage[LiveJobData, LiveJob]
 ):
-    def _to_values(self, item: LiveJob) -> Dict[str, Any]:
+    def _to_values(self, item: LiveJob) -> dict[str, Any]:
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
@@ -449,7 +450,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         super().__init__(bakes_table, engine, id_prefix, make_entry)
         self._attempts_table = attempts_table
 
-    def _to_values(self, item: Bake) -> Dict[str, Any]:
+    def _to_values(self, item: Bake) -> dict[str, Any]:
         payload = asdict(item)
         graphs = {}
         for key, subgraph in item.graphs.items():
@@ -536,7 +537,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
-        tags: AbstractSet[str] = frozenset(),
+        tags: Set[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
         since: Optional[datetime] = None,
@@ -619,7 +620,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         super().__init__(attempts_table, engine, id_prefix, make_entry)
         self._bakes_table = bakes_table
 
-    def _to_values(self, item: Attempt) -> Dict[str, Any]:
+    def _to_values(self, item: Attempt) -> dict[str, Any]:
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
@@ -697,7 +698,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
 
 
 class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
-    def _to_values(self, item: Task) -> Dict[str, Any]:
+    def _to_values(self, item: Task) -> dict[str, Any]:
         payload = asdict(item)
         payload["statuses"] = [
             {
@@ -754,7 +755,7 @@ class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
 class PostgresCacheEntryStorage(
     CacheEntryStorage, BasePostgresStorage[CacheEntryData, CacheEntry]
 ):
-    def _to_values(self, item: CacheEntry) -> Dict[str, Any]:
+    def _to_values(self, item: CacheEntry) -> dict[str, Any]:
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
@@ -813,7 +814,7 @@ class PostgresCacheEntryStorage(
 class PostgresConfigFileStorage(
     ConfigFileStorage, BasePostgresStorage[ConfigFileData, ConfigFile]
 ):
-    def _to_values(self, item: ConfigFile) -> Dict[str, Any]:
+    def _to_values(self, item: ConfigFile) -> dict[str, Any]:
         payload = asdict(item)
         return {
             "id": payload.pop("id"),
@@ -835,7 +836,7 @@ class PostgresConfigFileStorage(
 class PostgresBakeImageStorage(
     BakeImageStorage, BasePostgresStorage[BakeImageData, BakeImage]
 ):
-    def _to_values(self, item: BakeImage) -> Dict[str, Any]:
+    def _to_values(self, item: BakeImage) -> dict[str, Any]:
         payload = asdict(item)
         payload["yaml_defs"] = [
             _full_id2str(yaml_def) for yaml_def in payload["yaml_defs"]

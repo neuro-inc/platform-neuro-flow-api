@@ -1,7 +1,8 @@
 import secrets
+from collections.abc import AsyncIterator, Callable, Set
 from dataclasses import replace
 from datetime import datetime
-from typing import AbstractSet, AsyncIterator, Callable, Dict, List, Optional, TypeVar
+from typing import Optional, TypeVar
 
 from .base import (
     Attempt,
@@ -43,7 +44,7 @@ _E = TypeVar("_E", bound=HasId)
 
 class InMemoryBaseStorage(BaseStorage[_D, _E]):
     def __init__(self, make_entity: Callable[[str, _D], _E]) -> None:
-        self._items: Dict[str, _E] = {}
+        self._items: dict[str, _E] = {}
         self._make_entry = make_entity
 
     def _gen_id(self) -> str:
@@ -205,7 +206,7 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
-        tags: AbstractSet[str] = frozenset(),
+        tags: Set[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
         since: Optional[datetime] = None,
@@ -213,7 +214,7 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         reverse: bool = False,
     ) -> AsyncIterator[Bake]:
 
-        unsorted: List[Bake] = []
+        unsorted: list[Bake] = []
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
                 continue
