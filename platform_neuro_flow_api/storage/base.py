@@ -63,7 +63,7 @@ class HasId:
     def from_data_obj(cls: type[_C], id: str, data_obj: Any) -> _C:
         assert issubclass(cls, type(data_obj))
 
-        return cls(  # type: ignore
+        return cls(
             id=id,
             **{field.name: getattr(data_obj, field.name) for field in fields(data_obj)},
         )
