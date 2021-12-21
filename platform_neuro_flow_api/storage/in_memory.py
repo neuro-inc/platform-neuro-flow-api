@@ -1,7 +1,8 @@
 import secrets
+from collections.abc import AsyncIterator, Callable, Set
 from dataclasses import replace
 from datetime import datetime
-from typing import AbstractSet, AsyncIterator, Callable, Optional, TypeVar
+from typing import Optional, TypeVar
 
 from .base import (
     Attempt,
@@ -205,7 +206,7 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
-        tags: AbstractSet[str] = frozenset(),
+        tags: Set[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
         since: Optional[datetime] = None,

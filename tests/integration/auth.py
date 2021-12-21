@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import os
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Optional
+from typing import Any, Optional
 
 import aiohttp
 import pytest

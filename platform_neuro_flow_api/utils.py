@@ -1,8 +1,9 @@
 import asyncio
 import json
 import logging
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager, suppress
-from typing import AsyncGenerator, AsyncIterator, TypeVar
+from typing import TypeVar
 
 import aiohttp.web
 

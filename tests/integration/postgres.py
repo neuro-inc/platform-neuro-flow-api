@@ -1,5 +1,5 @@
 import time
-from typing import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator
 
 import asyncpg
 import pytest

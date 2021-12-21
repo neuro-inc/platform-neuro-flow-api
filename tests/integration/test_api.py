@@ -1,8 +1,9 @@
 import asyncio
 import secrets
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable
+from typing import Any
 
 import aiohttp
 import pytest

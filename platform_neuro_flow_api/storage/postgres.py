@@ -1,8 +1,9 @@
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Callable, Set
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import AbstractSet, Any, AsyncIterator, Callable, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as sapg
@@ -536,7 +537,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
-        tags: AbstractSet[str] = frozenset(),
+        tags: Set[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
         since: Optional[datetime] = None,

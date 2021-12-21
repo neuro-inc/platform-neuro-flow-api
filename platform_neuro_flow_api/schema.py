@@ -1,6 +1,7 @@
 import functools
+from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
-from typing import Any, Callable, Mapping, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 import aiohttp.web
 from aiohttp_apispec import querystring_schema

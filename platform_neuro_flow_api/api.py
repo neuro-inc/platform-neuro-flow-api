@@ -1,8 +1,9 @@
 import logging
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import AsyncIterator, Awaitable, Callable, Optional, Sequence
+from typing import Optional
 
 import aiohttp
 import aiohttp.web

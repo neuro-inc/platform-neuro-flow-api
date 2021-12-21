@@ -2,17 +2,9 @@ import datetime
 import enum
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from dataclasses import dataclass, fields
-from typing import (
-    AbstractSet,
-    Any,
-    AsyncIterator,
-    Generic,
-    Mapping,
-    Optional,
-    Sequence,
-    TypeVar,
-)
+from typing import Any, Generic, Optional, TypeVar
 
 
 logger = logging.getLogger(__name__)
@@ -186,7 +178,7 @@ class BakeData:
     batch: str
     created_at: datetime.datetime
     # prefix -> { id -> deps }
-    graphs: Mapping[FullID, Mapping[FullID, AbstractSet[FullID]]]
+    graphs: Mapping[FullID, Mapping[FullID, Set[FullID]]]
     meta: BakeMeta = BakeMeta(None)
     params: Optional[Mapping[str, str]] = None
     name: Optional[str] = None
@@ -312,7 +304,7 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
         self,
         project_id: Optional[str] = None,
         name: Optional[str] = None,
-        tags: AbstractSet[str] = frozenset(),
+        tags: Set[str] = frozenset(),
         *,
         reverse: bool = False,
         since: Optional[datetime.datetime] = None,

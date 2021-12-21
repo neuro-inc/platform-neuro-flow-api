@@ -1,7 +1,8 @@
 import logging
 import os
 import pathlib
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 
 from yarl import URL
 
