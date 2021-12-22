@@ -19,7 +19,6 @@ from platform_neuro_flow_api.config import (
     ServerConfig,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

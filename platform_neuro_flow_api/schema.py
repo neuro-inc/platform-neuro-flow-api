@@ -24,7 +24,6 @@ from platform_neuro_flow_api.storage.base import (
     TaskStatusItem,
 )
 
-
 F = TypeVar("F", bound=Callable[..., Any])
 
 
@@ -219,7 +218,7 @@ class TaskSchema(Schema):
             statuses=[
                 TaskStatusItem(when=i["when"], status=i["status"]) for i in statuses
             ],
-            **kwargs
+            **kwargs,
         )
 
 

@@ -37,7 +37,6 @@ from .base import (
     TaskStorage,
 )
 
-
 _D = TypeVar("_D")
 _E = TypeVar("_E", bound=HasId)
 

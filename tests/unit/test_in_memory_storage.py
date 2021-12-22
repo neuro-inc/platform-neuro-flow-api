@@ -40,7 +40,6 @@ from platform_neuro_flow_api.storage.base import (
 )
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -596,7 +595,7 @@ class TestAttemptStorage:
         async for item in storage.list(bake_id="bake-id-2"):
             found.append(item.number)
         assert len(found) == 5
-        assert set(found) == {index for index in range(5)}
+        assert set(found) == set(range(5))
 
 
 class TestTaskStorage:

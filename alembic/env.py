@@ -9,7 +9,6 @@ from platform_neuro_flow_api.config_factory import (
     to_sync_postgres_dsn,
 )
 
-
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

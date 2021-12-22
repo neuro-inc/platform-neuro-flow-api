@@ -11,7 +11,6 @@ import sqlalchemy.dialects.postgresql as sapg
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "f36b3465eb48"
 down_revision = "c56d0a4eaed5"
