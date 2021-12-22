@@ -59,7 +59,6 @@ from .storage.base import Attempt, Bake, ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
 from .utils import auto_close, ndjson_error_handler
 
-
 logger = logging.getLogger(__name__)
 
 

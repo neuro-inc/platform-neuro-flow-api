@@ -25,6 +25,7 @@ from platform_neuro_flow_api.storage.postgres import (
     PostgresStorage,
     _full_id2str,
 )
+
 from tests.unit.test_in_memory_storage import (
     MockDataHelper,
     TestAttemptStorage as _TestAttemptStorage,
@@ -36,7 +37,6 @@ from tests.unit.test_in_memory_storage import (
     TestProjectStorage as _TestProjectStorage,
     TestTaskStorage as _TestTaskStorage,
 )
-
 
 pytestmark = pytest.mark.asyncio
 

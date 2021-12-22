@@ -6,7 +6,6 @@ from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from dataclasses import dataclass, fields
 from typing import Any, Generic, Optional, TypeVar
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -9,7 +9,6 @@ from typing import Any, Optional
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "f3fc27385ef3"
 down_revision = "dd6533a83f29"
