@@ -63,9 +63,7 @@ async def _wait_for_postgres_server(
     postgres_dsn: str, attempts: int = 5, interval_s: float = 1
 ) -> None:
     if postgres_dsn.startswith("postgresql+asyncpg://"):
-        postgres_dsn = (
-            "postgresql" + postgres_dsn[len("postgresql+asyncpg") :]  # noqa: E203
-        )
+        postgres_dsn = "postgresql" + postgres_dsn[len("postgresql+asyncpg") :]
     attempt = 0
     while attempt < attempts:
         try:

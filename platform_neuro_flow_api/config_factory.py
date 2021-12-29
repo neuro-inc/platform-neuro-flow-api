@@ -126,11 +126,11 @@ asyncpg_schema = "postgresql+asyncpg"
 
 def to_async_postgres_dsn(dsn: str) -> str:
     if dsn.startswith(syncpg_schema + "://"):
-        dsn = asyncpg_schema + dsn[len(syncpg_schema) :]  # noqa: E203
+        dsn = asyncpg_schema + dsn[len(syncpg_schema) :]
     return dsn
 
 
 def to_sync_postgres_dsn(dsn: str) -> str:
     if dsn.startswith(asyncpg_schema + "://"):
-        dsn = syncpg_schema + dsn[len(asyncpg_schema) :]  # noqa: E203
+        dsn = syncpg_schema + dsn[len(asyncpg_schema) :]
     return dsn
