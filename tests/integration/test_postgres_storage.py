@@ -39,7 +39,6 @@ from tests.unit.test_in_memory_storage import (
 )
 
 
-
 @pytest.fixture
 def postgres_storage(sqalchemy_engine: AsyncEngine) -> PostgresStorage:
     return PostgresStorage(sqalchemy_engine)

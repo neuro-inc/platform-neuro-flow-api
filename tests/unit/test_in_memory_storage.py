@@ -41,7 +41,6 @@ from platform_neuro_flow_api.storage.base import (
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 
 
-
 class MockDataHelper:
     def __init__(self, storage: Storage):
         self._storage = storage
