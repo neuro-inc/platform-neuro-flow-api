@@ -2,8 +2,6 @@ import pytest
 
 from platform_neuro_flow_api.service import Service
 
-pytestmark = pytest.mark.asyncio
-
 
 class TestService:
     @pytest.fixture
