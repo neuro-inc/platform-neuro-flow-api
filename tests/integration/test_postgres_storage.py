@@ -38,7 +38,6 @@ from tests.unit.test_in_memory_storage import (
     TestTaskStorage as _TestTaskStorage,
 )
 
-pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture

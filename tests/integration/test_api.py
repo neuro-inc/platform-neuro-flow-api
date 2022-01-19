@@ -24,7 +24,6 @@ from platform_neuro_flow_api.storage.base import Attempt, Bake, Project
 from .auth import _User
 from .conftest import ApiAddress, create_local_app_server
 
-pytestmark = pytest.mark.asyncio
 
 
 @dataclass(frozen=True)

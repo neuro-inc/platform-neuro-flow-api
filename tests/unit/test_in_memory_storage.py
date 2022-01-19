@@ -40,7 +40,6 @@ from platform_neuro_flow_api.storage.base import (
 )
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 
-pytestmark = pytest.mark.asyncio
 
 
 class MockDataHelper:
