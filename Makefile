@@ -27,7 +27,7 @@ setup:
 	pre-commit install
 
 lint: format
-	mypy platform_neuro_flow_api tests
+	mypy platform_neuro_flow_api tests --show-error-codes
 
 format:
 ifdef CI_LINT_RUN

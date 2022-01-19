@@ -121,7 +121,7 @@ class ProjectsApiHandler:
         projects = self.storage.projects.list(
             owner=username, name=name, cluster=cluster
         )
-        async with auto_close(projects):
+        async with auto_close(projects):  # type: ignore[arg-type]
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -267,7 +267,7 @@ class LiveJobApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         live_jobs = self.storage.live_jobs.list(project_id=project_id)
-        async with auto_close(live_jobs):
+        async with auto_close(live_jobs):  # type: ignore[arg-type]
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -446,7 +446,7 @@ class BakeApiHandler:
             reverse=reverse,
             fetch_last_attempt=fetch_last_attempt,
         )
-        async with auto_close(bakes):
+        async with auto_close(bakes):  # type: ignore[arg-type]
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -596,7 +596,7 @@ class AttemptApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         attempts = self.storage.attempts.list(bake_id=bake_id)
-        async with auto_close(attempts):
+        async with auto_close(attempts):  # type: ignore[arg-type]
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -782,7 +782,7 @@ class TaskApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         tasks = self.storage.tasks.list(attempt_id=attempt_id)
-        async with auto_close(tasks):
+        async with auto_close(tasks):  # type: ignore[arg-type]
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -1180,7 +1180,7 @@ class BakeImagesApiHandler:
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bake_images = self.storage.bake_images.list(bake_id=bake_id)
-        async with auto_close(bake_images):
+        async with auto_close(bake_images):  # type: ignore[arg-type]
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
