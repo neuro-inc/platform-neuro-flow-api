@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 import pytest
@@ -174,8 +176,8 @@ async def regular_user_factory(
     token_factory: Callable[[str], str],
     admin_token: str,
     cluster_name: str,
-) -> AsyncIterator[Callable[[Optional[str]], Awaitable[_User]]]:
-    async def _factory(name: Optional[str] = None) -> _User:
+) -> AsyncIterator[Callable[[str | None], Awaitable[_User]]]:
+    async def _factory(name: str | None = None) -> _User:
         if not name:
             name = f"user-{random_name()}"
         user = User(name=name, clusters=[Cluster(name=cluster_name)])

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine

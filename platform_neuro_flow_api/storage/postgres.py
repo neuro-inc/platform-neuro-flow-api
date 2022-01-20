@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Set
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as sapg
@@ -76,7 +78,7 @@ class FlowTables:
     bake_images: sa.Table
 
     @classmethod
-    def create(cls) -> "FlowTables":
+    def create(cls) -> FlowTables:
         metadata = sa.MetaData()
         projects_table = sa.Table(
             "projects",
@@ -217,7 +219,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
         self._make_entry = make_entry
 
     async def _execute(
-        self, query: sasql.ClauseElement, conn: Optional[AsyncConnection] = None
+        self, query: sasql.ClauseElement, conn: AsyncConnection | None = None
     ) -> None:
         if conn:
             await conn.execute(query)
@@ -226,8 +228,8 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
             await conn.execute(query)
 
     async def _fetchrow(
-        self, query: sasql.ClauseElement, conn: Optional[AsyncConnection] = None
-    ) -> Optional[Row]:
+        self, query: sasql.ClauseElement, conn: AsyncConnection | None = None
+    ) -> Row | None:
         if conn:
             result = await conn.execute(query)
             return result.one_or_none()
@@ -349,9 +351,9 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
 
     async def list(
         self,
-        name: Optional[str] = None,
-        owner: Optional[str] = None,
-        cluster: Optional[str] = None,
+        name: str | None = None,
+        owner: str | None = None,
+        cluster: str | None = None,
     ) -> AsyncIterator[Project]:
         query = self._table.select()
         if name is not None:
@@ -411,7 +413,7 @@ class PostgresLiveJobsStorage(
 
     async def list(
         self,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
     ) -> AsyncIterator[LiveJob]:
         query = self._table.select()
         if project_id is not None:
@@ -504,7 +506,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
                 subgr[_str2full_id(node)] = {_str2full_id(dep) for dep in deps}
             graphs[_str2full_id(grkey)] = subgr
         if "meta" in payload:
-            git_info: Optional[GitInfo] = None
+            git_info: GitInfo | None = None
             if payload["meta"].get("git_info"):
                 git_info = GitInfo(
                     sha=payload["meta"]["git_info"]["sha"],
@@ -535,13 +537,13 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
 
     async def list(
         self,
-        project_id: Optional[str] = None,
-        name: Optional[str] = None,
+        project_id: str | None = None,
+        name: str | None = None,
         tags: Set[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         reverse: bool = False,
     ) -> AsyncIterator[Bake]:
         query = self._make_q(fetch_last_attempt)
@@ -687,7 +689,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
 
     async def list(
         self,
-        bake_id: Optional[str] = None,
+        bake_id: str | None = None,
     ) -> AsyncIterator[Attempt]:
         query = self._table.select()
         if bake_id is not None:
@@ -742,7 +744,7 @@ class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
 
     async def list(
         self,
-        attempt_id: Optional[str] = None,
+        attempt_id: str | None = None,
     ) -> AsyncIterator[Task]:
         query = self._table.select()
         if attempt_id is not None:
@@ -796,9 +798,9 @@ class PostgresCacheEntryStorage(
     @trace
     async def delete_all(
         self,
-        project_id: Optional[str] = None,
-        task_id: Optional[FullID] = None,
-        batch: Optional[str] = None,
+        project_id: str | None = None,
+        task_id: FullID | None = None,
+        batch: str | None = None,
     ) -> None:
         query = self._table.delete()
         if project_id is not None:
@@ -881,7 +883,7 @@ class PostgresBakeImageStorage(
 
     async def list(
         self,
-        bake_id: Optional[str] = None,
+        bake_id: str | None = None,
     ) -> AsyncIterator[BakeImage]:
         query = self._table.select()
         if bake_id is not None:

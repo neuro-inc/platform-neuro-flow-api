@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
 from importlib.metadata import version
-from typing import Optional
 
 import aiohttp
 import aiohttp.web
@@ -114,8 +115,8 @@ class ProjectsApiHandler:
     async def list_projects(
         self,
         request: aiohttp.web.Request,
-        name: Optional[str] = None,
-        cluster: Optional[str] = None,
+        name: str | None = None,
+        cluster: str | None = None,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         projects = self.storage.projects.list(
@@ -425,10 +426,10 @@ class BakeApiHandler:
         self,
         request: aiohttp.web.Request,
         project_id: str,
-        name: Optional[str],
+        name: str | None,
         tags: Sequence[str],
-        since: Optional[datetime],
-        until: Optional[datetime],
+        since: datetime | None,
+        until: datetime | None,
         reverse: bool,
         fetch_last_attempt: bool,
     ) -> aiohttp.web.StreamResponse:
@@ -1118,8 +1119,8 @@ class CacheEntryApiHandler:
         self,
         request: aiohttp.web.Request,
         project_id: str,
-        task_id: Optional[str] = None,
-        batch: Optional[str] = None,
+        task_id: str | None = None,
+        batch: str | None = None,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         await self._check_project(username, project_id)

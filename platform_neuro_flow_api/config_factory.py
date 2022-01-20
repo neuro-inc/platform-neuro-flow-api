@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import pathlib
 from collections.abc import Sequence
-from typing import Optional
 
 from yarl import URL
 
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class EnvironConfigFactory:
-    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
+    def __init__(self, environ: dict[str, str] | None = None) -> None:
         self._environ = environ or os.environ
 
     def create(self) -> Config:
@@ -56,7 +57,7 @@ class EnvironConfigFactory:
             origins = origins_str.split(",")
         return CORSConfig(allowed_origins=origins)
 
-    def create_zipkin(self) -> Optional[ZipkinConfig]:
+    def create_zipkin(self) -> ZipkinConfig | None:
         if "NP_ZIPKIN_URL" not in self._environ:
             return None
 
@@ -67,7 +68,7 @@ class EnvironConfigFactory:
         )
         return ZipkinConfig(url=url, app_name=app_name, sample_rate=sample_rate)
 
-    def create_sentry(self) -> Optional[SentryConfig]:
+    def create_sentry(self) -> SentryConfig | None:
         if "NP_SENTRY_DSN" not in self._environ:
             return None
 

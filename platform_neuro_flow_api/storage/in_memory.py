@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import secrets
 from collections.abc import AsyncIterator, Callable, Set
 from dataclasses import replace
 from datetime import datetime
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 from .base import (
     Attempt,
@@ -97,9 +99,9 @@ class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Pr
 
     async def list(
         self,
-        name: Optional[str] = None,
-        owner: Optional[str] = None,
-        cluster: Optional[str] = None,
+        name: str | None = None,
+        owner: str | None = None,
+        cluster: str | None = None,
     ) -> AsyncIterator[Project]:
         for item in self._items.values():
             if name is not None and item.name != name:
@@ -135,7 +137,7 @@ class InMemoryLiveJobStorage(LiveJobStorage, InMemoryBaseStorage[LiveJobData, Li
             await self.update(job)
             return job
 
-    async def list(self, project_id: Optional[str] = None) -> AsyncIterator[LiveJob]:
+    async def list(self, project_id: str | None = None) -> AsyncIterator[LiveJob]:
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
                 continue
@@ -166,7 +168,7 @@ class InMemoryAttemptStorage(AttemptStorage, InMemoryBaseStorage[AttemptData, At
                     return item
         raise NotExistsError
 
-    async def list(self, bake_id: Optional[str] = None) -> AsyncIterator[Attempt]:
+    async def list(self, bake_id: str | None = None) -> AsyncIterator[Attempt]:
         for item in self._items.values():
             if bake_id is not None and item.bake_id != bake_id:
                 continue
@@ -187,7 +189,7 @@ class InMemoryTaskStorage(TaskStorage, InMemoryBaseStorage[TaskData, Task]):
                 return item
         raise NotExistsError
 
-    async def list(self, attempt_id: Optional[str] = None) -> AsyncIterator[Task]:
+    async def list(self, attempt_id: str | None = None) -> AsyncIterator[Task]:
         for item in self._items.values():
             if attempt_id is not None and item.attempt_id != attempt_id:
                 continue
@@ -203,13 +205,13 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
 
     async def list(
         self,
-        project_id: Optional[str] = None,
-        name: Optional[str] = None,
+        project_id: str | None = None,
+        name: str | None = None,
         tags: Set[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         reverse: bool = False,
     ) -> AsyncIterator[Bake]:
 
@@ -282,9 +284,9 @@ class InMemoryCacheEntryStorage(
 
     async def delete_all(
         self,
-        project_id: Optional[str] = None,
-        task_id: Optional[FullID] = None,
-        batch: Optional[str] = None,
+        project_id: str | None = None,
+        task_id: FullID | None = None,
+        batch: str | None = None,
     ) -> None:
         new_items = {}
         for item in self._items.values():
@@ -320,7 +322,7 @@ class InMemoryBakeImageStorage(
                 return item
         raise NotExistsError
 
-    async def list(self, bake_id: Optional[str] = None) -> AsyncIterator[BakeImage]:
+    async def list(self, bake_id: str | None = None) -> AsyncIterator[BakeImage]:
         for item in self._items.values():
             if bake_id is not None and item.bake_id != bake_id:
                 continue

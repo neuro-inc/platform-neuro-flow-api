@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional
 
 from yarl import URL
 
@@ -51,7 +52,7 @@ class PostgresConfig:
     pool_max_size: int = 10
 
     connect_timeout_s: float = 60.0
-    command_timeout_s: Optional[float] = 60.0
+    command_timeout_s: float | None = 60.0
 
 
 @dataclass(frozen=True)
@@ -61,5 +62,5 @@ class Config:
     cors: CORSConfig
     postgres: PostgresConfig
     enable_docs: bool = False
-    zipkin: Optional[ZipkinConfig] = None
-    sentry: Optional[SentryConfig] = None
+    zipkin: ZipkinConfig | None = None
+    sentry: SentryConfig | None = None

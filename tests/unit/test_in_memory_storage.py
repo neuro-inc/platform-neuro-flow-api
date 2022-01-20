@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import secrets
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import datetime
 import enum
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping, Sequence, Set
 from dataclasses import dataclass, fields
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +88,7 @@ class LiveJobData:
     project_id: str
     multi: bool
     tags: Sequence[str]
-    raw_id: Optional[str] = None
+    raw_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -110,7 +112,7 @@ class ConfigFile(HasId, ConfigFileData):
 class ConfigsMeta:
     workspace: str
     flow_config_id: str
-    project_config_id: Optional[str]
+    project_config_id: str | None
     action_config_ids: Mapping[str, str]
 
 
@@ -121,7 +123,7 @@ class AttemptData:
     created_at: datetime.datetime
     result: TaskStatus
     configs_meta: ConfigsMeta
-    executor_id: Optional[str] = None
+    executor_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -139,9 +141,9 @@ class TaskStatusItem:
 class TaskData:
     yaml_id: FullID
     attempt_id: str
-    raw_id: Optional[str]
-    outputs: Optional[Mapping[str, str]]
-    state: Optional[Mapping[str, str]]
+    raw_id: str | None
+    outputs: Mapping[str, str] | None
+    state: Mapping[str, str] | None
     statuses: Sequence[TaskStatusItem]
 
     def __post_init__(self) -> None:
@@ -168,7 +170,7 @@ class GitInfo:
 
 @dataclass(frozen=True)
 class BakeMeta:
-    git_info: Optional[GitInfo]
+    git_info: GitInfo | None
 
 
 @dataclass(frozen=True)
@@ -179,10 +181,10 @@ class BakeData:
     # prefix -> { id -> deps }
     graphs: Mapping[FullID, Mapping[FullID, Set[FullID]]]
     meta: BakeMeta = BakeMeta(None)
-    params: Optional[Mapping[str, str]] = None
-    name: Optional[str] = None
+    params: Mapping[str, str] | None = None
+    name: str | None = None
     tags: Sequence[str] = ()
-    last_attempt: Optional[Attempt] = None
+    last_attempt: Attempt | None = None
 
     def __post_init__(self) -> None:
         # Ensure that tags is a tuple for correct __eq__
@@ -217,9 +219,9 @@ class BakeImageData:
     yaml_defs: Sequence[FullID]
     ref: str
     status: ImageStatus
-    context_on_storage: Optional[str] = None
-    dockerfile_rel: Optional[str] = None
-    builder_job_id: Optional[str] = None
+    context_on_storage: str | None = None
+    dockerfile_rel: str | None = None
+    builder_job_id: str | None = None
 
     @property
     def prefix(self) -> FullID:
@@ -276,9 +278,9 @@ class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
     @abstractmethod
     def list(
         self,
-        name: Optional[str] = None,
-        owner: Optional[str] = None,
-        cluster: Optional[str] = None,
+        name: str | None = None,
+        owner: str | None = None,
+        cluster: str | None = None,
     ) -> AsyncIterator[Project]:
         pass
 
@@ -293,7 +295,7 @@ class LiveJobStorage(BaseStorage[LiveJobData, LiveJob], ABC):
         pass
 
     @abstractmethod
-    def list(self, project_id: Optional[str] = None) -> AsyncIterator[LiveJob]:
+    def list(self, project_id: str | None = None) -> AsyncIterator[LiveJob]:
         pass
 
 
@@ -301,13 +303,13 @@ class BakeStorage(BaseStorage[BakeData, Bake], ABC):
     @abstractmethod
     def list(
         self,
-        project_id: Optional[str] = None,
-        name: Optional[str] = None,
+        project_id: str | None = None,
+        name: str | None = None,
         tags: Set[str] = frozenset(),
         *,
         reverse: bool = False,
-        since: Optional[datetime.datetime] = None,
-        until: Optional[datetime.datetime] = None,
+        since: datetime.datetime | None = None,
+        until: datetime.datetime | None = None,
         fetch_last_attempt: bool = False,
     ) -> AsyncIterator[Bake]:
         pass
@@ -333,7 +335,7 @@ class AttemptStorage(BaseStorage[AttemptData, Attempt], ABC):
         pass
 
     @abstractmethod
-    def list(self, bake_id: Optional[str] = None) -> AsyncIterator[Attempt]:
+    def list(self, bake_id: str | None = None) -> AsyncIterator[Attempt]:
         pass
 
 
@@ -347,7 +349,7 @@ class TaskStorage(BaseStorage[TaskData, Task], ABC):
         pass
 
     @abstractmethod
-    def list(self, attempt_id: Optional[str] = None) -> AsyncIterator[Task]:
+    def list(self, attempt_id: str | None = None) -> AsyncIterator[Task]:
         pass
 
 
@@ -361,9 +363,9 @@ class CacheEntryStorage(BaseStorage[CacheEntryData, CacheEntry], ABC):
     @abstractmethod
     async def delete_all(
         self,
-        project_id: Optional[str] = None,
-        task_id: Optional[FullID] = None,
-        batch: Optional[str] = None,
+        project_id: str | None = None,
+        task_id: FullID | None = None,
+        batch: str | None = None,
     ) -> None:
         pass
 
@@ -374,7 +376,7 @@ class BakeImageStorage(BaseStorage[BakeImageData, BakeImage], ABC):
         pass
 
     @abstractmethod
-    def list(self, bake_id: Optional[str] = None) -> AsyncIterator[BakeImage]:
+    def list(self, bake_id: str | None = None) -> AsyncIterator[BakeImage]:
         pass
 
 
