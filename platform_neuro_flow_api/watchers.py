@@ -6,7 +6,7 @@ from dataclasses import replace
 from typing import Any, Optional
 
 from neuro_logging import new_trace
-from neuro_sdk import Client as PlatformClient
+from neuro_sdk import Client as PlatformClient, JobStatus
 
 from .storage.base import AttemptStorage, TaskStatus
 from .utils import auto_close
@@ -37,7 +37,7 @@ class ExecutorAliveWatcher(Watcher):
             async for attempt in attempts:
                 if attempt.executor_id:
                     try:
-                        status = await self._platform_client.jobs.status(
+                        job = await self._platform_client.jobs.status(
                             attempt.executor_id
                         )
                     except Exception:
@@ -45,7 +45,7 @@ class ExecutorAliveWatcher(Watcher):
                             f"Failed to check status of executor {attempt.executor_id}"
                         )
                     else:
-                        if not status.status.is_finished:
+                        if not job.status.is_finished:
                             continue
                         # Re-fetch attempt to avoid race condition:
                         # 1. We fetch running attempt
@@ -54,7 +54,10 @@ class ExecutorAliveWatcher(Watcher):
                         attempt = await self._storage.get(attempt.id)
                         if attempt.result not in running_results:
                             continue
-                        attempt = replace(attempt, result=TaskStatus.FAILED)
+                        if job.status == JobStatus.CANCELLED:
+                            attempt = replace(attempt, result=TaskStatus.CANCELLED)
+                        else:
+                            attempt = replace(attempt, result=TaskStatus.FAILED)
                         await self._storage.update(attempt)
 
 

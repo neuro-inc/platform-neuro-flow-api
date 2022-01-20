@@ -94,6 +94,22 @@ class TestExecutorAliveWatcher:
         attempt = await storage.get(attempt.id)
         assert attempt.result == TaskStatus.FAILED
 
+    async def test_running_attempt_canceled_executor_marked_as_failed(
+        self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
+    ) -> None:
+        client_mock.jobs.status = AsyncMock(
+            return_value=make_descr("test", status=JobStatus.CANCELLED)
+        )
+
+        data = await self.helper.gen_attempt_data(
+            result=TaskStatus.RUNNING,
+            executor_id="test",
+        )
+        attempt = await storage.create(data)
+        await watcher.check()
+        attempt = await storage.get(attempt.id)
+        assert attempt.result == TaskStatus.CANCELLED
+
     async def test_race(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
