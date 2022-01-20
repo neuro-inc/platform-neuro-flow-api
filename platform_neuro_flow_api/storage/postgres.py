@@ -688,12 +688,13 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         return self._from_record(record)
 
     async def list(
-        self,
-        bake_id: str | None = None,
+        self, bake_id: str | None = None, results: Set[TaskStatus] | None = None
     ) -> AsyncIterator[Attempt]:
         query = self._table.select()
         if bake_id is not None:
             query = query.where(self._table.c.bake_id == bake_id)
+        if results is not None:
+            query = query.where(self._table.c.result.in_(results))
         async with self._engine.begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)

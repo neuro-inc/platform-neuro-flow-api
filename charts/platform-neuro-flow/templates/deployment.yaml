@@ -57,6 +57,8 @@ spec:
           value: {{ .Values.port | quote }}
         - name: NP_NEURO_FLOW_API_PLATFORM_AUTH_URL
           value: {{ .Values.platform.authUrl }}
+        - name: NP_NEURO_FLOW_API_PLATFORM_API_URL
+          value: {{ .Values.platform.apiUrl }}
         - name: NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}

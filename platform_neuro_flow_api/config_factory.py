@@ -12,6 +12,7 @@ from alembic.config import Config as AlembicConfig
 from .config import (
     Config,
     CORSConfig,
+    PlatformApiConfig,
     PlatformAuthConfig,
     PostgresConfig,
     SentryConfig,
@@ -33,6 +34,7 @@ class EnvironConfigFactory:
         return Config(
             server=self._create_server(),
             platform_auth=self._create_platform_auth(),
+            platform_api=self._create_platform_api(),
             cors=self.create_cors(),
             postgres=self.create_postgres(),
             zipkin=self.create_zipkin(),
@@ -49,6 +51,11 @@ class EnvironConfigFactory:
         url = URL(self._environ["NP_NEURO_FLOW_API_PLATFORM_AUTH_URL"])
         token = self._environ["NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN"]
         return PlatformAuthConfig(url=url, token=token)
+
+    def _create_platform_api(self) -> PlatformApiConfig:
+        url = URL(self._environ["NP_NEURO_FLOW_API_PLATFORM_API_URL"])
+        token = self._environ["NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN"]
+        return PlatformApiConfig(url=url, token=token)
 
     def create_cors(self) -> CORSConfig:
         origins: Sequence[str] = CORSConfig.allowed_origins

@@ -8,6 +8,7 @@ from yarl import URL
 from platform_neuro_flow_api.config import (
     Config,
     CORSConfig,
+    PlatformApiConfig,
     PlatformAuthConfig,
     PostgresConfig,
     SentryConfig,
@@ -23,6 +24,7 @@ def test_create() -> None:
         "NP_NEURO_FLOW_API_HOST": "0.0.0.0",
         "NP_NEURO_FLOW_API_PORT": 8080,
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_URL": "http://platformauthapi/api/v1",
+        "NP_NEURO_FLOW_API_PLATFORM_API_URL": "http://platformapi/api/v1",
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN": "platform-auth-token",
         "NP_ZIPKIN_URL": "http://zipkin:9411",
         "NP_SENTRY_DSN": "https://test.com",
@@ -38,6 +40,9 @@ def test_create() -> None:
         server=ServerConfig(host="0.0.0.0", port=8080),
         platform_auth=PlatformAuthConfig(
             url=URL("http://platformauthapi/api/v1"), token="platform-auth-token"
+        ),
+        platform_api=PlatformApiConfig(
+            url=URL("http://platformapi/api/v1"), token="platform-auth-token"
         ),
         cors=CORSConfig(["https://domain1.com", "http://do.main"]),
         zipkin=ZipkinConfig(url=URL("http://zipkin:9411")),

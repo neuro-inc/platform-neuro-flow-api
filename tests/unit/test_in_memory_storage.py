@@ -597,6 +597,39 @@ class TestAttemptStorage:
         assert len(found) == 5
         assert set(found) == set(range(5))
 
+    async def test_list_by_result(self, storage: AttemptStorage) -> None:
+        for bake_id, result in zip(
+            range(5),
+            [
+                TaskStatus.PENDING,
+                TaskStatus.RUNNING,
+                TaskStatus.RUNNING,
+                TaskStatus.SUCCEEDED,
+                TaskStatus.FAILED,
+            ],
+        ):
+            data = await self.helper.gen_attempt_data(
+                bake_id=f"bake-id-{bake_id}",
+                result=result,
+                number=bake_id,
+            )
+            await storage.create(data)
+        found = []
+        async for item in storage.list(
+            results={TaskStatus.PENDING, TaskStatus.RUNNING}
+        ):
+            found.append(item.number)
+        assert len(found) == 3
+        assert set(found) == {0, 1, 2}
+
+        found = []
+        async for item in storage.list(
+            results={TaskStatus.PENDING, TaskStatus.SUCCEEDED}
+        ):
+            found.append(item.number)
+        assert len(found) == 2
+        assert set(found) == {0, 3}
+
 
 class TestTaskStorage:
     helper: MockDataHelper

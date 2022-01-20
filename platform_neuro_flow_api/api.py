@@ -6,6 +6,8 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
 from importlib.metadata import version
+from pathlib import Path
+from tempfile import mktemp
 
 import aiohttp
 import aiohttp.web
@@ -39,6 +41,10 @@ from neuro_logging import (
     setup_zipkin,
     setup_zipkin_tracer,
 )
+from neuro_sdk import (
+    get as platform_client_get,
+    login_with_token as platform_client_login,
+)
 
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
@@ -59,6 +65,7 @@ from .schema import (
 from .storage.base import Attempt, Bake, ExistsError, NotExistsError, Storage
 from .storage.postgres import PostgresStorage
 from .utils import auto_close, ndjson_error_handler
+from .watchers import ExecutorAliveWatcher, WatchersPoller
 
 logger = logging.getLogger(__name__)
 
@@ -1444,7 +1451,28 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BEARER
             )
 
-            logger.info("Initializing Service")
+            logger.info("Initializing Neuro Api client")
+            tmp_config = Path(mktemp())
+            await platform_client_login(
+                token=config.platform_api.token,
+                url=config.platform_api.url,
+                path=tmp_config,
+            )
+            platform_client = await exit_stack.enter_async_context(
+                await platform_client_get(
+                    path=tmp_config,
+                )
+            )
+
+            await exit_stack.enter_async_context(
+                WatchersPoller(
+                    interval_sec=config.watchers.polling_interval_sec,
+                    watchers=[
+                        ExecutorAliveWatcher(storage.attempts, platform_client),
+                    ],
+                )
+            )
+
             app["projects_app"]["storage"] = storage
             app["live_jobs_app"]["storage"] = storage
             app["bakes_app"]["storage"] = storage

@@ -18,11 +18,14 @@ from aiohttp.web_exceptions import (
     HTTPNotFound,
     HTTPUnauthorized,
 )
+from neuro_sdk import JobStatus
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config
 from platform_neuro_flow_api.storage.base import Attempt, Bake, Project
 
+from ..utils import make_descr
+from .api import PlatformApiServer
 from .auth import _User
 from .conftest import ApiAddress, create_local_app_server
 
@@ -1337,6 +1340,50 @@ class TestAttemptApi:
             assert payload["configs_meta"] == self.CONFIGS_META
             assert "id" in payload
             assert "created_at" in payload
+
+    async def test_watcher_changes_status(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+        bake_factory: Callable[[_User], Awaitable[Bake]],
+        mock_platform_api_server: PlatformApiServer,
+        config: Config,
+    ) -> None:
+        mock_platform_api_server.jobs.append(
+            make_descr(
+                job_id="test-job-id",
+                status=JobStatus.FAILED,
+            )
+        )
+
+        bake = await bake_factory(regular_user)
+        async with client.post(
+            url=neuro_flow_api.attempts_url,
+            json={
+                "bake_id": bake.id,
+                "number": 1,
+                "result": "pending",
+                "executor_id": "test-job-id",
+                "configs_meta": self.CONFIGS_META,
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            attempt_id = payload["id"]
+
+        await asyncio.sleep(config.watchers.polling_interval_sec * 2)
+        print("42")
+        # await asyncio.sleep(config.watchers.polling_interval_sec * 100)
+
+        async with client.get(
+            url=neuro_flow_api.attempt_url(attempt_id),
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["result"] == "failed"
 
     async def test_list(
         self,
