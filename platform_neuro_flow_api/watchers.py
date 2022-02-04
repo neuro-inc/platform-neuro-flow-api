@@ -100,16 +100,18 @@ class WatchersPoller:
                 delay = 0
             await asyncio.sleep(delay)
 
+    async def _run_single(self, watcher: Watcher) -> None:
+        try:
+            await watcher.check()
+        except asyncio.CancelledError:
+            raise
+        except BaseException:
+            name = f"watcher {self._get_watcher_name(watcher)}"
+            logger.exception(f"Failed to run iteration of the {name}, ignoring...")
+
     @new_trace
     async def _run_once(self) -> None:
-        for watcher in self._watchers:
-            try:
-                await watcher.check()
-            except asyncio.CancelledError:
-                raise
-            except BaseException:
-                name = f"watcher {self._get_watcher_name(watcher)}"
-                logger.exception(f"Failed to run iteration of the {name}, ignoring...")
+        await asyncio.gather(*(self._run_single(watcher) for watcher in self._watchers))
 
     def _get_watcher_name(self, enforcer: Watcher) -> str:
         return type(enforcer).__name__
