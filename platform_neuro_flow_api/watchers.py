@@ -8,7 +8,7 @@ from typing import Any, Optional
 from neuro_logging import new_trace
 from neuro_sdk import Client as PlatformClient, JobStatus
 
-from .storage.base import AttemptStorage, TaskStatus
+from .storage.base import Attempt, AttemptStorage, TaskStatus
 from .utils import auto_close
 
 logger = logging.getLogger(__name__)
@@ -21,44 +21,47 @@ class Watcher:
 
 
 class ExecutorAliveWatcher(Watcher):
+    RUNNING_RESULTS = {
+        TaskStatus.PENDING,
+        TaskStatus.RUNNING,
+    }
+
     def __init__(
         self, storage: AttemptStorage, platform_client: PlatformClient
     ) -> None:
         self._storage = storage
         self._platform_client = platform_client
 
+    async def _check_attempt(self, attempt: Attempt) -> None:
+        if attempt.executor_id:
+            try:
+                job = await self._platform_client.jobs.status(attempt.executor_id)
+            except Exception:
+                logger.exception(
+                    f"Failed to check status of executor {attempt.executor_id}"
+                )
+            else:
+                if not job.status.is_finished:
+                    return
+                # Re-fetch attempt to avoid race condition:
+                # 1. We fetch running attempt
+                # 2. Executor exits and sets attempt to succeeded
+                # 3. We set attempt to failed
+                attempt = await self._storage.get(attempt.id)
+                if attempt.result not in self.RUNNING_RESULTS:
+                    return
+                if job.status == JobStatus.CANCELLED:
+                    attempt = replace(attempt, result=TaskStatus.CANCELLED)
+                else:
+                    attempt = replace(attempt, result=TaskStatus.FAILED)
+                await self._storage.update(attempt)
+
     async def check(self) -> None:
-        running_results = {
-            TaskStatus.PENDING,
-            TaskStatus.RUNNING,
-        }
-        attempts = self._storage.list(results=running_results)
+        attempts = self._storage.list(results=self.RUNNING_RESULTS)
         async with auto_close(attempts):  # type: ignore[arg-type]
-            async for attempt in attempts:
-                if attempt.executor_id:
-                    try:
-                        job = await self._platform_client.jobs.status(
-                            attempt.executor_id
-                        )
-                    except Exception:
-                        logger.exception(
-                            f"Failed to check status of executor {attempt.executor_id}"
-                        )
-                    else:
-                        if not job.status.is_finished:
-                            continue
-                        # Re-fetch attempt to avoid race condition:
-                        # 1. We fetch running attempt
-                        # 2. Executor exits and sets attempt to succeeded
-                        # 3. We set attempt to failed
-                        attempt = await self._storage.get(attempt.id)
-                        if attempt.result not in running_results:
-                            continue
-                        if job.status == JobStatus.CANCELLED:
-                            attempt = replace(attempt, result=TaskStatus.CANCELLED)
-                        else:
-                            attempt = replace(attempt, result=TaskStatus.FAILED)
-                        await self._storage.update(attempt)
+            await asyncio.gather(
+                *[self._check_attempt(attempt) async for attempt in attempts]
+            )
 
 
 class WatchersPoller:
