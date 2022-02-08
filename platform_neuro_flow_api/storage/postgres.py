@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import sys
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Set
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, TypeVar
@@ -218,13 +221,42 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
         self._id_prefix = id_prefix
         self._make_entry = make_entry
 
+    @asynccontextmanager
+    async def _safe_begin(
+        self,
+    ) -> AsyncIterator[AsyncConnection]:
+        async with self._safe_connect() as conn:
+            async with conn.begin():
+                yield conn
+
+    @asynccontextmanager
+    async def _safe_connect(
+        self,
+    ) -> AsyncIterator[AsyncConnection]:
+        conn_cm = self._engine.connect()
+        # Workaround of the SQLAlchemy bug.
+        conn_task = asyncio.create_task(conn_cm.__aenter__())
+        try:
+            conn = await asyncio.shield(conn_task)
+        except asyncio.CancelledError:
+            conn = await conn_task
+            await conn.close()
+            raise
+        try:
+            yield conn
+        except:  # noqa
+            if not await conn_cm.__aexit__(*sys.exc_info()):
+                raise
+        else:
+            await conn_cm.__aexit__(None, None, None)
+
     async def _execute(
         self, query: sasql.ClauseElement, conn: AsyncConnection | None = None
     ) -> None:
         if conn:
             await conn.execute(query)
             return
-        async with self._engine.connect() as conn:
+        async with self._safe_connect() as conn:
             await conn.execute(query)
 
     async def _fetchrow(
@@ -233,7 +265,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
         if conn:
             result = await conn.execute(query)
             return result.one_or_none()
-        async with self._engine.connect() as conn:
+        async with self._safe_connect() as conn:
             result = await conn.execute(query)
             return result.one_or_none()
 
@@ -263,7 +295,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
     async def insert(self, data: _E) -> None:
         values = self._to_values(data)
         query = self._table.insert().values(values)
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             try:
                 await self._execute(query, conn)
             except IntegrityError as exc:
@@ -288,7 +320,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
             .where(self._table.c.id == id)
             .returning(self._table.c.id)
         )
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             result = await self._fetchrow(query, conn)
             if not result:
                 # Docs on status messages are placed here:
@@ -311,7 +343,7 @@ class BasePostgresStorage(BaseStorage[_D, _E], ABC):
             .where(self._table.c.id == id)
             .returning(self._table.c.id)
         )
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             record = await self._fetchrow(query, conn)
             if not record:
                 raise NotExistsError
@@ -362,7 +394,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
             query = query.where(self._table.c.owner == owner)
         if cluster is not None:
             query = query.where(self._table.c.cluster == cluster)
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)
 
@@ -418,7 +450,7 @@ class PostgresLiveJobsStorage(
         query = self._table.select()
         if project_id is not None:
             query = query.where(self._table.c.project_id == project_id)
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)
 
@@ -568,7 +600,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             query = query.order_by(desc(created_at_field))
         else:
             query = query.order_by(asc(created_at_field))
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record, fetch_last_attempt)
 
@@ -657,7 +689,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
                 .values({"status": data.result})
                 .where(self._bakes_table.c.id == data.bake_id)
             )
-            async with self._engine.begin() as conn:
+            async with self._safe_begin() as conn:
                 try:
                     await self._execute(query, conn)
                 except IntegrityError as exc:
@@ -695,7 +727,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
             query = query.where(self._table.c.bake_id == bake_id)
         if results is not None:
             query = query.where(self._table.c.result.in_(results))
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)
 
@@ -750,7 +782,7 @@ class PostgresTaskStorage(TaskStorage, BasePostgresStorage[TaskData, Task]):
         query = self._table.select()
         if attempt_id is not None:
             query = query.where(self._table.c.attempt_id == attempt_id)
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)
 
@@ -810,7 +842,7 @@ class PostgresCacheEntryStorage(
             query = query.where(self._table.c.task_id == _full_id2str(task_id))
         if batch is not None:
             query = query.where(self._table.c.batch == batch)
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             await self._execute(query, conn)
 
 
@@ -889,7 +921,7 @@ class PostgresBakeImageStorage(
         query = self._table.select()
         if bake_id is not None:
             query = query.where(self._table.c.bake_id == bake_id)
-        async with self._engine.begin() as conn:
+        async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)
 

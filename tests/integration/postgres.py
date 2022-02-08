@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Iterator
 
 import asyncpg
 import pytest
+from asyncpg import Connection
 from docker import DockerClient
 from docker.errors import NotFound as ContainerNotFound
 from docker.models.containers import Container
@@ -68,13 +69,16 @@ async def _wait_for_postgres_server(
         postgres_dsn = "postgresql" + postgres_dsn[len("postgresql+asyncpg") :]
     attempt = 0
     while attempt < attempts:
+        conn: Connection | None = None
         try:
             attempt = attempt + 1
             conn = await asyncpg.connect(postgres_dsn, timeout=5.0)
-            await conn.close()
             return
         except Exception:
             pass
+        finally:
+            if conn:
+                await conn.close()
         time.sleep(interval_s)
 
 
