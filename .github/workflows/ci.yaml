@@ -68,55 +68,28 @@ jobs:
         name: codecov-integration
     - name: Build Docker image
       run: make docker_build
-      env:
-        IMAGE_TAG: latest
     - name: Upload image artifact
       uses: neuro-inc/upload-image-action@v21.9.2
       with:
         image: platformneuroflowapi
         token: ${{ secrets.GITHUB_TOKEN }}
-  deploy_dev:
-    name: Deploy to dev
-    environment: dev
-    runs-on: ubuntu-latest
+
+  release:
+    name: Create release
     needs: test
-    concurrency: deploy_dev
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
-      CLUSTER_NAME: aws-dev
-      HELM_ENV: dev
-      IMAGE_REGISTRY: aws
-      IMAGE_TAG: ${{ github.sha }}
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
-    - name: Install Helm
-      uses: azure/setup-helm@v2.0
-      with:
-        version: v3.7.0
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-    - name: Login to AWS ECR
-      uses: aws-actions/amazon-ecr-login@v1
-    - name: Build image
-      run: make docker_build
-    - name: Push image to registry
-      run: |
-        make docker_push
-        IMAGE_TAG=latest make docker_push
-    - name: Update kube config
-      run: aws eks --region $AWS_REGION update-kubeconfig --name $CLUSTER_NAME
-    - name: Deploy to kubernetes
-      run: make helm_deploy
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.27
+    with:
+      image: platformneuroflowapi
+      helm_charts: platform-neuro-flow
+
+  deploy_dev:
+    name: Deploy on dev
+    needs: release
+    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v0.0.27
+    with:
+      helm_charts: platform-neuro-flow
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
