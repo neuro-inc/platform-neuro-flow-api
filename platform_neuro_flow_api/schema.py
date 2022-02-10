@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import functools
 from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 import aiohttp.web
 from aiohttp_apispec import querystring_schema
@@ -84,9 +86,7 @@ class FullIDField(fields.String):
         res: str = super()._deserialize(*args, **kwargs)
         return tuple(res.split("."))
 
-    def _serialize(
-        self, value: Optional[FullID], *args: Any, **kwargs: Any
-    ) -> Optional[str]:
+    def _serialize(self, value: FullID | None, *args: Any, **kwargs: Any) -> str | None:
         if value is None:
             return None
         return super()._serialize(".".join(value), *args, **kwargs)
@@ -160,8 +160,8 @@ class TaskStatusField(fields.String):
         return TaskStatus(res)
 
     def _serialize(
-        self, value: Optional[TaskStatus], *args: Any, **kwargs: Any
-    ) -> Optional[str]:
+        self, value: TaskStatus | None, *args: Any, **kwargs: Any
+    ) -> str | None:
         if value is None:
             return None
         return super()._serialize(value.value, *args, **kwargs)
@@ -246,8 +246,8 @@ class ImageStatusField(fields.String):
         return ImageStatus(res)
 
     def _serialize(
-        self, value: Optional[ImageStatus], *args: Any, **kwargs: Any
-    ) -> Optional[str]:
+        self, value: ImageStatus | None, *args: Any, **kwargs: Any
+    ) -> str | None:
         if value is None:
             return None
         return super()._serialize(value.value, *args, **kwargs)

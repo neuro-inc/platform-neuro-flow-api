@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import replace
-from typing import Optional
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -190,13 +191,13 @@ class TestPostgresBakeStorage(_TestBakeStorage):
         bake1 = await postgres_storage.bakes.create(data1)
         bake2 = await postgres_storage.bakes.create(data2)
 
-        attempt1: Optional[Attempt] = None
+        attempt1: Attempt | None = None
         for number in range(5):
             attempt_data = await self.helper.gen_attempt_data(
                 number=number, bake_id=bake1.id, result=TaskStatus.SUCCEEDED
             )
             attempt1 = await postgres_storage.attempts.create(attempt_data)
-        attempt2: Optional[Attempt] = None
+        attempt2: Attempt | None = None
         for number in range(5):
             attempt_data = await self.helper.gen_attempt_data(
                 number=number, bake_id=bake2.id, result=TaskStatus.SUCCEEDED

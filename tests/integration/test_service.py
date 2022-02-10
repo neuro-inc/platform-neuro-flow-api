@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from platform_neuro_flow_api.service import Service
