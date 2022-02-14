@@ -16,9 +16,11 @@ import pytest
 from platform_neuro_flow_api.config import (
     Config,
     CORSConfig,
+    PlatformApiConfig,
     PlatformAuthConfig,
     PostgresConfig,
     ServerConfig,
+    WatchersConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,7 @@ pytest_plugins = [
     "tests.integration.docker",
     "tests.integration.postgres",
     "tests.integration.auth",
+    "tests.integration.api",
 ]
 
 
@@ -44,6 +47,7 @@ async def client() -> AsyncIterator[aiohttp.ClientSession]:
 @pytest.fixture
 def config_factory(
     auth_config: PlatformAuthConfig,
+    platform_api_config: PlatformApiConfig,
     cluster_name: str,
     postgres_config: PostgresConfig,
 ) -> Callable[..., Config]:
@@ -51,8 +55,10 @@ def config_factory(
         defaults = dict(
             server=ServerConfig(host="0.0.0.0", port=8080),
             platform_auth=auth_config,
+            platform_api=platform_api_config,
             cors=CORSConfig(allowed_origins=["https://neu.ro"]),
             postgres=postgres_config,
+            watchers=WatchersConfig(polling_interval_sec=1),
             sentry=None,
         )
         kwargs = {**defaults, **kwargs}

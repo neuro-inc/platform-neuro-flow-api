@@ -335,7 +335,9 @@ class AttemptStorage(BaseStorage[AttemptData, Attempt], ABC):
         pass
 
     @abstractmethod
-    def list(self, bake_id: str | None = None) -> AsyncIterator[Attempt]:
+    def list(
+        self, bake_id: str | None = None, results: Set[TaskStatus] | None = None
+    ) -> AsyncIterator[Attempt]:
         pass
 
 

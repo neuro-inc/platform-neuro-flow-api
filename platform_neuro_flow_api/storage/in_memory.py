@@ -36,6 +36,7 @@ from .base import (
     Storage,
     Task,
     TaskData,
+    TaskStatus,
     TaskStorage,
 )
 
@@ -168,9 +169,13 @@ class InMemoryAttemptStorage(AttemptStorage, InMemoryBaseStorage[AttemptData, At
                     return item
         raise NotExistsError
 
-    async def list(self, bake_id: str | None = None) -> AsyncIterator[Attempt]:
+    async def list(
+        self, bake_id: str | None = None, results: Set[TaskStatus] | None = None
+    ) -> AsyncIterator[Attempt]:
         for item in self._items.values():
             if bake_id is not None and item.bake_id != bake_id:
+                continue
+            if results is not None and item.result not in results:
                 continue
             yield item
 

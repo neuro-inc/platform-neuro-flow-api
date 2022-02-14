@@ -21,6 +21,12 @@ class PlatformAuthConfig:
 
 
 @dataclass(frozen=True)
+class PlatformApiConfig:
+    url: URL
+    token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class CORSConfig:
     allowed_origins: Sequence[str] = ()
 
@@ -56,11 +62,18 @@ class PostgresConfig:
 
 
 @dataclass(frozen=True)
+class WatchersConfig:
+    polling_interval_sec: int = 60
+
+
+@dataclass(frozen=True)
 class Config:
     server: ServerConfig
     platform_auth: PlatformAuthConfig
+    platform_api: PlatformApiConfig
     cors: CORSConfig
     postgres: PostgresConfig
+    watchers: WatchersConfig = WatchersConfig()
     enable_docs: bool = False
     zipkin: ZipkinConfig | None = None
     sentry: SentryConfig | None = None
