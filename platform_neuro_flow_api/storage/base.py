@@ -112,8 +112,8 @@ class ConfigFile(HasId, ConfigFileData):
 class ConfigsMeta:
     workspace: str
     flow_config_id: str
-    project_config_id: str | None
     action_config_ids: Mapping[str, str]
+    project_config_id: str | None = None
 
 
 @dataclass(frozen=True)
