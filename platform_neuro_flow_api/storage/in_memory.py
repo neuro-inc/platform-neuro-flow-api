@@ -87,14 +87,21 @@ class InMemoryBaseStorage(BaseStorage[_D, _E]):
 class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Project]):
     async def check_exists(self, data: ProjectData) -> None:
         try:
-            await self.get_by_name(data.name, data.owner, data.cluster)
+            await self.get_by_name(data.name, data.owner, data.cluster, data.org_name)
         except NotExistsError:
             return
         raise ExistsError
 
-    async def get_by_name(self, name: str, owner: str, cluster: str) -> Project:
+    async def get_by_name(
+        self, name: str, owner: str, cluster: str, org_name: str | None
+    ) -> Project:
         for item in self._items.values():
-            if item.name == name and item.owner == owner and item.cluster == cluster:
+            if (
+                item.name == name
+                and item.owner == owner
+                and item.cluster == cluster
+                and item.org_name == org_name
+            ):
                 return item
         raise NotExistsError
 

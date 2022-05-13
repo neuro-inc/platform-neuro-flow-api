@@ -84,6 +84,7 @@ class MockDataHelper:
             name=secrets.token_hex(8),
             owner=secrets.token_hex(8),
             cluster=secrets.token_hex(8),
+            org_name=secrets.token_hex(8),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
@@ -254,7 +255,10 @@ class TestProjectStorage:
         data = await self.helper.gen_project_data()
         res = await storage.create(data)
         project = await storage.get_by_name(
-            name=data.name, owner=data.owner, cluster=data.cluster
+            name=data.name,
+            owner=data.owner,
+            cluster=data.cluster,
+            org_name=data.org_name,
         )
         assert project.id == res.id
 
@@ -263,7 +267,10 @@ class TestProjectStorage:
         await storage.create(data)
         with pytest.raises(NotExistsError):
             await storage.get_by_name(
-                name=data.name, owner="wrong_owner", cluster=data.cluster
+                name=data.name,
+                owner="wrong_owner",
+                cluster=data.cluster,
+                org_name=data.org_name,
             )
 
     async def test_cannot_create_duplicate(self, storage: ProjectStorage) -> None:

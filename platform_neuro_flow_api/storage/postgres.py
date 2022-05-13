@@ -90,6 +90,7 @@ class FlowTables:
             sa.Column("name", sa.String(), nullable=False),
             sa.Column("owner", sa.String(), nullable=False),
             sa.Column("cluster", sa.String(), nullable=False),
+            sa.Column("org_name", sa.String(), nullable=True),
             sa.Column("payload", sapg.JSONB(), nullable=False),
         )
         live_jobs_table = sa.Table(
@@ -357,6 +358,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
             "name": payload.pop("name"),
             "owner": payload.pop("owner"),
             "cluster": payload.pop("cluster"),
+            "org_name": payload.pop("org_name"),
             "payload": payload,
         }
 
@@ -366,15 +368,24 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         payload["name"] = record["name"]
         payload["owner"] = record["owner"]
         payload["cluster"] = record["cluster"]
+        payload["org_name"] = record["org_name"]
         return Project(**payload)
 
     @trace
-    async def get_by_name(self, name: str, owner: str, cluster: str) -> Project:
+    async def get_by_name(
+        self, name: str, owner: str, cluster: str, org_name: str | None
+    ) -> Project:
+        if org_name is None:
+            org_pred = self._table.c.org_name.is_(None)
+        else:
+            org_pred = self._table.c.org_name == org_name
+
         query = (
             self._table.select()
             .where(self._table.c.name == name)
             .where(self._table.c.owner == owner)
             .where(self._table.c.cluster == cluster)
+            .where(org_pred)
         )
         record = await self._fetchrow(query)
         if not record:
