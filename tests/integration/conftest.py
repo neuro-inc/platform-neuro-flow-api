@@ -126,3 +126,8 @@ def get_service_url(service_name: str, namespace: str = "default") -> str:
 @pytest.fixture
 def cluster_name() -> str:
     return "test-cluster"
+
+
+@pytest.fixture
+def org_name() -> str:
+    return "test-org"
