@@ -46,10 +46,9 @@ postgres-db-init:
             name: platformneuroflowapi-postgres
             key: platformneuroflowapi-migrations-dsn
 
+
 cors:
   origins:
-  - https://neu.ro
-  - https://master--neuro-web.netlify.app
-  - http://localhost:8000
+  - *
 
 enableDocs: true
