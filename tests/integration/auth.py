@@ -230,7 +230,7 @@ class ProjectGranter(Protocol):
         *,
         write: bool = False,
         by_name: bool = False,
-    ) -> _User:
+    ) -> None:
         pass
 
 
