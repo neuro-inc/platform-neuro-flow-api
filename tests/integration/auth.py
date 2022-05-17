@@ -17,10 +17,10 @@ from docker.models.containers import Container
 from jose import jwt
 from neuro_auth_client import AuthClient, Cluster, Permission, User
 from neuro_auth_client.security import JWT_IDENTITY_CLAIM_OPTIONS
-from storage.base import Project
 from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformAuthConfig
+from platform_neuro_flow_api.storage.base import Project
 
 from tests.integration.conftest import random_name
 
