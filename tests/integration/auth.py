@@ -226,7 +226,7 @@ class ProjectGranter(Protocol):
     async def __call__(
         self,
         user: User,
-        project_id: Project,
+        project: Project,
         *,
         write: bool = False,
         by_name: bool = False,
