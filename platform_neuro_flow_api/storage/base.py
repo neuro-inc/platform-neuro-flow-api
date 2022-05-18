@@ -75,6 +75,7 @@ class ProjectData:
     name: str
     owner: str
     cluster: str
+    org_name: str | None
 
 
 @dataclass(frozen=True)
@@ -272,6 +273,7 @@ class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
         name: str,
         owner: str,
         cluster: str,
+        org_name: str | None,
     ) -> Project:
         pass
 

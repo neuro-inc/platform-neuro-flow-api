@@ -303,6 +303,25 @@ class TestProjectsApi:
             assert payload["cluster"] == "test-cluster"
             assert "id" in payload
 
+    async def test_projects_with_org_create(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["name"] == "test"
+            assert payload["owner"] == regular_user.name
+            assert payload["cluster"] == "test-cluster"
+            assert payload["org_name"] == "test-org"
+            assert "id" in payload
+
     async def test_projects_get_by_id(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -353,6 +372,32 @@ class TestProjectsApi:
             assert payload["cluster"] == "test-cluster"
             assert payload["id"] == project_id
 
+    async def test_projects_get_by_name_with_org(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            project_id = (await resp.json())["id"]
+        async with client.get(
+            url=neuro_flow_api.project_by_name_url,
+            params={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["name"] == "test"
+            assert payload["owner"] == regular_user.name
+            assert payload["cluster"] == "test-cluster"
+            assert payload["org_name"] == "test-org"
+            assert payload["id"] == project_id
+
     async def test_projects_create_duplicate_fail(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -371,6 +416,50 @@ class TestProjectsApi:
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPConflict.status_code, await resp.text()
+
+    async def test_projects_create_duplicate_same_org_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPConflict.status_code, await resp.text()
+
+    async def test_projects_create_duplicate_different_org_ok(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": None},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org1"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org2"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
 
     async def test_projects_list(
         self,

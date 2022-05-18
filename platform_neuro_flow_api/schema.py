@@ -56,6 +56,7 @@ class ProjectSchema(Schema):
     name = fields.String(required=True)
     owner = fields.String(required=True, dump_only=True)
     cluster = fields.String(required=True)
+    org_name = fields.String(required=False, allow_none=True)
 
     @post_load
     def make_project_data(self, data: Mapping[str, Any], **kwargs: Any) -> ProjectData:
@@ -64,6 +65,7 @@ class ProjectSchema(Schema):
             name=data["name"],
             owner=self.context["username"],
             cluster=data["cluster"],
+            org_name=data.get("org_name"),
         )
 
 
