@@ -49,6 +49,6 @@ postgres-db-init:
 
 cors:
   origins:
-  - *
+  - '*'
 
 enableDocs: true
