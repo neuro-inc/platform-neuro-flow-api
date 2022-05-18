@@ -33,7 +33,7 @@ from aiohttp.web_urldispatcher import AbstractRoute
 from aiohttp_apispec import docs, request_schema, response_schema, setup_aiohttp_apispec
 from aiohttp_security import check_authorized
 from marshmallow import fields
-from neuro_auth_client import AuthClient
+from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
     init_logging,
@@ -82,13 +82,50 @@ class ProjectAccessMixin:
     def storage(self) -> Storage:
         pass
 
-    async def _get_project(self, username: str, project_id: str) -> Project:
+    def _get_user_projects_uri(
+        self, username: str, cluster_name: str, org_name: str | None
+    ) -> str:
+        uri = f"flow://{cluster_name}"
+        if org_name:
+            uri += f"/{org_name}"
+        return uri + f"/{username}"
+
+    def _get_user_projects_write_perm(
+        self, username: str, cluster_name: str, org_name: str | None
+    ) -> Permission:
+        return Permission(
+            self._get_user_projects_uri(username, cluster_name, org_name), "write"
+        )
+
+    def _get_project_uris(self, project: Project) -> list[str]:
+        base = f"flow://{project.cluster}"
+        if project.org_name:
+            base += f"/{project.org_name}"
+        base += f"/{project.owner}"
+        return [base + f"/{project.id}", base + f"/{project.name}"]
+
+    def _get_project_read_perms(self, project: Project) -> list[Permission]:
+        return [Permission(uri, "read") for uri in self._get_project_uris(project)]
+
+    def _get_project_write_perms(self, project: Project) -> list[Permission]:
+        return [Permission(uri, "write") for uri in self._get_project_uris(project)]
+
+    async def _check_project_access(
+        self, request: aiohttp.web.Request, project: Project, *, write: bool
+    ) -> None:
+        if write:
+            await check_permissions(request, [self._get_project_write_perms(project)])
+        else:
+            await check_permissions(request, [self._get_project_read_perms(project)])
+
+    async def _get_project(
+        self, request: aiohttp.web.Request, project_id: str, *, write: bool
+    ) -> Project:
         try:
             project = await self.storage.projects.get(project_id)
         except NotExistsError:
             raise HTTPNotFound
-        if project.owner != username:
-            raise HTTPNotFound
+        await self._check_project_access(request, project, write=write)
         return project
 
 
@@ -204,9 +241,8 @@ class ProjectsApiHandler(ProjectAccessMixin):
     @docs(tags=["projects"], summary="Get projects by id")
     @response_schema(ProjectSchema(), HTTPOk.status_code)
     async def get_project(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
-        project = await self._get_project(username, id)
+        project = await self._get_project(request, id, write=False)
         return aiohttp.web.json_response(
             data=ProjectSchema().dump(project), status=HTTPOk.status_code
         )
@@ -215,6 +251,7 @@ class ProjectsApiHandler(ProjectAccessMixin):
     @query_schema(
         name=fields.String(required=True),
         cluster=fields.String(required=True),
+        owner=fields.String(required=False),
         org_name=fields.String(required=False, allow_none=True),
     )
     @response_schema(ProjectSchema(), HTTPOk.status_code)
@@ -223,15 +260,17 @@ class ProjectsApiHandler(ProjectAccessMixin):
         request: aiohttp.web.Request,
         name: str,
         cluster: str,
+        owner: str | None = None,
         org_name: str | None = None,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
         try:
             project = await self.storage.projects.get_by_name(
-                name, username, cluster, org_name
+                name, owner or username, cluster, org_name
             )
         except NotExistsError:
             raise HTTPNotFound
+        await self._check_project_access(request, project, write=False)
         return aiohttp.web.json_response(
             data=ProjectSchema().dump(project), status=HTTPOk.status_code
         )
@@ -241,9 +280,8 @@ class ProjectsApiHandler(ProjectAccessMixin):
     async def delete_project(
         self, request: aiohttp.web.Request
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
-        await self._get_project(username, id)
+        await self._get_project(request, id, write=True)
         await self.storage.projects.delete(id)
         return aiohttp.web.Response(status=HTTPNoContent.status_code)
 
@@ -276,9 +314,8 @@ class LiveJobApiHandler(ProjectAccessMixin):
         request: aiohttp.web.Request,
         project_id: str,
     ) -> aiohttp.web.StreamResponse:
-        username = await check_authorized(request)
         try:
-            await self._get_project(username, project_id)
+            await self._get_project(request, project_id, write=False)
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         live_jobs = self.storage.live_jobs.list(project_id=project_id)
@@ -319,10 +356,9 @@ class LiveJobApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = LiveJobSchema()
         live_job_data = schema.load(await request.json())
-        await self._get_project(username, live_job_data.project_id)
+        await self._get_project(request, live_job_data.project_id, write=True)
         try:
             live_job = await self.storage.live_jobs.create(live_job_data)
         except ExistsError:
@@ -352,10 +388,9 @@ class LiveJobApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = LiveJobSchema()
         live_job_data = schema.load(await request.json())
-        await self._get_project(username, live_job_data.project_id)
+        await self._get_project(request, live_job_data.project_id, write=True)
         live_job = await self.storage.live_jobs.update_or_create(live_job_data)
         return aiohttp.web.json_response(
             data=schema.dump(live_job), status=HTTPCreated.status_code
@@ -364,13 +399,12 @@ class LiveJobApiHandler(ProjectAccessMixin):
     @docs(tags=["live_jobs"], summary="Get live job by id")
     @response_schema(LiveJobSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             live_job = await self.storage.live_jobs.get(id)
         except NotExistsError:
             raise HTTPNotFound
-        await self._get_project(username, live_job.project_id)
+        await self._get_project(request, live_job.project_id, write=False)
         return aiohttp.web.json_response(
             data=LiveJobSchema().dump(live_job), status=HTTPOk.status_code
         )
@@ -384,8 +418,7 @@ class LiveJobApiHandler(ProjectAccessMixin):
     async def get_by_yaml_id(
         self, request: aiohttp.web.Request, project_id: str, yaml_id: str
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
-        await self._get_project(username, project_id)
+        await self._get_project(request, project_id, write=False)
         try:
             live_job = await self.storage.live_jobs.get_by_yaml_id(
                 yaml_id=yaml_id,
@@ -439,9 +472,8 @@ class BakeApiHandler(ProjectAccessMixin):
         reverse: bool,
         fetch_last_attempt: bool,
     ) -> aiohttp.web.StreamResponse:
-        username = await check_authorized(request)
         try:
-            await self._get_project(username, project_id)
+            await self._get_project(request, project_id, write=False)
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bakes = self.storage.bakes.list(
@@ -488,10 +520,9 @@ class BakeApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = BakeSchema(partial=["name", "tags"])
         bake_data = schema.load(await request.json())
-        await self._get_project(username, bake_data.project_id)
+        await self._get_project(request, bake_data.project_id, write=True)
         try:
             bake = await self.storage.bakes.create(bake_data)
         except ExistsError:
@@ -514,7 +545,6 @@ class BakeApiHandler(ProjectAccessMixin):
     async def get(
         self, request: aiohttp.web.Request, fetch_last_attempt: bool
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             bake = await self.storage.bakes.get(
@@ -522,7 +552,7 @@ class BakeApiHandler(ProjectAccessMixin):
             )
         except NotExistsError:
             raise HTTPNotFound
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         return aiohttp.web.json_response(
             data=BakeSchema().dump(bake), status=HTTPOk.status_code
         )
@@ -541,14 +571,13 @@ class BakeApiHandler(ProjectAccessMixin):
         name: str,
         fetch_last_attempt: bool,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         try:
             bake = await self.storage.bakes.get_by_name(
                 project_id=project_id, name=name, fetch_last_attempt=fetch_last_attempt
             )
         except NotExistsError:
             raise HTTPNotFound
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         return aiohttp.web.json_response(
             data=BakeSchema().dump(bake), status=HTTPOk.status_code
         )
@@ -588,10 +617,9 @@ class AttemptApiHandler(ProjectAccessMixin):
         request: aiohttp.web.Request,
         bake_id: str,
     ) -> aiohttp.web.StreamResponse:
-        username = await check_authorized(request)
         try:
             bake = await self._get_bake(bake_id)
-            await self._get_project(username, bake.project_id)
+            await self._get_project(request, bake.project_id, write=False)
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         attempts = self.storage.attempts.list(bake_id=bake_id)
@@ -632,11 +660,10 @@ class AttemptApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = AttemptSchema(partial=["executor_id"])
         attempt_data = schema.load(await request.json())
         bake = await self._get_bake(attempt_data.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
         try:
             attempt = await self.storage.attempts.create(attempt_data)
         except ExistsError:
@@ -654,14 +681,13 @@ class AttemptApiHandler(ProjectAccessMixin):
     @docs(tags=["attempts"], summary="Get attempt by id")
     @response_schema(AttemptSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             attempt = await self.storage.attempts.get(id)
         except NotExistsError:
             raise HTTPNotFound
         bake = await self._get_bake(attempt.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         return aiohttp.web.json_response(
             data=AttemptSchema().dump(attempt), status=HTTPOk.status_code
         )
@@ -678,9 +704,8 @@ class AttemptApiHandler(ProjectAccessMixin):
         bake_id: str,
         number: int,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         bake = await self._get_bake(bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         try:
             attempt = await self.storage.attempts.get_by_number(
                 bake_id=bake_id,
@@ -708,14 +733,13 @@ class AttemptApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = AttemptSchema(partial=["executor_id"])
         attempt_data = schema.load(await request.json())
         attempt = await self.storage.attempts.get_by_number(
             attempt_data.bake_id, attempt_data.number
         )
         bake = await self._get_bake(attempt_data.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
         new_attempt = replace(
             attempt, result=attempt_data.result, executor_id=attempt_data.executor_id
         )
@@ -765,11 +789,10 @@ class TaskApiHandler(ProjectAccessMixin):
         request: aiohttp.web.Request,
         attempt_id: str,
     ) -> aiohttp.web.StreamResponse:
-        username = await check_authorized(request)
         try:
             attempt = await self._get_attempt(attempt_id)
             bake = await self._get_bake(attempt.bake_id)
-            await self._get_project(username, bake.project_id)
+            await self._get_project(request, bake.project_id, write=False)
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         tasks = self.storage.tasks.list(attempt_id=attempt_id)
@@ -808,12 +831,11 @@ class TaskApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = TaskSchema()
         task_data = schema.load(await request.json())
         attempt = await self._get_attempt(task_data.attempt_id)
         bake = await self._get_bake(attempt.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
         try:
             task = await self.storage.tasks.create(task_data)
         except ExistsError:
@@ -831,7 +853,6 @@ class TaskApiHandler(ProjectAccessMixin):
     @docs(tags=["tasks"], summary="Get task by id")
     @response_schema(TaskSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             task = await self.storage.tasks.get(id)
@@ -839,7 +860,7 @@ class TaskApiHandler(ProjectAccessMixin):
             raise HTTPNotFound
         attempt = await self._get_attempt(task.attempt_id)
         bake = await self._get_bake(attempt.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         return aiohttp.web.json_response(
             data=TaskSchema().dump(task), status=HTTPOk.status_code
         )
@@ -852,10 +873,9 @@ class TaskApiHandler(ProjectAccessMixin):
     async def get_by_yaml_id(
         self, request: aiohttp.web.Request, attempt_id: str, yaml_id: str
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         attempt = await self._get_attempt(attempt_id)
         bake = await self._get_bake(attempt.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         try:
             task = await self.storage.tasks.get_by_yaml_id(
                 yaml_id=tuple(yaml_id.split(".")),
@@ -883,7 +903,6 @@ class TaskApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = TaskSchema()
         task_data = schema.load(await request.json())
         task = await self.storage.tasks.get_by_yaml_id(
@@ -891,7 +910,7 @@ class TaskApiHandler(ProjectAccessMixin):
         )
         attempt = await self._get_attempt(task_data.attempt_id)
         bake = await self._get_bake(attempt.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
 
         new_task = replace(
             task,
@@ -948,11 +967,10 @@ class ConfigFileApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = ConfigFileSchema()
         config_file_data = schema.load(await request.json())
         bake = await self._get_bake(config_file_data.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
         try:
             config_file = await self.storage.config_files.create(config_file_data)
         except ExistsError:
@@ -970,14 +988,13 @@ class ConfigFileApiHandler(ProjectAccessMixin):
     @docs(tags=["config_files"], summary="Get config file by id")
     @response_schema(ConfigFileSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             config_file = await self.storage.config_files.get(id)
         except NotExistsError:
             raise HTTPNotFound
         bake = await self._get_bake(config_file.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         return aiohttp.web.json_response(
             data=ConfigFileSchema().dump(config_file), status=HTTPOk.status_code
         )
@@ -1017,10 +1034,9 @@ class CacheEntryApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = CacheEntrySchema(partial=["raw_id"])
         data = schema.load(await request.json())
-        await self._get_project(username, data.project_id)
+        await self._get_project(request, data.project_id, write=True)
         try:
             cache_entry = await self.storage.cache_entries.create(data)
         except ExistsError:
@@ -1041,13 +1057,12 @@ class CacheEntryApiHandler(ProjectAccessMixin):
     @docs(tags=["cache_entries"], summary="Get cache entry by id")
     @response_schema(CacheEntrySchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             cache_entry = await self.storage.cache_entries.get(id)
         except NotExistsError:
             raise HTTPNotFound
-        await self._get_project(username, cache_entry.project_id)
+        await self._get_project(request, cache_entry.project_id, write=False)
         return aiohttp.web.json_response(
             data=CacheEntrySchema().dump(cache_entry), status=HTTPOk.status_code
         )
@@ -1068,8 +1083,7 @@ class CacheEntryApiHandler(ProjectAccessMixin):
         batch: str,
         key: str,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
-        await self._get_project(username, project_id)
+        await self._get_project(request, project_id, write=False)
         try:
             cache_entry = await self.storage.cache_entries.get_by_key(
                 project_id=project_id,
@@ -1096,8 +1110,7 @@ class CacheEntryApiHandler(ProjectAccessMixin):
         task_id: str | None = None,
         batch: str | None = None,
     ) -> aiohttp.web.StreamResponse:
-        username = await check_authorized(request)
-        await self._get_project(username, project_id)
+        await self._get_project(request, project_id, write=True)
         await self.storage.cache_entries.delete_all(
             project_id=project_id,
             batch=batch,
@@ -1140,10 +1153,9 @@ class BakeImagesApiHandler(ProjectAccessMixin):
         request: aiohttp.web.Request,
         bake_id: str,
     ) -> aiohttp.web.StreamResponse:
-        username = await check_authorized(request)
         try:
             bake = await self._get_bake(bake_id)
-            await self._get_project(username, bake.project_id)
+            await self._get_project(request, bake.project_id, write=False)
         except HTTPNotFound:
             return aiohttp.web.json_response(data=[], status=HTTPOk.status_code)
         bake_images = self.storage.bake_images.list(bake_id=bake_id)
@@ -1188,13 +1200,12 @@ class BakeImagesApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         schema = BakeImageSchema(
             partial=["context_on_storage", "dockerfile_rel", "builder_job_id"]
         )
         image_data = schema.load(await request.json())
         bake = await self._get_bake(image_data.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
         try:
             image = await self.storage.bake_images.create(image_data)
         except ExistsError:
@@ -1212,14 +1223,13 @@ class BakeImagesApiHandler(ProjectAccessMixin):
     @docs(tags=["bake_images"], summary="Get attempt by id")
     @response_schema(BakeImageSchema(), HTTPOk.status_code)
     async def get(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             image = await self.storage.bake_images.get(id)
         except NotExistsError:
             raise HTTPNotFound
         bake = await self._get_bake(image.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         return aiohttp.web.json_response(
             data=BakeImageSchema().dump(image), status=HTTPOk.status_code
         )
@@ -1236,9 +1246,8 @@ class BakeImagesApiHandler(ProjectAccessMixin):
         bake_id: str,
         ref: str,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         bake = await self._get_bake(bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=False)
         try:
             image = await self.storage.bake_images.get_by_ref(
                 bake_id=bake_id,
@@ -1266,14 +1275,13 @@ class BakeImagesApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
         id = request.match_info["id"]
         try:
             image = await self.storage.bake_images.get(id)
         except NotExistsError:
             raise HTTPNotFound
         bake = await self._get_bake(image.bake_id)
-        await self._get_project(username, bake.project_id)
+        await self._get_project(request, bake.project_id, write=True)
         schema = BakeImagePatchSchema()
         new_values = schema.load(await request.json())
         new_image = replace(image, **new_values)

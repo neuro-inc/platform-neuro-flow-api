@@ -26,7 +26,7 @@ from platform_neuro_flow_api.storage.base import Attempt, Bake, Project
 
 from ..utils import make_descr
 from .api import PlatformApiServer
-from .auth import _User
+from .auth import ProjectGranter, UserFactory, _User
 from .conftest import ApiAddress, create_local_app_server
 
 
@@ -375,28 +375,70 @@ class TestProjectsApi:
     async def test_projects_get_by_name_with_org(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user: _User,
+        regular_org_user: _User,
         client: aiohttp.ClientSession,
+        org_name: str,
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
-            headers=regular_user.headers,
+            json={"name": "test", "cluster": "test-cluster", "org_name": org_name},
+            headers=regular_org_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
             project_id = (await resp.json())["id"]
         async with client.get(
             url=neuro_flow_api.project_by_name_url,
-            params={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
-            headers=regular_user.headers,
+            params={"name": "test", "cluster": "test-cluster", "org_name": org_name},
+            headers=regular_org_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             assert payload["name"] == "test"
-            assert payload["owner"] == regular_user.name
+            assert payload["owner"] == regular_org_user.name
             assert payload["cluster"] == "test-cluster"
             assert payload["org_name"] == "test-org"
             assert payload["id"] == project_id
+
+    async def test_shared_projects_get_by_name(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: UserFactory,
+        client: aiohttp.ClientSession,
+        grant_project_permission: ProjectGranter,
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster"},
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            data = await resp.json()
+            project = Project(
+                id=data["id"],
+                cluster=data["cluster"],
+                name=data["name"],
+                org_name=data["org_name"],
+                owner=data["owner"],
+            )
+        await grant_project_permission(user2, project)
+        async with client.get(
+            url=neuro_flow_api.project_by_name_url,
+            params={
+                "name": project.name,
+                "cluster": project.cluster,
+                "owner": project.owner,
+            },
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["id"] == project.id
+            assert payload["name"] == project.name
+            assert payload["owner"] == project.owner
+            assert payload["cluster"] == project.cluster
+            assert payload["org_name"] == project.org_name
 
     async def test_projects_create_duplicate_fail(
         self,
@@ -980,22 +1022,21 @@ class TestLiveJobsApi:
             url=neuro_flow_api.live_job_url(job_id),
             headers=user2.headers,
         ) as resp:
-            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            assert resp.status == HTTPForbidden.status_code, await resp.text()
         # Cannot get by yaml id
         async with client.get(
             url=neuro_flow_api.live_job_by_yaml_id_url,
             params={"project_id": project.id, "yaml_id": "test-job"},
             headers=user2.headers,
         ) as resp:
-            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            assert resp.status == HTTPForbidden.status_code, await resp.text()
         # Cannot list
         async with client.get(
             url=neuro_flow_api.live_jobs_url,
             params={"project_id": project.id},
             headers=user2.headers,
         ) as resp:
-            assert resp.status == HTTPOk.status_code
-            assert await resp.json() == []
+            assert resp.status == HTTPForbidden.status_code
 
 
 class TestBakeApi:
@@ -1026,6 +1067,62 @@ class TestBakeApi:
             assert payload["tags"] == []
             assert "id" in payload
             assert "created_at" in payload
+
+    async def test_create_shared_project(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: UserFactory,
+        grant_project_permission: ProjectGranter,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        project = await project_factory(user1)
+        await grant_project_permission(user2, project, write=True)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+            },
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["project_id"] == project.id
+            assert payload["batch"] == "test-batch"
+            assert payload["graphs"] == {"": {"a": [], "b": ["a"]}}
+            assert payload["params"] == {"p1": "v1"}
+            assert payload["tags"] == []
+            assert "id" in payload
+            assert "created_at" in payload
+
+    async def test_create_shared_read_only_project_forbidden(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: UserFactory,
+        grant_project_permission: ProjectGranter,
+        client: aiohttp.ClientSession,
+        project_factory: Callable[[_User], Awaitable[Project]],
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        project = await project_factory(user1)
+        await grant_project_permission(user2, project, write=False)
+        async with client.post(
+            url=neuro_flow_api.bakes_url,
+            json={
+                "project_id": project.id,
+                "batch": "test-batch",
+                "graphs": {"": {"a": [], "b": ["a"]}},
+                "params": {"p1": "v1"},
+            },
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPForbidden.status_code, await resp.text()
 
     async def test_create_with_meta(
         self,
@@ -2427,7 +2524,7 @@ class TestCacheEntryApi:
             url=neuro_flow_api.cache_entry_url(entry_id),
             headers=user2.headers,
         ) as resp:
-            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            assert resp.status == HTTPForbidden.status_code, await resp.text()
         # Cannot get by yaml key
         async with client.get(
             url=neuro_flow_api.cache_entry_by_key_url,
@@ -2439,7 +2536,7 @@ class TestCacheEntryApi:
             },
             headers=user2.headers,
         ) as resp:
-            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            assert resp.status == HTTPForbidden.status_code, await resp.text()
 
 
 class TestBakeImagesApi:

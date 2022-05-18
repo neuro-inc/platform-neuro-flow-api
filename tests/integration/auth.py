@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import aiohttp
 import pytest
@@ -15,11 +15,12 @@ from docker import DockerClient
 from docker.errors import NotFound as ContainerNotFound
 from docker.models.containers import Container
 from jose import jwt
-from neuro_auth_client import AuthClient, Cluster, User
+from neuro_auth_client import AuthClient, Cluster, Permission, User
 from neuro_auth_client.security import JWT_IDENTITY_CLAIM_OPTIONS
 from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformAuthConfig
+from platform_neuro_flow_api.storage.base import Project
 
 from tests.integration.conftest import random_name
 
@@ -170,23 +171,99 @@ class _User(User):
         return {AUTHORIZATION: f"Bearer {self.token}"}
 
 
+class UserFactory(Protocol):
+    async def __call__(
+        self,
+        name: str | None = None,
+        skip_grant: bool = False,
+        org_name: str | None = None,
+        org_level: bool = False,
+    ) -> _User:
+        pass
+
+
 @pytest.fixture
 async def regular_user_factory(
     auth_client: AuthClient,
     token_factory: Callable[[str], str],
     admin_token: str,
     cluster_name: str,
-) -> AsyncIterator[Callable[[str | None], Awaitable[_User]]]:
-    async def _factory(name: str | None = None) -> _User:
+) -> AsyncIterator[UserFactory]:
+    async def _factory(
+        name: str | None = None,
+        skip_grant: bool = False,
+        org_name: str | None = None,
+        org_level: bool = False,
+    ) -> _User:
         if not name:
             name = f"user-{random_name()}"
+
         user = User(name=name, clusters=[Cluster(name=cluster_name)])
         await auth_client.add_user(user, token=admin_token)
+        if not skip_grant:
+            # Grant permissions to the user home directory
+            if org_name is None:
+                permission = Permission(
+                    uri=f"flow://{cluster_name}/{name}", action="write"
+                )
+            elif org_level:
+                permission = Permission(
+                    uri=f"flow://{cluster_name}/{org_name}", action="write"
+                )
+            else:
+                permission = Permission(
+                    uri=f"flow://{cluster_name}/{org_name}/{name}", action="write"
+                )
+            await auth_client.grant_user_permissions(
+                name, [permission], token=admin_token
+            )
         return _User(name=user.name, token=token_factory(user.name))
 
     yield _factory
 
 
+class ProjectGranter(Protocol):
+    async def __call__(
+        self,
+        user: User,
+        project: Project,
+        *,
+        write: bool = False,
+        by_name: bool = False,
+    ) -> None:
+        pass
+
+
 @pytest.fixture
-async def regular_user(regular_user_factory: Callable[[], Awaitable[_User]]) -> _User:
+async def grant_project_permission(
+    auth_client: AuthClient,
+    token_factory: Callable[[str], str],
+    admin_token: str,
+    cluster_name: str,
+) -> AsyncIterator[ProjectGranter]:
+    async def _grant(
+        user: User, project: Project, *, write: bool = False, by_name: bool = False
+    ) -> None:
+        uri = f"flow://{project.cluster}"
+        if project.org_name:
+            uri += f"/{project.org_name}"
+        uri += f"/{project.owner}"
+        if by_name:
+            uri += f"/{project.name}"
+        else:
+            uri += f"/{project.id}"
+
+        permission = Permission(uri=uri, action="write" if write else "read")
+        await auth_client.grant_user_permissions(user.name, [permission], admin_token)
+
+    yield _grant
+
+
+@pytest.fixture
+async def regular_user(regular_user_factory: UserFactory) -> _User:
     return await regular_user_factory()
+
+
+@pytest.fixture
+async def regular_org_user(org_name: str, regular_user_factory: UserFactory) -> _User:
+    return await regular_user_factory(org_name=org_name)
