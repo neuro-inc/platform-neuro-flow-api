@@ -266,6 +266,13 @@ class BaseStorage(ABC, Generic[_D, _E]):
         pass
 
 
+class _Sentinel:
+    pass
+
+
+sentinel = _Sentinel()
+
+
 class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
     @abstractmethod
     async def get_by_name(
@@ -283,6 +290,7 @@ class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
         name: str | None = None,
         owner: str | None = None,
         cluster: str | None = None,
+        org_name: str | None | _Sentinel = sentinel,
     ) -> AsyncIterator[Project]:
         pass
 

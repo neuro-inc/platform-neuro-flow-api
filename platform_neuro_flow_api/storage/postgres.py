@@ -58,6 +58,8 @@ from .base import (
     TaskStatusItem,
     TaskStorage,
     UniquenessError,
+    _Sentinel,
+    sentinel,
 )
 
 
@@ -397,6 +399,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         name: str | None = None,
         owner: str | None = None,
         cluster: str | None = None,
+        org_name: str | None | _Sentinel = sentinel,
     ) -> AsyncIterator[Project]:
         query = self._table.select()
         if name is not None:
@@ -405,6 +408,11 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
             query = query.where(self._table.c.owner == owner)
         if cluster is not None:
             query = query.where(self._table.c.cluster == cluster)
+        if org_name is not sentinel:
+            if org_name is None:
+                query = query.where(self._table.c.org_name.is_(None))
+            else:
+                query = query.where(self._table.c.org_name == org_name)
         async with self._safe_begin() as conn:
             async for record in await self._cursor(query, conn=conn):
                 yield self._from_record(record)

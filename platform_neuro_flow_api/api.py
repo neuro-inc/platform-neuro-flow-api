@@ -63,7 +63,16 @@ from .schema import (
     TaskSchema,
     query_schema,
 )
-from .storage.base import Attempt, Bake, ExistsError, NotExistsError, Project, Storage
+from .storage.base import (
+    Attempt,
+    Bake,
+    ExistsError,
+    NotExistsError,
+    Project,
+    Storage,
+    _Sentinel,
+    sentinel,
+)
 from .storage.postgres import PostgresStorage
 from .utils import auto_close, ndjson_error_handler
 from .watchers import ExecutorAliveWatcher, WatchersPoller
@@ -168,9 +177,15 @@ class ProjectsApiHandler(ProjectAccessMixin):
     def storage(self) -> Storage:
         return self._app["storage"]
 
+    @property
+    def auth_client(self) -> AuthClient:
+        return self._app["auth_client"]
+
     @docs(tags=["projects"], summary="List all users projects")
     @query_schema(
-        name=fields.String(required=False), cluster=fields.String(required=False)
+        name=fields.String(required=False),
+        cluster=fields.String(required=False),
+        org_name=fields.String(required=False, allow_none=True),
     )
     @response_schema(ProjectSchema(many=True), HTTPOk.status_code)
     async def list_projects(
@@ -178,12 +193,27 @@ class ProjectsApiHandler(ProjectAccessMixin):
         request: aiohttp.web.Request,
         name: str | None = None,
         cluster: str | None = None,
+        org_name: str | None | _Sentinel = sentinel,
+        owner: str | None = None,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
-        projects = self.storage.projects.list(
-            owner=username, name=name, cluster=cluster
+        tree_prefix = "flow://"
+        if cluster is not None:
+            tree_prefix += cluster
+            if isinstance(org_name, str):
+                tree_prefix += f"/{org_name}"
+            if org_name is not sentinel and owner is not None:
+                tree_prefix += f"/{owner}"
+        tree = await self.auth_client.get_permissions_tree(username, tree_prefix)
+
+        projects = (
+            project
+            async for project in self.storage.projects.list(
+                owner=owner, name=name, cluster=cluster, org_name=org_name
+            )
+            if any(tree.allows(perm) for perm in self._get_project_read_perms(project))
         )
-        async with auto_close(projects):  # type: ignore[arg-type]
+        async with auto_close(projects):
             if accepts_ndjson(request):
                 response = aiohttp.web.StreamResponse()
                 response.headers["Content-Type"] = "application/x-ndjson"
@@ -1441,6 +1471,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
 
             app["projects_app"]["storage"] = storage
+            app["projects_app"]["auth_client"] = auth_client
             app["live_jobs_app"]["storage"] = storage
             app["bakes_app"]["storage"] = storage
             app["attempts_app"]["storage"] = storage

@@ -440,6 +440,43 @@ class TestProjectsApi:
             assert payload["cluster"] == project.cluster
             assert payload["org_name"] == project.org_name
 
+    async def test_shared_project_list(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: UserFactory,
+        client: aiohttp.ClientSession,
+        grant_project_permission: ProjectGranter,
+    ) -> None:
+        user1 = await regular_user_factory()
+        user2 = await regular_user_factory()
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": "test", "cluster": "test-cluster"},
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            data = await resp.json()
+            project = Project(
+                id=data["id"],
+                cluster=data["cluster"],
+                name=data["name"],
+                org_name=data["org_name"],
+                owner=data["owner"],
+            )
+        await grant_project_permission(user2, project)
+        async with client.get(
+            url=neuro_flow_api.projects_url,
+            params={
+                "name": project.name,
+                "cluster": project.cluster,
+            },
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            ids = {proj["id"] for proj in payload}
+            assert project.id in ids
+
     async def test_projects_create_duplicate_fail(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,

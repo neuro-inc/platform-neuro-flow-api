@@ -38,6 +38,8 @@ from .base import (
     TaskData,
     TaskStatus,
     TaskStorage,
+    _Sentinel,
+    sentinel,
 )
 
 _D = TypeVar("_D")
@@ -110,6 +112,7 @@ class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Pr
         name: str | None = None,
         owner: str | None = None,
         cluster: str | None = None,
+        org_name: str | None | _Sentinel = sentinel,
     ) -> AsyncIterator[Project]:
         for item in self._items.values():
             if name is not None and item.name != name:
@@ -117,6 +120,8 @@ class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Pr
             if owner is not None and item.owner != owner:
                 continue
             if cluster is not None and item.cluster != cluster:
+                continue
+            if org_name is not sentinel and item.org_name != org_name:
                 continue
             yield item
 
