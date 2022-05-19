@@ -197,6 +197,8 @@ class ProjectsApiHandler(ProjectAccessMixin):
         owner: str | None = None,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
+        if org_name == "":
+            org_name = None
         tree_prefix = "flow://"
         if cluster is not None:
             tree_prefix += cluster

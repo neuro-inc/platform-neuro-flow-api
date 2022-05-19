@@ -635,6 +635,75 @@ class TestProjectsApi:
                 names.add(item["name"])
             assert names == {f"test-{index}" for index in range(5)}
 
+    async def test_projects_list_filter_by_org(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        regular_org_user: _User,
+        grant_project_permission: ProjectGranter,
+        org_name: str,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": f"test", "cluster": "test-cluster"},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            data = await resp.json()
+            project = Project(
+                id=data["id"],
+                cluster=data["cluster"],
+                name=data["name"],
+                org_name=data["org_name"],
+                owner=data["owner"],
+            )
+
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={"name": f"test", "cluster": "test-cluster", "org_name": org_name},
+            headers=regular_org_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            data = await resp.json()
+            org_project = Project(
+                id=data["id"],
+                cluster=data["cluster"],
+                name=data["name"],
+                org_name=data["org_name"],
+                owner=data["owner"],
+            )
+
+        await grant_project_permission(regular_user, org_project)
+
+        async with client.get(
+            url=neuro_flow_api.projects_url,
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 2
+
+        async with client.get(
+            url=neuro_flow_api.projects_url,
+            params={"org_name": ""},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 1
+            assert items[0]["id"] == project.id
+
+        async with client.get(
+            url=neuro_flow_api.projects_url,
+            params={"org_name": org_name},
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 1
+            assert items[0]["id"] == org_project.id
+
     async def test_project_delete(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
