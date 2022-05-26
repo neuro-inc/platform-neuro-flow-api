@@ -290,7 +290,7 @@ class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
         name: str | None = None,
         owner: str | None = None,
         cluster: str | None = None,
-        org_name: str | None | _Sentinel = sentinel,
+        org_name: _Sentinel | str | None = sentinel,
     ) -> AsyncIterator[Project]:
         pass
 
