@@ -36,9 +36,10 @@ class ExecutorAliveWatcher(Watcher):
         if attempt.executor_id:
             try:
                 job = await self._platform_client.jobs.status(attempt.executor_id)
-            except Exception:
-                logger.exception(
-                    f"Failed to check status of executor {attempt.executor_id}"
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to check status of executor {attempt.executor_id}",
+                    exc_info=exc,
                 )
             else:
                 if not job.status.is_finished:
