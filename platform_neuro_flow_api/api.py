@@ -485,12 +485,12 @@ class BakeApiHandler(ProjectAccessMixin):
     @docs(tags=["bakes"], summary="List bakes in given project")
     @query_schema(
         project_id=fields.String(required=True),
-        name=fields.String(missing=None),
-        tags=fields.List(fields.String(), missing=tuple()),
-        since=fields.AwareDateTime(missing=None),
-        until=fields.AwareDateTime(missing=None),
-        reverse=fields.Boolean(missing=False),
-        fetch_last_attempt=fields.Boolean(missing=False),
+        name=fields.String(load_default=None),
+        tags=fields.List(fields.String(), load_default=tuple()),
+        since=fields.AwareDateTime(load_default=None),
+        until=fields.AwareDateTime(load_default=None),
+        reverse=fields.Boolean(load_default=False),
+        fetch_last_attempt=fields.Boolean(load_default=False),
     )
     @response_schema(BakeSchema(many=True), HTTPOk.status_code)
     async def list(
@@ -571,7 +571,7 @@ class BakeApiHandler(ProjectAccessMixin):
 
     @docs(tags=["bakes"], summary="Get bake by id")
     @query_schema(
-        fetch_last_attempt=fields.Boolean(missing=False),
+        fetch_last_attempt=fields.Boolean(load_default=False),
     )
     @response_schema(BakeSchema(), HTTPOk.status_code)
     async def get(
@@ -593,7 +593,7 @@ class BakeApiHandler(ProjectAccessMixin):
     @query_schema(
         project_id=fields.String(required=True),
         name=fields.String(required=True),
-        fetch_last_attempt=fields.Boolean(missing=False),
+        fetch_last_attempt=fields.Boolean(load_default=False),
     )
     @response_schema(BakeSchema(), HTTPOk.status_code)
     async def get_by_name(
