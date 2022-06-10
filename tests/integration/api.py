@@ -86,6 +86,7 @@ class PlatformApiServer:
 
     async def handle_config(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         data = {
+            "authorized": True,
             "admin_url": "https://example.org",
             "auth_url": "https://example.org",
             "token_url": "https://example.org",
