@@ -58,7 +58,7 @@ class PlatformApiServer:
                     "cpu": job.container.resources.cpu,
                     "gpu": job.container.resources.gpu,
                     "gpu_model": job.container.resources.gpu_model,
-                    "memory_mb": job.container.resources.memory_mb,
+                    "memory": job.container.resources.memory,
                     "extshm": job.container.resources.shm,
                 },
             },
@@ -95,7 +95,7 @@ class PlatformApiServer:
             "audience": "world",
             "callback_urls": ["https://example.org"],
             "headless_callback_url": "https://example.org",
-            "resource_presets": [{"name": "default", "cpu": 0.1, "memory_mb": 1024}],
+            "resource_presets": [{"name": "default", "cpu": 0.1, "memory": 1024**3}],
             "clusters": [
                 {
                     "name": "default",
@@ -110,19 +110,19 @@ class PlatformApiServer:
                         {
                             "name": "gpu-small",
                             "cpu": 7,
-                            "memory_mb": 30 * 1024,
+                            "memory": 30 * 1024**2,
                             "gpu": 1,
                             "gpu_model": "nvidia-tesla-k80",
                         },
                         {
                             "name": "gpu-large",
                             "cpu": 7,
-                            "memory_mb": 60 * 1024,
+                            "memory": 60 * 1024**2,
                             "gpu": 1,
                             "gpu_model": "nvidia-tesla-v100",
                         },
-                        {"name": "cpu-small", "cpu": 2, "memory_mb": 2 * 1024},
-                        {"name": "cpu-large", "cpu": 3, "memory_mb": 14 * 1024},
+                        {"name": "cpu-small", "cpu": 2, "memory": 2 * 1024**3},
+                        {"name": "cpu-large", "cpu": 3, "memory": 14 * 1024**3},
                     ],
                 }
             ],
