@@ -1,2 +1,2 @@
-mypy==0.961
+mypy==0.971
 pre-commit==2.20.0
