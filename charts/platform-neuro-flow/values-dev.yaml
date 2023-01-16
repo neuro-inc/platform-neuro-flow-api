@@ -18,33 +18,32 @@ postgres:
   dsn:
     valueFrom:
       secretKeyRef:
-        name: platformneuroflowapi-postgres
-        key: platformneuroflowapi-service-dsn
+        name: platform-neuro-flow-postgres
+        key: service-dsn
 
 postgres-db-init:
   adminDsn:
     valueFrom:
       secretKeyRef:
-        name: postgres
-        key: admin-dsn
+        name: platform-postgresql
+        key: postgresql-dsn
   migrationsRunnerDsn:
     valueFrom:
       secretKeyRef:
-        name: platformneuroflowapi-postgres
-        key: platformneuroflowapi-migrations-dsn
+        name: platform-neuro-flow-postgres
+        key: migrations-dsn
   serviceDsn:
     valueFrom:
       secretKeyRef:
-        name: platformneuroflowapi-postgres
-        key: platformneuroflowapi-service-dsn
-
+        name: platform-neuro-flow-postgres
+        key: service-dsn
   migrations:
     env:
-      - name: NP_DB_POSTGRES_DSN
-        valueFrom:
-          secretKeyRef:
-            name: platformneuroflowapi-postgres
-            key: platformneuroflowapi-migrations-dsn
+    - name: NP_DB_POSTGRES_DSN
+      valueFrom:
+        secretKeyRef:
+          name: platform-neuro-flow-postgres
+          key: migrations-dsn
 
 
 cors:
