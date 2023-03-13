@@ -304,7 +304,6 @@ class TestProjectStorage:
 
 
 class TestLiveJobStorage:
-
     helper: MockDataHelper
 
     @pytest.fixture
@@ -374,7 +373,6 @@ class TestLiveJobStorage:
 
 
 class TestBakeStorage:
-
     helper: MockDataHelper
 
     @pytest.fixture

@@ -125,7 +125,7 @@ class BakeSchema(Schema):
     )
     params = fields.Dict(keys=fields.String(), values=fields.String())
     name = fields.String(required=True, allow_none=True)
-    tags = fields.List(fields.String(), required=True, metadata=dict(doc_default=()))
+    tags = fields.List(fields.String(), required=True, metadata={})
     last_attempt = fields.Nested("AttemptSchema", dump_only=True)
 
     @post_load
