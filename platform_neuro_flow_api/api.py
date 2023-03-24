@@ -486,7 +486,7 @@ class BakeApiHandler(ProjectAccessMixin):
     @query_schema(
         project_id=fields.String(required=True),
         name=fields.String(load_default=None),
-        tags=fields.List(fields.String(), load_default=tuple()),
+        tags=fields.List(fields.String(), load_default=()),
         since=fields.AwareDateTime(load_default=None),
         until=fields.AwareDateTime(load_default=None),
         reverse=fields.Boolean(load_default=False),

@@ -231,7 +231,6 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         until: datetime | None = None,
         reverse: bool = False,
     ) -> AsyncIterator[Bake]:
-
         unsorted: list[Bake] = []
         for item in self._items.values():
             if project_id is not None and item.project_id != project_id:
