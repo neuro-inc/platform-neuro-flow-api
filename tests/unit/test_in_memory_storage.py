@@ -85,6 +85,7 @@ class MockDataHelper:
             owner=secrets.token_hex(8),
             cluster=secrets.token_hex(8),
             org_name=secrets.token_hex(8),
+            project_name=secrets.token_hex(8),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
@@ -256,20 +257,20 @@ class TestProjectStorage:
         res = await storage.create(data)
         project = await storage.get_by_name(
             name=data.name,
-            owner=data.owner,
+            project_name=data.project_name,
             cluster=data.cluster,
             org_name=data.org_name,
         )
         assert project.id == res.id
 
-    async def test_get_by_name_wrong_owner(self, storage: ProjectStorage) -> None:
+    async def test_get_by_name_wrong_project(self, storage: ProjectStorage) -> None:
         data = await self.helper.gen_project_data()
         await storage.create(data)
         with pytest.raises(NotExistsError):
             await storage.get_by_name(
                 name=data.name,
-                owner="wrong_owner",
                 cluster=data.cluster,
+                project_name="wrong_project",
                 org_name=data.org_name,
             )
 

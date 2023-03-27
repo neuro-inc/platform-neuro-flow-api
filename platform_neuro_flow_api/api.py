@@ -47,6 +47,8 @@ from neuro_sdk import (
     login_with_token as platform_client_login,
 )
 
+from platform_neuro_flow_api.identity import untrusted_user
+
 from .config import Config, CORSConfig, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import make_async_engine
@@ -91,26 +93,26 @@ class ProjectAccessMixin:
     def storage(self) -> Storage:
         pass
 
-    def _get_user_projects_uri(
-        self, username: str, cluster_name: str, org_name: str | None
+    def _get_projects_uri(
+        self, project_name: str, cluster_name: str, org_name: str | None
     ) -> str:
         uri = f"flow://{cluster_name}"
         if org_name:
             uri += f"/{org_name}"
-        return uri + f"/{username}"
+        return uri + f"/{project_name}"
 
-    def _get_user_projects_write_perm(
-        self, username: str, cluster_name: str, org_name: str | None
+    def _get_projects_write_perm(
+        self, project_name: str, cluster_name: str, org_name: str | None
     ) -> Permission:
         return Permission(
-            self._get_user_projects_uri(username, cluster_name, org_name), "write"
+            self._get_projects_uri(project_name, cluster_name, org_name), "write"
         )
 
     def _get_project_uris(self, project: Project) -> list[str]:
         base = f"flow://{project.cluster}"
         if project.org_name:
             base += f"/{project.org_name}"
-        base += f"/{project.owner}"
+        base += f"/{project.project_name}"
         return [base + f"/{project.id}", base + f"/{project.name}"]
 
     def _get_project_read_perms(self, project: Project) -> list[Permission]:
@@ -186,6 +188,8 @@ class ProjectsApiHandler(ProjectAccessMixin):
         name=fields.String(required=False),
         cluster=fields.String(required=False),
         org_name=fields.String(required=False, allow_none=True),
+        owner=fields.String(required=False),
+        project_name=fields.String(required=False),
     )
     @response_schema(ProjectSchema(many=True), HTTPOk.status_code)
     async def list_projects(
@@ -195,6 +199,7 @@ class ProjectsApiHandler(ProjectAccessMixin):
         cluster: str | None = None,
         org_name: _Sentinel | str | None = sentinel,
         owner: str | None = None,
+        project_name: str | None = None,
     ) -> aiohttp.web.StreamResponse:
         username = await check_authorized(request)
         if org_name == "":
@@ -211,7 +216,11 @@ class ProjectsApiHandler(ProjectAccessMixin):
         projects = (
             project
             async for project in self.storage.projects.list(
-                owner=owner, name=name, cluster=cluster, org_name=org_name
+                owner=owner,
+                name=name,
+                cluster=cluster,
+                org_name=org_name,
+                project_name=project_name,
             )
             if any(tree.allows(perm) for perm in self._get_project_read_perms(project))
         )
@@ -252,10 +261,23 @@ class ProjectsApiHandler(ProjectAccessMixin):
         self,
         request: aiohttp.web.Request,
     ) -> aiohttp.web.Response:
-        username = await check_authorized(request)
+        user = await untrusted_user(request)
+        username = user.name
         schema = ProjectSchema()
         schema.context["username"] = username
-        project_data = schema.load(await request.json())
+        data = await request.json()
+        data["project_name"] = data.get("project_name", username)
+        project_data = schema.load(data)
+        await check_permissions(
+            request,
+            [
+                self._get_projects_write_perm(
+                    project_name=project_data.project_name,
+                    cluster_name=project_data.cluster,
+                    org_name=project_data.org_name,
+                )
+            ],
+        )
         try:
             project = await self.storage.projects.create(project_data)
         except ExistsError:
@@ -284,6 +306,7 @@ class ProjectsApiHandler(ProjectAccessMixin):
         name=fields.String(required=True),
         cluster=fields.String(required=True),
         owner=fields.String(required=False),
+        project_name=fields.String(required=False),
         org_name=fields.String(required=False, allow_none=True),
     )
     @response_schema(ProjectSchema(), HTTPOk.status_code)
@@ -293,12 +316,13 @@ class ProjectsApiHandler(ProjectAccessMixin):
         name: str,
         cluster: str,
         owner: str | None = None,
+        project_name: str | None = None,
         org_name: str | None = None,
     ) -> aiohttp.web.Response:
         username = await check_authorized(request)
         try:
             project = await self.storage.projects.get_by_name(
-                name, owner or username, cluster, org_name
+                name, project_name or owner or username, cluster, org_name
             )
         except NotExistsError:
             raise HTTPNotFound

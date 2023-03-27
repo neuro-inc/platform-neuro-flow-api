@@ -55,6 +55,7 @@ class ProjectSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     name = fields.String(required=True)
     owner = fields.String(required=True, dump_only=True)
+    project_name = fields.String(required=True)
     cluster = fields.String(required=True)
     org_name = fields.String(required=False, allow_none=True)
 
@@ -66,6 +67,7 @@ class ProjectSchema(Schema):
             owner=self.context["username"],
             cluster=data["cluster"],
             org_name=data.get("org_name"),
+            project_name=data["project_name"],
         )
 
 
