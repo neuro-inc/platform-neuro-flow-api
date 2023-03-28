@@ -92,6 +92,7 @@ class FlowTables:
             sa.Column("name", sa.String(), nullable=False),
             sa.Column("owner", sa.String(), nullable=False),
             sa.Column("cluster", sa.String(), nullable=False),
+            sa.Column("project_name", sa.String(), nullable=False),
             sa.Column("org_name", sa.String(), nullable=True),
             sa.Column("payload", sapg.JSONB(), nullable=False),
         )
@@ -361,6 +362,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
             "owner": payload.pop("owner"),
             "cluster": payload.pop("cluster"),
             "org_name": payload.pop("org_name"),
+            "project_name": payload.pop("project_name"),
             "payload": payload,
         }
 
@@ -371,11 +373,12 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         payload["owner"] = record["owner"]
         payload["cluster"] = record["cluster"]
         payload["org_name"] = record["org_name"]
+        payload["project_name"] = record["project_name"]
         return Project(**payload)
 
     @trace
     async def get_by_name(
-        self, name: str, owner: str, cluster: str, org_name: str | None
+        self, name: str, project_name: str, cluster: str, org_name: str | None
     ) -> Project:
         if org_name is None:
             org_pred = self._table.c.org_name.is_(None)
@@ -385,7 +388,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         query = (
             self._table.select()
             .where(self._table.c.name == name)
-            .where(self._table.c.owner == owner)
+            .where(self._table.c.project_name == project_name)
             .where(self._table.c.cluster == cluster)
             .where(org_pred)
         )
@@ -398,6 +401,7 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
         self,
         name: str | None = None,
         owner: str | None = None,
+        project_name: str | None = None,
         cluster: str | None = None,
         org_name: _Sentinel | str | None = sentinel,
     ) -> AsyncIterator[Project]:
@@ -408,6 +412,8 @@ class PostgresProjectStorage(ProjectStorage, BasePostgresStorage[ProjectData, Pr
             query = query.where(self._table.c.owner == owner)
         if cluster is not None:
             query = query.where(self._table.c.cluster == cluster)
+        if project_name is not None:
+            query = query.where(self._table.c.project_name == project_name)
         if org_name is not sentinel:
             if org_name is None:
                 query = query.where(self._table.c.org_name.is_(None))

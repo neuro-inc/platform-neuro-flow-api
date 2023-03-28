@@ -5,7 +5,7 @@ import secrets
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 import aiohttp
 import pytest
@@ -293,6 +293,29 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
+            headers=regular_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload["name"] == "test"
+            assert payload["owner"] == regular_user.name
+            assert payload["cluster"] == "test-cluster"
+            assert payload["project_name"] == "test-project"
+            assert "id" in payload
+
+    async def test_projects_create_with_default_project(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
             json={"name": "test", "cluster": "test-cluster"},
             headers=regular_user.headers,
         ) as resp:
@@ -301,25 +324,32 @@ class TestProjectsApi:
             assert payload["name"] == "test"
             assert payload["owner"] == regular_user.name
             assert payload["cluster"] == "test-cluster"
+            assert payload["project_name"] == regular_user.name
             assert "id" in payload
 
     async def test_projects_with_org_create(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user: _User,
+        regular_org_user: _User,
         client: aiohttp.ClientSession,
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
-            headers=regular_user.headers,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "org_name": "test-org",
+                "project_name": "test-project",
+            },
+            headers=regular_org_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
             payload = await resp.json()
             assert payload["name"] == "test"
-            assert payload["owner"] == regular_user.name
+            assert payload["owner"] == regular_org_user.name
             assert payload["cluster"] == "test-cluster"
             assert payload["org_name"] == "test-org"
+            assert payload["project_name"] == "test-project"
             assert "id" in payload
 
     async def test_projects_get_by_id(
@@ -330,14 +360,17 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
             project_id = (await resp.json())["id"]
         async with client.get(
             url=neuro_flow_api.project_url(project_id),
-            json={"name": "test"},
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
@@ -345,6 +378,7 @@ class TestProjectsApi:
             assert payload["name"] == "test"
             assert payload["owner"] == regular_user.name
             assert payload["cluster"] == "test-cluster"
+            assert payload["project_name"] == "test-project"
             assert "id" in payload
 
     async def test_projects_get_by_name(
@@ -355,14 +389,22 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
             project_id = (await resp.json())["id"]
         async with client.get(
             url=neuro_flow_api.project_by_name_url,
-            params={"name": "test", "cluster": "test-cluster"},
+            params={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
@@ -370,6 +412,7 @@ class TestProjectsApi:
             assert payload["name"] == "test"
             assert payload["owner"] == regular_user.name
             assert payload["cluster"] == "test-cluster"
+            assert payload["project_name"] == "test-project"
             assert payload["id"] == project_id
 
     async def test_projects_get_by_name_with_org(
@@ -406,8 +449,8 @@ class TestProjectsApi:
         client: aiohttp.ClientSession,
         grant_project_permission: ProjectGranter,
     ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
         async with client.post(
             url=neuro_flow_api.projects_url,
             json={"name": "test", "cluster": "test-cluster"},
@@ -421,6 +464,7 @@ class TestProjectsApi:
                 name=data["name"],
                 org_name=data["org_name"],
                 owner=data["owner"],
+                project_name=data["project_name"],
             )
         await grant_project_permission(user2, project)
         async with client.get(
@@ -439,6 +483,7 @@ class TestProjectsApi:
             assert payload["owner"] == project.owner
             assert payload["cluster"] == project.cluster
             assert payload["org_name"] == project.org_name
+            assert payload["project_name"] == project.project_name
 
     async def test_shared_project_list(
         self,
@@ -447,11 +492,15 @@ class TestProjectsApi:
         client: aiohttp.ClientSession,
         grant_project_permission: ProjectGranter,
     ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project1",
+            },
             headers=user1.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -462,6 +511,7 @@ class TestProjectsApi:
                 name=data["name"],
                 org_name=data["org_name"],
                 owner=data["owner"],
+                project_name=data["project_name"],
             )
         await grant_project_permission(user2, project)
         async with client.get(
@@ -469,6 +519,7 @@ class TestProjectsApi:
             params={
                 "name": project.name,
                 "cluster": project.cluster,
+                "project_name": project.project_name,
             },
             headers=user2.headers,
         ) as resp:
@@ -485,58 +536,112 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPConflict.status_code, await resp.text()
 
-    async def test_projects_create_duplicate_same_org_fail(
+    async def test_projects_create_duplicate_different_project_ok(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user: _User,
+        regular_user_factory: UserFactory,
         client: aiohttp.ClientSession,
     ) -> None:
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
-            headers=regular_user.headers,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project1",
+            },
+            headers=user1.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org"},
-            headers=regular_user.headers,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project2",
+            },
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+
+    async def test_projects_create_duplicate_same_org_fail(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_org_user: _User,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+                "org_name": "test-org",
+            },
+            headers=regular_org_user.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+                "org_name": "test-org",
+            },
+            headers=regular_org_user.headers,
         ) as resp:
             assert resp.status == HTTPConflict.status_code, await resp.text()
 
     async def test_projects_create_duplicate_different_org_ok(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user: _User,
+        regular_user_factory: UserFactory,
         client: aiohttp.ClientSession,
     ) -> None:
+        user1 = await regular_user_factory(project_name="test-project")
+        user2 = await regular_user_factory(
+            project_name="test-project", org_name="test-org"
+        )
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": None},
-            headers=regular_user.headers,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
+            headers=user1.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org1"},
-            headers=regular_user.headers,
-        ) as resp:
-            assert resp.status == HTTPCreated.status_code, await resp.text()
-        async with client.post(
-            url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": "test-org2"},
-            headers=regular_user.headers,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+                "org_name": "test-org",
+            },
+            headers=user2.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
 
@@ -549,7 +654,11 @@ class TestProjectsApi:
         for index in range(5):
             async with client.post(
                 url=neuro_flow_api.projects_url,
-                json={"name": f"test-{index}", "cluster": "test-cluster"},
+                json={
+                    "name": f"test-{index}",
+                    "cluster": "test-cluster",
+                    "project_name": "test-project",
+                },
                 headers=regular_user.headers,
             ) as resp:
                 assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -564,6 +673,7 @@ class TestProjectsApi:
             for item in items:
                 assert item["owner"] == regular_user.name
                 assert item["cluster"] == "test-cluster"
+                assert item["project_name"] == "test-project"
                 names.add(item["name"])
             assert names == {f"test-{index}" for index in range(5)}
 
@@ -608,16 +718,20 @@ class TestProjectsApi:
     async def test_projects_list_only_owned(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user_factory: Callable[[], Awaitable[_User]],
+        regular_user_factory: UserFactory,
         client: aiohttp.ClientSession,
     ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
-        for user in [user1, user2]:
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
+        for user, project_name in [(user1, "test-project1"), (user2, "test-project2")]:
             for index in range(5):
                 async with client.post(
                     url=neuro_flow_api.projects_url,
-                    json={"name": f"test-{index}", "cluster": "test-cluster"},
+                    json={
+                        "name": f"test-{index}",
+                        "cluster": "test-cluster",
+                        "project_name": project_name,
+                    },
                     headers=user.headers,
                 ) as resp:
                     assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -646,7 +760,11 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": f"test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -657,11 +775,17 @@ class TestProjectsApi:
                 name=data["name"],
                 org_name=data["org_name"],
                 owner=data["owner"],
+                project_name=data["project_name"],
             )
 
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": f"test", "cluster": "test-cluster", "org_name": org_name},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project",
+                "org_name": org_name,
+            },
             headers=regular_org_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -672,6 +796,7 @@ class TestProjectsApi:
                 name=data["name"],
                 org_name=data["org_name"],
                 owner=data["owner"],
+                project_name=data["project_name"],
             )
 
         await grant_project_permission(regular_user, org_project)
@@ -704,6 +829,74 @@ class TestProjectsApi:
             assert len(items) == 1
             assert items[0]["id"] == org_project.id
 
+    async def test_projects_list_filter_by_project(
+        self,
+        neuro_flow_api: NeuroFlowApiEndpoints,
+        regular_user_factory: UserFactory,
+        grant_project_permission: ProjectGranter,
+        client: aiohttp.ClientSession,
+    ) -> None:
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project1",
+            },
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            data = await resp.json()
+            project1 = Project(
+                id=data["id"],
+                cluster=data["cluster"],
+                name=data["name"],
+                org_name=data["org_name"],
+                owner=data["owner"],
+                project_name=data["project_name"],
+            )
+
+        async with client.post(
+            url=neuro_flow_api.projects_url,
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project2",
+            },
+            headers=user2.headers,
+        ) as resp:
+            assert resp.status == HTTPCreated.status_code, await resp.text()
+            data = await resp.json()
+            project2 = Project(
+                id=data["id"],
+                cluster=data["cluster"],
+                name=data["name"],
+                org_name=data["org_name"],
+                owner=data["owner"],
+                project_name=data["project_name"],
+            )
+
+        await grant_project_permission(user1, project2)
+
+        async with client.get(
+            url=neuro_flow_api.projects_url, headers=user1.headers
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 2
+
+        async with client.get(
+            url=neuro_flow_api.projects_url,
+            params={"project_name": "test-project1"},
+            headers=user1.headers,
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            items = await resp.json()
+            assert len(items) == 1
+            assert items[0]["id"] == project1.id
+
     async def test_project_delete(
         self,
         neuro_flow_api: NeuroFlowApiEndpoints,
@@ -732,15 +925,26 @@ class TestProjectsApi:
             assert resp.status == HTTPNotFound.status_code, await resp.text()
 
 
+class ProjectFactory(Protocol):
+    async def __call__(
+        self, user: _User, *, project_name: str | None = None
+    ) -> Project:
+        pass
+
+
 @pytest.fixture()
 def project_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
-) -> Callable[[_User], Awaitable[Project]]:
-    async def _factory(user: _User) -> Project:
+) -> ProjectFactory:
+    async def _factory(user: _User, *, project_name: str | None = None) -> Project:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": secrets.token_hex(8), "cluster": "test-cluster"},
+            json={
+                "name": secrets.token_hex(8),
+                "cluster": "test-cluster",
+                "project_name": project_name or "test-project",
+            },
             headers=user.headers,
         ) as resp:
             payload = await resp.json()
@@ -755,7 +959,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -783,7 +987,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -809,7 +1013,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.put(
@@ -837,7 +1041,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -884,7 +1088,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -918,7 +1122,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -953,7 +1157,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1005,7 +1209,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         for index in range(5):
@@ -1061,7 +1265,7 @@ class TestLiveJobsApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project1 = await project_factory(regular_user)
         project2 = await project_factory(regular_user)
@@ -1100,50 +1304,6 @@ class TestLiveJobsApi:
                 f"job-f50b735c-e087-41e6-bddc-{str(index) * 12}" for index in range(5)
             }
 
-    async def test_projects_cannot_access_not_owner(
-        self,
-        neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user_factory: Callable[[], Awaitable[_User]],
-        client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
-    ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
-        project = await project_factory(user1)
-        async with client.post(
-            url=neuro_flow_api.live_jobs_url,
-            json={
-                "yaml_id": "test-job",
-                "project_id": project.id,
-                "multi": False,
-                "tags": ["11", "22"],
-                "raw_id": "job-f50b735c-e087-41e6-bddc-4783bb4d14c1",
-            },
-            headers=user1.headers,
-        ) as resp:
-            assert resp.status == HTTPCreated.status_code, await resp.text()
-            job_id = (await resp.json())["id"]
-        # Cannot get by id
-        async with client.get(
-            url=neuro_flow_api.live_job_url(job_id),
-            headers=user2.headers,
-        ) as resp:
-            assert resp.status == HTTPForbidden.status_code, await resp.text()
-        # Cannot get by yaml id
-        async with client.get(
-            url=neuro_flow_api.live_job_by_yaml_id_url,
-            params={"project_id": project.id, "yaml_id": "test-job"},
-            headers=user2.headers,
-        ) as resp:
-            assert resp.status == HTTPForbidden.status_code, await resp.text()
-        # Cannot list
-        async with client.get(
-            url=neuro_flow_api.live_jobs_url,
-            params={"project_id": project.id},
-            headers=user2.headers,
-        ) as resp:
-            assert resp.status == HTTPForbidden.status_code
-
 
 class TestBakeApi:
     async def test_create(
@@ -1151,7 +1311,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1180,11 +1340,11 @@ class TestBakeApi:
         regular_user_factory: UserFactory,
         grant_project_permission: ProjectGranter,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
-        project = await project_factory(user1)
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
+        project = await project_factory(user1, project_name="test-project1")
         await grant_project_permission(user2, project, write=True)
         async with client.post(
             url=neuro_flow_api.bakes_url,
@@ -1212,11 +1372,11 @@ class TestBakeApi:
         regular_user_factory: UserFactory,
         grant_project_permission: ProjectGranter,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
-        project = await project_factory(user1)
+        user1 = await regular_user_factory(project_name="test-project1")
+        user2 = await regular_user_factory(project_name="test-project2")
+        project = await project_factory(user1, project_name="test-project1")
         await grant_project_permission(user2, project, write=False)
         async with client.post(
             url=neuro_flow_api.bakes_url,
@@ -1235,7 +1395,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1270,7 +1430,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1294,7 +1454,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1333,7 +1493,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1375,7 +1535,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.get(
@@ -1408,7 +1568,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1456,7 +1616,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         async with client.post(
@@ -1525,7 +1685,7 @@ class TestBakeApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         bakes: list[tuple[str, datetime]] = []
@@ -1572,7 +1732,7 @@ class TestBakeApi:
 def bake_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
-    project_factory: Callable[[_User], Awaitable[Project]],
+    project_factory: ProjectFactory,
 ) -> Callable[[_User], Awaitable[Bake]]:
     async def _factory(user: _User) -> Bake:
         project = await project_factory(user)
@@ -2413,7 +2573,7 @@ class TestCacheEntryApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         request_payload = self.make_payload(project.id)
@@ -2435,7 +2595,7 @@ class TestCacheEntryApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         request_payload = self.make_payload(project.id)
@@ -2463,7 +2623,7 @@ class TestCacheEntryApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         request_payload = self.make_payload(project.id)
@@ -2497,7 +2657,7 @@ class TestCacheEntryApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         request_payload = self.make_payload(project.id)
@@ -2538,7 +2698,7 @@ class TestCacheEntryApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project1 = await project_factory(regular_user)
         project2 = await project_factory(regular_user)
@@ -2575,7 +2735,7 @@ class TestCacheEntryApi:
         neuro_flow_api: NeuroFlowApiEndpoints,
         regular_user: _User,
         client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
+        project_factory: ProjectFactory,
     ) -> None:
         project = await project_factory(regular_user)
         entries = []
@@ -2606,43 +2766,6 @@ class TestCacheEntryApi:
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
-
-    async def test_cannot_access_not_owner(
-        self,
-        neuro_flow_api: NeuroFlowApiEndpoints,
-        regular_user_factory: Callable[[], Awaitable[_User]],
-        client: aiohttp.ClientSession,
-        project_factory: Callable[[_User], Awaitable[Project]],
-    ) -> None:
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
-        project = await project_factory(user1)
-        request_payload = self.make_payload(project.id)
-        async with client.post(
-            url=neuro_flow_api.cache_entries_url,
-            json=request_payload,
-            headers=user1.headers,
-        ) as resp:
-            assert resp.status == HTTPCreated.status_code, await resp.text()
-            entry_id = (await resp.json())["id"]
-        # Cannot get by id
-        async with client.get(
-            url=neuro_flow_api.cache_entry_url(entry_id),
-            headers=user2.headers,
-        ) as resp:
-            assert resp.status == HTTPForbidden.status_code, await resp.text()
-        # Cannot get by yaml key
-        async with client.get(
-            url=neuro_flow_api.cache_entry_by_key_url,
-            params={
-                "project_id": project.id,
-                "task_id": request_payload["task_id"],
-                "batch": request_payload["batch"],
-                "key": request_payload["key"],
-            },
-            headers=user2.headers,
-        ) as resp:
-            assert resp.status == HTTPForbidden.status_code, await resp.text()
 
 
 class TestBakeImagesApi:

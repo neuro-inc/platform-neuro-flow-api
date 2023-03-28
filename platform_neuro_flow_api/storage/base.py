@@ -75,6 +75,7 @@ class ProjectData:
     name: str
     owner: str
     cluster: str
+    project_name: str
     org_name: str | None
 
 
@@ -278,7 +279,7 @@ class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
     async def get_by_name(
         self,
         name: str,
-        owner: str,
+        project_name: str,
         cluster: str,
         org_name: str | None,
     ) -> Project:
@@ -289,6 +290,7 @@ class ProjectStorage(BaseStorage[ProjectData, Project], ABC):
         self,
         name: str | None = None,
         owner: str | None = None,
+        project_name: str | None = None,
         cluster: str | None = None,
         org_name: _Sentinel | str | None = sentinel,
     ) -> AsyncIterator[Project]:

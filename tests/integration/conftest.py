@@ -129,5 +129,10 @@ def cluster_name() -> str:
 
 
 @pytest.fixture
+def project_name() -> str:
+    return "test-project"
+
+
+@pytest.fixture
 def org_name() -> str:
     return "test-org"

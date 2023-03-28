@@ -89,18 +89,20 @@ class InMemoryBaseStorage(BaseStorage[_D, _E]):
 class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Project]):
     async def check_exists(self, data: ProjectData) -> None:
         try:
-            await self.get_by_name(data.name, data.owner, data.cluster, data.org_name)
+            await self.get_by_name(
+                data.name, data.project_name, data.cluster, data.org_name
+            )
         except NotExistsError:
             return
         raise ExistsError
 
     async def get_by_name(
-        self, name: str, owner: str, cluster: str, org_name: str | None
+        self, name: str, project_name: str, cluster: str, org_name: str | None
     ) -> Project:
         for item in self._items.values():
             if (
                 item.name == name
-                and item.owner == owner
+                and item.project_name == project_name
                 and item.cluster == cluster
                 and item.org_name == org_name
             ):
@@ -111,6 +113,7 @@ class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Pr
         self,
         name: str | None = None,
         owner: str | None = None,
+        project_name: str | None = None,
         cluster: str | None = None,
         org_name: _Sentinel | str | None = sentinel,
     ) -> AsyncIterator[Project]:
@@ -118,6 +121,8 @@ class InMemoryProjectStorage(ProjectStorage, InMemoryBaseStorage[ProjectData, Pr
             if name is not None and item.name != name:
                 continue
             if owner is not None and item.owner != owner:
+                continue
+            if project_name is not None and item.project_name != project_name:
                 continue
             if cluster is not None and item.cluster != cluster:
                 continue
