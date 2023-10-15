@@ -58,7 +58,7 @@ jobs:
     - name: Run integration tests
       run: make test_integration
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: .coverage-integration.xml
