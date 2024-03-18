@@ -6,6 +6,7 @@ Revises: c56d0a4eaed5
 Create Date: 2021-04-28 18:46:19.425340
 
 """
+
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as sapg
 
