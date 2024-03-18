@@ -9,7 +9,6 @@ from neuro_sdk import Client as PlatformClient, JobDescription, JobStatus
 from platform_neuro_flow_api.storage.base import AttemptStorage, TaskStatus
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 from platform_neuro_flow_api.watchers import ExecutorAliveWatcher
-
 from tests.unit.test_in_memory_storage import MockDataHelper
 from tests.utils import make_descr
 
@@ -48,7 +47,7 @@ class TestExecutorAliveWatcher:
             data = await self.helper.gen_attempt_data(result=TaskStatus.SUCCEEDED)
             await storage.create(data)
         await watcher.check()
-        assert all([it.result == TaskStatus.SUCCEEDED async for it in storage.list()])
+        assert all(it.result == TaskStatus.SUCCEEDED async for it in storage.list())
 
     async def test_running_attempt_without_executor_unchanged(
         self, watcher: ExecutorAliveWatcher, storage: AttemptStorage
@@ -60,7 +59,7 @@ class TestExecutorAliveWatcher:
             )
             await storage.create(data)
         await watcher.check()
-        assert all([it.result == TaskStatus.RUNNING async for it in storage.list()])
+        assert all(it.result == TaskStatus.RUNNING async for it in storage.list())
 
     async def test_running_attempt_running_executor_not_marked(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
