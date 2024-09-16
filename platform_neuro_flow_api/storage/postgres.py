@@ -519,13 +519,15 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             graphs[_full_id2str(key)] = subgr
         payload["graphs"] = graphs
         payload["meta"] = {
-            "git_info": {
-                "sha": item.meta.git_info.sha,
-                "branch": item.meta.git_info.branch,
-                "tags": item.meta.git_info.tags,
-            }
-            if item.meta.git_info
-            else None,
+            "git_info": (
+                {
+                    "sha": item.meta.git_info.sha,
+                    "branch": item.meta.git_info.branch,
+                    "tags": item.meta.git_info.tags,
+                }
+                if item.meta.git_info
+                else None
+            ),
         }
         return {
             "id": payload.pop("id"),

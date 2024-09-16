@@ -5,6 +5,7 @@ Revises: dd6533a83f29
 Create Date: 2021-09-22 17:49:31.070060
 
 """
+
 from typing import Any, Optional
 
 from alembic import op
