@@ -40,7 +40,6 @@ def make_descr(
         id=job_id,
         owner="test-user",
         cluster_name="default",
-        project_name="test-project",
         status=status,
         history=JobStatusHistory(
             status=status,
