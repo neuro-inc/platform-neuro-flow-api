@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from neuro_sdk import (
+from apolo_sdk import (
     Container,
     JobDescription,
     JobRestartPolicy,

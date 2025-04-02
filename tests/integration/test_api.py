@@ -18,7 +18,7 @@ from aiohttp.web_exceptions import (
     HTTPNotFound,
     HTTPUnauthorized,
 )
-from neuro_sdk import JobStatus
+from apolo_sdk import JobStatus
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config

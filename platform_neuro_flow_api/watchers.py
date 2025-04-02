@@ -5,8 +5,8 @@ import logging
 from dataclasses import replace
 from typing import Any, Optional
 
+from apolo_sdk import Client as PlatformClient, JobStatus
 from neuro_logging import new_trace
-from neuro_sdk import Client as PlatformClient, JobStatus
 
 from .storage.base import Attempt, AttemptStorage, TaskStatus
 from .utils import auto_close

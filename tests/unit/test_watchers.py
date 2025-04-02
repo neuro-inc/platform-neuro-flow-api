@@ -4,7 +4,7 @@ from dataclasses import replace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from neuro_sdk import Client as PlatformClient, JobDescription, JobStatus
+from apolo_sdk import Client as PlatformClient, JobDescription, JobStatus
 
 from platform_neuro_flow_api.storage.base import AttemptStorage, TaskStatus
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage

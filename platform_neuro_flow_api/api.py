@@ -32,6 +32,10 @@ from aiohttp.web_exceptions import (
 from aiohttp.web_urldispatcher import AbstractRoute
 from aiohttp_apispec import docs, request_schema, response_schema, setup_aiohttp_apispec
 from aiohttp_security import check_authorized
+from apolo_sdk import (
+    get as platform_client_get,
+    login_with_token as platform_client_login,
+)
 from marshmallow import fields
 from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
@@ -41,10 +45,6 @@ from neuro_logging import (
     setup_sentry,
     setup_zipkin,
     setup_zipkin_tracer,
-)
-from neuro_sdk import (
-    get as platform_client_get,
-    login_with_token as platform_client_login,
 )
 
 from platform_neuro_flow_api.identity import untrusted_user
