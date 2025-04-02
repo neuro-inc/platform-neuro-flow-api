@@ -6,7 +6,7 @@ from typing import Any
 
 import aiohttp.web
 import pytest
-from neuro_sdk import JobDescription
+from apolo_sdk import JobDescription
 from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformApiConfig
