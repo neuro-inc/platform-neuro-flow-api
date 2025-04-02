@@ -26,13 +26,13 @@ jobs:
       with:
         python-version: 3.9
     - name: Cache packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml', 'setup.cfg',
           'requirements/*.txt') }}
     - name: Cache pre-commit hooks
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pre-commit
         key: pre-commit|py3.9|${{ hashFiles('.pre-commit-config.yaml') }}
