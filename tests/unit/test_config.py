@@ -24,7 +24,7 @@ def test_create() -> None:
         "NP_NEURO_FLOW_API_HOST": "0.0.0.0",
         "NP_NEURO_FLOW_API_PORT": 8080,
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_URL": "http://platformauthapi/api/v1",
-        "NP_NEURO_FLOW_API_PLATFORM_API_URL": "http://platformapi/api/v1",
+        "NP_NEURO_FLOW_API_PLATFORM_API_URL": "http://platformapi",
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN": "platform-auth-token",
         "NP_ZIPKIN_URL": "http://zipkin:9411",
         "NP_SENTRY_DSN": "https://test.com",
