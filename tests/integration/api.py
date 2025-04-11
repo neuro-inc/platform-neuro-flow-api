@@ -22,7 +22,7 @@ class PlatformApiServer:
     @property
     def url(self) -> URL:
         assert self.address
-        return URL(f"http://{self.address.host}:{self.address.port}/api/v1/")
+        return URL(f"http://{self.address.host}:{self.address.port}")
 
     def _serialize_job(self, job: Job) -> dict[str, Any]:
         return {
