@@ -65,7 +65,7 @@ class TestExecutorAliveWatcher:
     async def test_running_attempt_running_executor_not_marked(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
-        client_mock.jobs.status = AsyncMock(
+        client_mock.get_job = AsyncMock(
             return_value=make_job("test", status=JobStatus.RUNNING)
         )
 
@@ -81,7 +81,7 @@ class TestExecutorAliveWatcher:
     async def test_running_attempt_dead_executor_marked_as_failed(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
-        client_mock.jobs.status = AsyncMock(
+        client_mock.get_job = AsyncMock(
             return_value=make_job("test", status=JobStatus.FAILED)
         )
 
@@ -97,7 +97,7 @@ class TestExecutorAliveWatcher:
     async def test_running_attempt_canceled_executor_marked_as_failed(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
-        client_mock.jobs.status = AsyncMock(
+        client_mock.get_job = AsyncMock(
             return_value=make_job("test", status=JobStatus.CANCELLED)
         )
 
@@ -123,7 +123,7 @@ class TestExecutorAliveWatcher:
             await storage.update(replace(attempt, result=TaskStatus.SUCCEEDED))
             return make_job("test", status=JobStatus.SUCCEEDED)
 
-        client_mock.jobs.status = do_race
+        client_mock.get_job = do_race
 
         await watcher.check()
         attempt = await storage.get(attempt.id)
