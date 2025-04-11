@@ -42,7 +42,7 @@ def test_create() -> None:
             url=URL("http://platformauthapi/api/v1"), token="platform-auth-token"
         ),
         platform_api=PlatformApiConfig(
-            url=URL("http://platformapi/api/v1"), token="platform-auth-token"
+            url=URL("http://platformapi"), token="platform-auth-token"
         ),
         cors=CORSConfig(["https://domain1.com", "http://do.main"]),
         zipkin=ZipkinConfig(url=URL("http://zipkin:9411")),
