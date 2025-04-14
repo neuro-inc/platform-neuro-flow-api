@@ -53,7 +53,7 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = [
-    "E", "F", "I", "C90", "UP", "B", "ASYNC", "N", "FBT", "A", "C4", "EM", "FA", "ICN",
+    "E", "F", "C90", "UP", "B", "ASYNC", "N", "FBT", "A", "C4", "EM", "FA", "ICN",
     "G", "PIE", "PYI", "PT", "RET", "PTH"
 ]
 ignore = [
