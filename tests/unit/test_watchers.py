@@ -4,14 +4,14 @@ from dataclasses import replace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from neuro_sdk import Client as PlatformClient, JobDescription, JobStatus
+from apolo_api_client import ApiClient as PlatformClient, Job, JobStatus
 
 from platform_neuro_flow_api.storage.base import AttemptStorage, TaskStatus
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 from platform_neuro_flow_api.watchers import ExecutorAliveWatcher
 
 from tests.unit.test_in_memory_storage import MockDataHelper
-from tests.utils import make_descr
+from tests.utils import make_job
 
 
 class TestExecutorAliveWatcher:
@@ -65,8 +65,8 @@ class TestExecutorAliveWatcher:
     async def test_running_attempt_running_executor_not_marked(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
-        client_mock.jobs.status = AsyncMock(
-            return_value=make_descr("test", status=JobStatus.RUNNING)
+        client_mock.get_job = AsyncMock(
+            return_value=make_job("test", status=JobStatus.RUNNING)
         )
 
         data = await self.helper.gen_attempt_data(
@@ -81,8 +81,8 @@ class TestExecutorAliveWatcher:
     async def test_running_attempt_dead_executor_marked_as_failed(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
-        client_mock.jobs.status = AsyncMock(
-            return_value=make_descr("test", status=JobStatus.FAILED)
+        client_mock.get_job = AsyncMock(
+            return_value=make_job("test", status=JobStatus.FAILED)
         )
 
         data = await self.helper.gen_attempt_data(
@@ -97,8 +97,8 @@ class TestExecutorAliveWatcher:
     async def test_running_attempt_canceled_executor_marked_as_failed(
         self, client_mock: Mock, watcher: ExecutorAliveWatcher, storage: AttemptStorage
     ) -> None:
-        client_mock.jobs.status = AsyncMock(
-            return_value=make_descr("test", status=JobStatus.CANCELLED)
+        client_mock.get_job = AsyncMock(
+            return_value=make_job("test", status=JobStatus.CANCELLED)
         )
 
         data = await self.helper.gen_attempt_data(
@@ -119,11 +119,11 @@ class TestExecutorAliveWatcher:
         )
         attempt = await storage.create(data)
 
-        async def do_race(job_id: str) -> JobDescription:
+        async def do_race(job_id: str) -> Job:
             await storage.update(replace(attempt, result=TaskStatus.SUCCEEDED))
-            return make_descr("test", status=JobStatus.SUCCEEDED)
+            return make_job("test", status=JobStatus.SUCCEEDED)
 
-        client_mock.jobs.status = do_race
+        client_mock.get_job = do_race
 
         await watcher.check()
         attempt = await storage.get(attempt.id)

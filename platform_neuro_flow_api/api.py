@@ -7,8 +7,6 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
 from importlib.metadata import version
-from pathlib import Path
-from tempfile import mktemp
 
 import aiohttp
 import aiohttp.web
@@ -32,6 +30,7 @@ from aiohttp.web_exceptions import (
 from aiohttp.web_urldispatcher import AbstractRoute
 from aiohttp_apispec import docs, request_schema, response_schema, setup_aiohttp_apispec
 from aiohttp_security import check_authorized
+from apolo_api_client import ApiClient as PlatformApiClient
 from marshmallow import fields
 from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
@@ -41,10 +40,6 @@ from neuro_logging import (
     setup_sentry,
     setup_zipkin,
     setup_zipkin_tracer,
-)
-from neuro_sdk import (
-    get as platform_client_get,
-    login_with_token as platform_client_login,
 )
 
 from platform_neuro_flow_api.identity import untrusted_user
@@ -1474,16 +1469,10 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BEARER
             )
 
-            logger.info("Initializing Neuro Api client")
-            tmp_config = Path(mktemp())
-            await platform_client_login(
-                token=config.platform_api.token,
-                url=config.platform_api.url,
-                path=tmp_config,
-            )
+            logger.info("Initializing Platform Api client")
             platform_client = await exit_stack.enter_async_context(
-                await platform_client_get(
-                    path=tmp_config,
+                PlatformApiClient(
+                    url=config.platform_api.url, token=config.platform_api.token
                 )
             )
 
