@@ -18,13 +18,13 @@ from aiohttp.web_exceptions import (
     HTTPNotFound,
     HTTPUnauthorized,
 )
-from neuro_sdk import JobStatus
+from apolo_api_client import JobStatus
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config
 from platform_neuro_flow_api.storage.base import Attempt, Bake, Project
 
-from ..utils import make_descr
+from ..utils import make_job
 from .api import PlatformApiServer
 from .auth import ProjectGranter, UserFactory, _User
 from .conftest import ApiAddress, create_local_app_server
@@ -264,8 +264,7 @@ class TestApi:
         ) as resp:
             assert resp.status == HTTPForbidden.status_code, await resp.text()
             assert await resp.text() == (
-                "CORS preflight request failed: "
-                "origin 'http://unknown' is not allowed"
+                "CORS preflight request failed: origin 'http://unknown' is not allowed"
             )
 
     async def test_ping_options(
@@ -1803,7 +1802,7 @@ class TestAttemptApi:
         config: Config,
     ) -> None:
         mock_platform_api_server.jobs.append(
-            make_descr(
+            make_job(
                 job_id="test-job-id",
                 status=JobStatus.FAILED,
             )
