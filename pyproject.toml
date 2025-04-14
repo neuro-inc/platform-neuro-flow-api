@@ -49,6 +49,7 @@ vcs = "git"
 
 [tool.ruff]
 line-length = 88
+target-version = "py39"
 
 [tool.ruff.lint]
 select = [

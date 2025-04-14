@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from collections.abc import AsyncIterator, Callable
-from collections.abc import Set as AbstractSet
+from collections.abc import AsyncIterator, Callable, Set as AbstractSet
 from dataclasses import replace
 from datetime import datetime
 from typing import TypeVar

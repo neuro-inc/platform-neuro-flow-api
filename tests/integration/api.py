@@ -10,6 +10,7 @@ from apolo_api_client import Job
 from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformApiConfig
+
 from tests.integration.conftest import ApiAddress, create_local_app_server
 
 

@@ -5,8 +5,7 @@ import logging
 from dataclasses import replace
 from typing import Self
 
-from apolo_api_client import ApiClient as PlatformClient
-from apolo_api_client import JobStatus
+from apolo_api_client import ApiClient as PlatformClient, JobStatus
 from neuro_logging import new_trace
 
 from .storage.base import Attempt, AttemptStorage, TaskStatus

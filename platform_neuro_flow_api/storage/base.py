@@ -4,8 +4,7 @@ import datetime
 import enum
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Mapping, Sequence
-from collections.abc import Set as AbstractSet
+from collections.abc import AsyncIterator, Mapping, Sequence, Set as AbstractSet
 from dataclasses import dataclass, fields
 from typing import Any, Generic, TypeVar
 
