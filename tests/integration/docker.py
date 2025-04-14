@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -25,7 +25,7 @@ def reuse_docker(request: Any) -> bool:
 
 @pytest.fixture(scope="session")
 def in_docker() -> bool:
-    return os.path.isfile("/.dockerenv")
+    return Path("/.dockerenv").is_file()
 
 
 @pytest.fixture(scope="session")

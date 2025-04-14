@@ -5,6 +5,7 @@ import logging
 import os
 from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 import aiohttp
@@ -21,7 +22,6 @@ from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformAuthConfig
 from platform_neuro_flow_api.storage.base import Project
-
 from tests.integration.conftest import random_name
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session")
 def auth_image() -> str:
-    with open("AUTH_SERVER_IMAGE_NAME") as f:
+    with Path("AUTH_SERVER_IMAGE_NAME").open() as f:
         return f.read().strip()
 
 
@@ -112,7 +112,7 @@ async def wait_for_auth_server(
                         break
                 except (AssertionError, OSError, aiohttp.ClientError) as exc:
                     last_exc = exc
-                logger.debug(f"waiting for {url}: {last_exc}")
+                logger.debug("waiting for %s: %s", url, last_exc)
                 await asyncio.sleep(interval_s)
     except asyncio.TimeoutError:
         pytest.fail(f"failed to connect to {url}: {last_exc}")
@@ -121,13 +121,13 @@ async def wait_for_auth_server(
 @pytest.fixture
 async def auth_server(_auth_server: URL) -> AsyncIterator[URL]:
     await wait_for_auth_server(_auth_server)
-    yield _auth_server
+    return _auth_server
 
 
 @pytest.fixture
 def token_factory(auth_jwt_secret: str) -> Callable[[str], str]:
     def _factory(identity: str) -> str:
-        payload = {claim: identity for claim in JWT_IDENTITY_CLAIM_OPTIONS}
+        payload = dict.fromkeys(JWT_IDENTITY_CLAIM_OPTIONS, identity)
         return jwt.encode(payload, auth_jwt_secret, algorithm="HS256")
 
     return _factory
@@ -227,7 +227,7 @@ async def regular_user_factory(
             )
         return _User(name=user.name, token=token_factory(user.name))
 
-    yield _factory
+    return _factory
 
 
 class ProjectGranter(Protocol):
@@ -264,7 +264,7 @@ async def grant_project_permission(
         permission = Permission(uri=uri, action="write" if write else "read")
         await auth_client.grant_user_permissions(user.name, [permission], admin_token)
 
-    yield _grant
+    return _grant
 
 
 @pytest.fixture

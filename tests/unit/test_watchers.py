@@ -4,12 +4,12 @@ from dataclasses import replace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from apolo_api_client import ApiClient as PlatformClient, Job, JobStatus
+from apolo_api_client import ApiClient as PlatformClient
+from apolo_api_client import Job, JobStatus
 
 from platform_neuro_flow_api.storage.base import AttemptStorage, TaskStatus
 from platform_neuro_flow_api.storage.in_memory import InMemoryStorage
 from platform_neuro_flow_api.watchers import ExecutorAliveWatcher
-
 from tests.unit.test_in_memory_storage import MockDataHelper
 from tests.utils import make_job
 

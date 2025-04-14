@@ -4,7 +4,8 @@ import asyncio
 import sys
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Callable, Set
+from collections.abc import AsyncIterator, Callable
+from collections.abc import Set as AbstractSet
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -484,8 +485,7 @@ def _attempt_from_record(record: Row, use_labels: bool = False) -> Attempt:
     def key(name: str) -> str:
         if use_labels:
             return "attempts_" + name
-        else:
-            return name
+        return name
 
     payload = record[key("payload")]
     payload["id"] = record[key("id")]
@@ -548,8 +548,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         def key(name: str) -> str:
             if fetch_last_attempt:
                 return "bakes_" + name
-            else:
-                return name
+            return name
 
         payload = record[key("payload")]
         payload["id"] = record[key("id")]
@@ -585,8 +584,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
             return sasql.select(
                 [self._table, self._attempts_table], use_labels=True
             ).select_from(join)
-        else:
-            return self._table.select()
+        return self._table.select()
 
     def _filter_last_attempt(self, query: sasql.Selectable) -> sasql.Selectable:
         # Only select single bake with last attempt
@@ -598,7 +596,7 @@ class PostgresBakeStorage(BakeStorage, BasePostgresStorage[BakeData, Bake]):
         self,
         project_id: str | None = None,
         name: str | None = None,
-        tags: Set[str] = frozenset(),
+        tags: AbstractSet[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
         since: datetime | None = None,
@@ -747,7 +745,7 @@ class PostgresAttemptStorage(AttemptStorage, BasePostgresStorage[AttemptData, At
         return self._from_record(record)
 
     async def list(
-        self, bake_id: str | None = None, results: Set[TaskStatus] | None = None
+        self, bake_id: str | None = None, results: AbstractSet[TaskStatus] | None = None
     ) -> AsyncIterator[Attempt]:
         query = self._table.select()
         if bake_id is not None:

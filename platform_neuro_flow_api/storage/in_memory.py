@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import secrets
-from collections.abc import AsyncIterator, Callable, Set
+from collections.abc import AsyncIterator, Callable
+from collections.abc import Set as AbstractSet
 from dataclasses import replace
 from datetime import datetime
 from typing import TypeVar
@@ -187,7 +188,7 @@ class InMemoryAttemptStorage(AttemptStorage, InMemoryBaseStorage[AttemptData, At
         raise NotExistsError
 
     async def list(
-        self, bake_id: str | None = None, results: Set[TaskStatus] | None = None
+        self, bake_id: str | None = None, results: AbstractSet[TaskStatus] | None = None
     ) -> AsyncIterator[Attempt]:
         for item in self._items.values():
             if bake_id is not None and item.bake_id != bake_id:
@@ -225,11 +226,11 @@ class InMemoryBakeStorage(BakeStorage, InMemoryBaseStorage[BakeData, Bake]):
         super().__init__(make_entity)
         self.attempts = attempts
 
-    async def list(
+    async def list(  # noqa: C901
         self,
         project_id: str | None = None,
         name: str | None = None,
-        tags: Set[str] = frozenset(),
+        tags: AbstractSet[str] = frozenset(),
         *,
         fetch_last_attempt: bool = False,
         since: datetime | None = None,
