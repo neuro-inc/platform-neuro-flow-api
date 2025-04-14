@@ -6,7 +6,7 @@ from typing import Any
 
 import aiohttp.web
 import pytest
-from neuro_sdk import JobDescription
+from apolo_api_client import Job
 from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformApiConfig
@@ -17,14 +17,14 @@ from tests.integration.conftest import ApiAddress, create_local_app_server
 @dataclass()
 class PlatformApiServer:
     address: ApiAddress | None = None
-    jobs: list[JobDescription] = field(default_factory=list)
+    jobs: list[Job] = field(default_factory=list)
 
     @property
     def url(self) -> URL:
         assert self.address
-        return URL(f"http://{self.address.host}:{self.address.port}/api/v1/")
+        return URL(f"http://{self.address.host}:{self.address.port}")
 
-    def _serialize_job(self, job: JobDescription) -> dict[str, Any]:
+    def _serialize_job(self, job: Job) -> dict[str, Any]:
         return {
             "id": job.id,
             "owner": job.owner,
@@ -53,11 +53,11 @@ class PlatformApiServer:
                 "exit_code": job.history.exit_code,
             },
             "container": {
-                "image": job.container.image.as_docker_url(),
+                "image": job.container.image,
                 "resources": {
                     "cpu": job.container.resources.cpu,
-                    "gpu": job.container.resources.gpu,
-                    "gpu_model": job.container.resources.gpu_model,
+                    "nvidia_gpu": job.container.resources.nvidia_gpu,
+                    "nvidia_gpu_model": job.container.resources.nvidia_gpu_model,
                     "memory": job.container.resources.memory,
                     "extshm": job.container.resources.shm,
                 },

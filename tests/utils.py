@@ -4,19 +4,18 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from neuro_sdk import (
+from apolo_api_client import (
     Container,
-    JobDescription,
+    Job,
     JobRestartPolicy,
     JobStatus,
     JobStatusHistory,
-    RemoteImage,
     Resources,
 )
 from yarl import URL
 
 
-def make_descr(
+def make_job(
     job_id: str,
     *,
     status: JobStatus = JobStatus.PENDING,
@@ -32,14 +31,16 @@ def make_descr(
     name: str | None = None,
     container: Container | None = None,
     pass_config: bool = False,
-) -> JobDescription:
+) -> Job:
     if container is None:
-        container = Container(RemoteImage("ubuntu"), Resources(100, 0.1))
+        container = Container(image="ubuntu", resources=Resources(100, 0.1))
 
-    return JobDescription(
+    return Job(
         id=job_id,
         owner="test-user",
         cluster_name="default",
+        org_name="test-org",
+        project_name="test-project",
         status=status,
         history=JobStatusHistory(
             status=status,
