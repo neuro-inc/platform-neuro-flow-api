@@ -42,6 +42,8 @@ from neuro_logging import (
     setup_zipkin_tracer,
 )
 
+from platform_neuro_flow_api import __version__
+
 from platform_neuro_flow_api.identity import untrusted_user
 
 from .config import Config, CORSConfig, PlatformAuthConfig
@@ -1440,11 +1442,8 @@ def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> None:
         cors.add(route)
 
 
-package_version = version(__package__)
-
-
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:
-    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{package_version}"
+    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{__version__}"
 
 
 async def create_app(config: Config) -> aiohttp.web.Application:
