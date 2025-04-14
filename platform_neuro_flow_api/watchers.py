@@ -5,8 +5,8 @@ import logging
 from dataclasses import replace
 from typing import Any, Optional
 
+from apolo_api_client import ApiClient as PlatformClient, JobStatus
 from neuro_logging import new_trace
-from neuro_sdk import Client as PlatformClient, JobStatus
 
 from .storage.base import Attempt, AttemptStorage, TaskStatus
 from .utils import auto_close
@@ -35,7 +35,7 @@ class ExecutorAliveWatcher(Watcher):
     async def _check_attempt(self, attempt: Attempt) -> None:
         if attempt.executor_id:
             try:
-                job = await self._platform_client.jobs.status(attempt.executor_id)
+                job = await self._platform_client.get_job(attempt.executor_id)
             except Exception as exc:
                 logger.warning(
                     f"Failed to check status of executor {attempt.executor_id}",
