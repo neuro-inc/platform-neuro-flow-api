@@ -37,8 +37,6 @@ postgres-db-init:
 
 secrets: []
 
-zipkin: {}
-
 sentry: {}
 
 platform:
