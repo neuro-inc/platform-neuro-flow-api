@@ -116,7 +116,7 @@ async def wait_for_auth_server(
                     last_exc = exc
                 logger.debug("waiting for %s: %s", url, last_exc)
                 await asyncio.sleep(interval_s)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail(f"failed to connect to {url}: {last_exc}")
 
 

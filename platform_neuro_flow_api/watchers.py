@@ -5,10 +5,10 @@ import asyncio
 import contextlib
 import logging
 from dataclasses import replace
+from typing import Self
 
 from apolo_api_client import ApiClient as PlatformClient, JobStatus
 from neuro_logging import new_trace
-from typing_extensions import Self
 
 from .storage.base import Attempt, AttemptStorage, TaskStatus
 from .utils import auto_close
