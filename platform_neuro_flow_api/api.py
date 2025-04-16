@@ -2076,9 +2076,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 }
             },
             "schemas": {
-                # Below are EXAMPLES for the classes in your code.
-                # You can expand or alter them to match your actual JSON shapes,
-                # required fields, etc.
                 "Project": {
                     "type": "object",
                     "required": ["id", "name", "owner", "project_name", "cluster"],
@@ -2118,8 +2115,8 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                         "project_id": {"type": "string"},
                         "batch": {"type": "string"},
                         "created_at": {"type": "string", "format": "date-time"},
-                        "meta": {"type": "object"},  # if you want to expand BakeMeta
-                        "graphs": {"type": "object"},  # or a more detailed sub-schema
+                        "meta": {"type": "object"},
+                        "graphs": {"type": "object"},
                         "params": {"type": "object"},
                         "name": {"type": "string", "nullable": True},
                         "tags": {"type": "array", "items": {"type": "string"}},
@@ -2134,12 +2131,8 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                         "bake_id": {"type": "string"},
                         "number": {"type": "integer"},
                         "created_at": {"type": "string", "format": "date-time"},
-                        "result": {
-                            "type": "string"
-                        },  # e.g. "PENDING", "SUCCEEDED", ...
-                        "configs_meta": {
-                            "type": "object"
-                        },  # or a sub-schema for ConfigsMeta
+                        "result": {"type": "string"},
+                        "configs_meta": {"type": "object"},
                         "executor_id": {"type": "string", "nullable": True},
                     },
                 },
