@@ -127,21 +127,6 @@ jinja2 = "*"
 webargs = ">=8.0.1"
 
 [[package]]
-name = "aiohttp-cors"
-version = "0.7.0"
-description = "CORS support for aiohttp"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "aiohttp-cors-0.7.0.tar.gz", hash = "sha256:4d39c6d7100fd9764ed1caf8cebf0eb01bf5e3f24e2e073fda6234bc48b19f5d"},
-    {file = "aiohttp_cors-0.7.0-py3-none-any.whl", hash = "sha256:0451ba59fdf6909d0e2cd21e4c0a43752bc0703d33fc78ae94d9d9321710193e"},
-]
-
-[package.dependencies]
-aiohttp = ">=1.1"
-
-[[package]]
 name = "aiohttp-security"
 version = "0.4.0"
 description = "security for aiohttp.web"
@@ -2044,4 +2029,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4.0"
-content-hash = "82e064f9624bb9c0f18d56941702b0ee23912b9e6293bbd1115208356eea112e"
+content-hash = "bd12a4b0c190b823e20cdcd79fe0d74a572692f5fd3e18e6af470439dac9ed36"

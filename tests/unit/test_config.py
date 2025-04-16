@@ -7,7 +7,6 @@ from yarl import URL
 
 from platform_neuro_flow_api.config import (
     Config,
-    CORSConfig,
     PlatformApiConfig,
     PlatformAuthConfig,
     PostgresConfig,
@@ -27,7 +26,6 @@ def test_create() -> None:
         "SENTRY_DSN": "https://test.com",
         "SENTRY_CLUSTER_NAME": "test",
         "SENTRY_APP_NAME": "platform-neuro-flow-api-test",
-        "NP_CORS_ORIGINS": "https://domain1.com,http://do.main",
         "NP_NEURO_FLOW_API_ENABLE_DOCS": "true",
         "NP_DB_POSTGRES_DSN": dsn,
         "NP_DB_POSTGRES_POOL_MIN": "50",
@@ -42,7 +40,6 @@ def test_create() -> None:
         platform_api=PlatformApiConfig(
             url=URL("http://platformapi"), token="platform-auth-token"
         ),
-        cors=CORSConfig(["https://domain1.com", "http://do.main"]),
         postgres=PostgresConfig(
             postgres_dsn=dsn,
             pool_min_size=50,
