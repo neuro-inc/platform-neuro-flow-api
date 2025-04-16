@@ -35,7 +35,6 @@ from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
     init_logging,
-    notrace,
     setup_sentry,
 )
 
@@ -142,11 +141,9 @@ class ApiHandler:
             ]
         )
 
-    @notrace
     async def handle_ping(self, request: Request) -> Response:
         return Response(text="Pong")
 
-    @notrace
     async def handle_secured_ping(self, request: Request) -> Response:
         await check_authorized(request)
         return Response(text="Secured Pong")
