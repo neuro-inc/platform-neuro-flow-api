@@ -135,34 +135,19 @@ yarl = ">=1.17.0,<2.0"
 speedups = ["Brotli ; platform_python_implementation == \"CPython\"", "aiodns (>=3.2.0) ; sys_platform == \"linux\" or sys_platform == \"darwin\"", "brotlicffi ; platform_python_implementation != \"CPython\""]
 
 [[package]]
-name = "aiohttp-cors"
-version = "0.8.0"
-description = "CORS support for aiohttp"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "aiohttp_cors-0.8.0-py3-none-any.whl", hash = "sha256:b656eeadb84c8fc6771b07460419b100f20dee1d6bf403505b5bd347894c7941"},
-    {file = "aiohttp_cors-0.8.0.tar.gz", hash = "sha256:ec70f38432c938e39d240ff38a7d789a5aa0a18087882c12d6cc141eef1144f6"},
-]
-
-[package.dependencies]
-aiohttp = ">=3.9"
-
-[[package]]
 name = "aiohttp-security"
-version = "0.4.0"
+version = "0.5.0"
 description = "security for aiohttp.web"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "aiohttp-security-0.4.0.tar.gz", hash = "sha256:40d4bb150454e392c2dfa3620f6eab28e140e94cf0c2d3b4bf43aef653ec9405"},
-    {file = "aiohttp_security-0.4.0-py3-none-any.whl", hash = "sha256:0bd0ffbe2195c6f79378f24fb89fa19de62c747ab8f1c4df690fada7f8b45834"},
+    {file = "aiohttp-security-0.5.0.tar.gz", hash = "sha256:50cb724d310e1d0289798bb98ae852c3b75b77e8f51ce5159c57b7261d0638bd"},
+    {file = "aiohttp_security-0.5.0-py3-none-any.whl", hash = "sha256:791ecbb4bbdb95b3a2033bda345231628ea42903b2d33b6a3bf8737ed68c6072"},
 ]
 
 [package.dependencies]
-aiohttp = ">=3.2.0"
+aiohttp = ">=3.9"
 
 [package.extras]
 session = ["aiohttp-session"]
@@ -2124,14 +2109,14 @@ six = "*"
 
 [[package]]
 name = "rsa"
-version = "4.9"
+version = "4.9.1"
 description = "Pure-Python RSA implementation"
 optional = false
-python-versions = ">=3.6,<4"
+python-versions = "<4,>=3.6"
 groups = ["main"]
 files = [
-    {file = "rsa-4.9-py3-none-any.whl", hash = "sha256:90260d9058e514786967344d0ef75fa8727eed8a7d2e43ce9f4bcf1b536174f7"},
-    {file = "rsa-4.9.tar.gz", hash = "sha256:e38464a49c6c85d7f1351b0126661487a7e0a14a50f1675ec50eb34d4f20ef21"},
+    {file = "rsa-4.9.1-py3-none-any.whl", hash = "sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762"},
+    {file = "rsa-4.9.1.tar.gz", hash = "sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75"},
 ]
 
 [package.dependencies]
@@ -2424,4 +2409,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "12fe5e316f09961841f7876b6f1eaed07f2a461b96f6892e2637f65cce7d5e27"
+content-hash = "6abac666e989f80246f3d797e1c05d8e5709fa6d1e88b0c544e89b318d4392f9"

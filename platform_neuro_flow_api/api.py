@@ -10,7 +10,6 @@ from typing import Any
 
 import aiohttp
 import aiohttp.web
-import aiohttp_cors
 from aiohttp import web
 from aiohttp.web import (
     HTTPBadRequest,
@@ -40,14 +39,13 @@ from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
     init_logging,
-    notrace,
     setup_sentry,
 )
 
 from platform_neuro_flow_api import __version__
 from platform_neuro_flow_api.identity import untrusted_user
 
-from .config import Config, CORSConfig, PlatformAuthConfig
+from .config import Config, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import make_async_engine
 from .schema import (
@@ -162,7 +160,6 @@ class ApiHandler:
         app.router.add_get("/ping", self.handle_ping)
         app.router.add_get("/secured-ping", self.handle_secured_ping)
 
-    @notrace
     async def handle_ping(self, request: Request) -> Response:
         """
         ---
@@ -175,7 +172,6 @@ class ApiHandler:
         """
         return Response(text="Pong")
 
-    @notrace
     async def handle_secured_ping(self, request: Request) -> Response:
         """
         ---
@@ -1963,24 +1959,6 @@ async def create_auth_client(config: PlatformAuthConfig) -> AsyncIterator[AuthCl
         yield client
 
 
-def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> None:
-    if not config.allowed_origins:
-        return
-
-    logger.info("Setting up CORS with allowed origins: %s", config.allowed_origins)
-    default_options = aiohttp_cors.ResourceOptions(
-        allow_credentials=True,
-        expose_headers="*",
-        allow_headers="*",
-    )
-    cors = aiohttp_cors.setup(
-        app, defaults=dict.fromkeys(config.allowed_origins, default_options)
-    )
-    for route in app.router.routes():
-        logger.debug("Setting up CORS for %s", route)
-        cors.add(route)
-
-
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:
     response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{__version__}"
 
@@ -2072,8 +2050,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     api_v1_app.add_subapp("/flow/bake_images", bake_images_app)
 
     app.add_subapp("/api/v1", api_v1_app)
-
-    _setup_cors(app, config.cors)
 
     # Add version header to each response
     app.on_response_prepare.append(add_version_to_header)
