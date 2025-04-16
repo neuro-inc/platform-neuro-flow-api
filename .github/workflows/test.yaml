@@ -5,9 +5,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
@@ -18,12 +15,18 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version-file: .python-version
-    - name: Cache packages
+    - name: Install pipx
+      run: python3 -m pip install --user pipx && python3 -m pipx ensurepath
+    - name: Install Poetry with pipx
+      run: |
+        pipx install poetry
+    - name: Setup Python dependencies cache
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml', 'setup.cfg',
-          'requirements/*.txt') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Cache pre-commit hooks
       uses: actions/cache@v4
       with:
@@ -39,9 +42,6 @@ jobs:
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
@@ -52,12 +52,18 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version-file: .python-version
-    - name: Cache packages
+    - name: Install pipx
+      run: python3 -m pip install --user pipx && python3 -m pipx ensurepath
+    - name: Install Poetry with pipx
+      run: |
+        pipx install poetry
+    - name: Setup Python dependencies cache
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml', 'setup.cfg',
-          'requirements/*.txt') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Cache pre-commit hooks
       uses: actions/cache@v4
       with:
@@ -78,9 +84,6 @@ jobs:
   integration:
     name: Integration tests
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
@@ -88,12 +91,18 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version-file: .python-version
-    - name: Cache packages
+    - name: Install pipx
+      run: python3 -m pip install --user pipx && python3 -m pipx ensurepath
+    - name: Install Poetry with pipx
+      run: |
+        pipx install poetry
+    - name: Setup Python dependencies cache
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml', 'setup.cfg',
-          'requirements/*.txt') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Cache pre-commit hooks
       uses: actions/cache@v4
       with:
@@ -120,9 +129,6 @@ jobs:
   image-upload:
     name: Upload image artifact
     runs-on: ubuntu-latest
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
@@ -130,12 +136,18 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version-file: .python-version
-    - name: Cache packages
+    - name: Install pipx
+      run: python3 -m pip install --user pipx && python3 -m pipx ensurepath
+    - name: Install Poetry with pipx
+      run: |
+        pipx install poetry
+    - name: Setup Python dependencies cache
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml', 'setup.cfg',
-          'requirements/*.txt') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Cache pre-commit hooks
       uses: actions/cache@v4
       with:
