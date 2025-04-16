@@ -47,8 +47,6 @@ platform:
 postgres:
   dsn: {}
 
-cors: {}
-
 enableDocs: false
 
 priorityClassName: ""

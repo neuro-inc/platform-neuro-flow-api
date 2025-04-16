@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
-from collections.abc import Sequence
 
 from yarl import URL
 
@@ -11,7 +10,6 @@ from alembic.config import Config as AlembicConfig
 
 from .config import (
     Config,
-    CORSConfig,
     PlatformApiConfig,
     PlatformAuthConfig,
     PostgresConfig,
@@ -33,7 +31,6 @@ class EnvironConfigFactory:
             server=self._create_server(),
             platform_auth=self._create_platform_auth(),
             platform_api=self._create_platform_api(),
-            cors=self.create_cors(),
             postgres=self.create_postgres(),
             enable_docs=enable_docs,
         )
@@ -52,13 +49,6 @@ class EnvironConfigFactory:
         url = URL(self._environ["NP_NEURO_FLOW_API_PLATFORM_API_URL"])
         token = self._environ["NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN"]
         return PlatformApiConfig(url=url, token=token)
-
-    def create_cors(self) -> CORSConfig:
-        origins: Sequence[str] = CORSConfig.allowed_origins
-        origins_str = self._environ.get("NP_CORS_ORIGINS", "").strip()
-        if origins_str:
-            origins = origins_str.split(",")
-        return CORSConfig(allowed_origins=origins)
 
     def create_postgres(self) -> PostgresConfig:
         try:

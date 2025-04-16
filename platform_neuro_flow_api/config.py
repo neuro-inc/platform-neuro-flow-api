@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from yarl import URL
@@ -24,11 +23,6 @@ class PlatformAuthConfig:
 class PlatformApiConfig:
     url: URL
     token: str = field(repr=False)
-
-
-@dataclass(frozen=True)
-class CORSConfig:
-    allowed_origins: Sequence[str] = ()
 
 
 @dataclass(frozen=True)
@@ -56,7 +50,6 @@ class Config:
     server: ServerConfig
     platform_auth: PlatformAuthConfig
     platform_api: PlatformApiConfig
-    cors: CORSConfig
     postgres: PostgresConfig
     watchers: WatchersConfig = WatchersConfig()
     enable_docs: bool = False
