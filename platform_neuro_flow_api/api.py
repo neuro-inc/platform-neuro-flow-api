@@ -35,10 +35,7 @@ from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
     init_logging,
-    notrace,
     setup_sentry,
-    setup_zipkin,
-    setup_zipkin_tracer,
 )
 
 from platform_neuro_flow_api import __version__
@@ -144,11 +141,9 @@ class ApiHandler:
             ]
         )
 
-    @notrace
     async def handle_ping(self, request: Request) -> Response:
         return Response(text="Pong")
 
-    @notrace
     async def handle_secured_ping(self, request: Request) -> Response:
         await check_authorized(request)
         return Response(text="Secured Pong")
@@ -1492,7 +1487,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     api_v1_app = aiohttp.web.Application()
     api_v1_handler = ApiHandler()
-    probes_routes = api_v1_handler.register(api_v1_app)
+    api_v1_handler.register(api_v1_app)
     app["api_v1_app"] = api_v1_app
 
     projects_app = await create_projects_app(config)
@@ -1547,37 +1542,14 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     app.on_response_prepare.append(add_version_to_header)
 
-    if config.zipkin:
-        setup_zipkin(app, skip_routes=probes_routes)
-
     return app
-
-
-def setup_tracing(config: Config) -> None:
-    if config.zipkin:
-        setup_zipkin_tracer(
-            config.zipkin.app_name,
-            config.server.host,
-            config.server.port,
-            config.zipkin.url,
-            config.zipkin.sample_rate,
-        )
-
-    if config.sentry:
-        setup_sentry(
-            config.sentry.dsn,
-            app_name=config.sentry.app_name,
-            cluster_name=config.sentry.cluster_name,
-            sample_rate=config.sentry.sample_rate,
-            exclude=[NotExistsError],
-        )
 
 
 def main() -> None:  # pragma: no coverage
     init_logging()
     config = EnvironConfigFactory().create()
     logging.info("Loaded config: %r", config)
-    setup_tracing(config)
+    setup_sentry()
     aiohttp.web.run_app(
         create_app(config), host=config.server.host, port=config.server.port
     )

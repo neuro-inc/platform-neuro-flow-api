@@ -59,7 +59,6 @@ def config_factory(
             "cors": CORSConfig(allowed_origins=["https://neu.ro"]),
             "postgres": postgres_config,
             "watchers": WatchersConfig(polling_interval_sec=1),
-            "sentry": None,
         }
         kwargs = {**defaults, **kwargs}
         return Config(**kwargs)
