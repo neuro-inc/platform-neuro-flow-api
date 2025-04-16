@@ -6,7 +6,6 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
-from importlib.metadata import version
 
 import aiohttp
 import aiohttp.web
@@ -42,6 +41,7 @@ from neuro_logging import (
     setup_zipkin_tracer,
 )
 
+from platform_neuro_flow_api import __version__
 from platform_neuro_flow_api.identity import untrusted_user
 
 from .config import Config, CORSConfig, PlatformAuthConfig
@@ -229,13 +229,12 @@ class ProjectsApiHandler(ProjectAccessMixin):
                         payload_line = ProjectSchema().dumps(project)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    ProjectSchema().dump(project) async for project in projects
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                ProjectSchema().dump(project) async for project in projects
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["projects"],
@@ -380,13 +379,12 @@ class LiveJobApiHandler(ProjectAccessMixin):
                         payload_line = LiveJobSchema().dumps(live_job)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    LiveJobSchema().dump(live_job) async for live_job in live_jobs
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                LiveJobSchema().dump(live_job) async for live_job in live_jobs
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["live_jobs"],
@@ -546,11 +544,10 @@ class BakeApiHandler(ProjectAccessMixin):
                         payload_line = BakeSchema().dumps(bake)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [BakeSchema().dump(bake) async for bake in bakes]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [BakeSchema().dump(bake) async for bake in bakes]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["bakes"],
@@ -684,13 +681,12 @@ class AttemptApiHandler(ProjectAccessMixin):
                         payload_line = AttemptSchema().dumps(attempt)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    AttemptSchema().dump(attempt) async for attempt in attempts
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                AttemptSchema().dump(attempt) async for attempt in attempts
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["attempts"],
@@ -857,11 +853,10 @@ class TaskApiHandler(ProjectAccessMixin):
                         payload_line = TaskSchema().dumps(task)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [TaskSchema().dump(task) async for task in tasks]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [TaskSchema().dump(task) async for task in tasks]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["tasks"],
@@ -1220,13 +1215,12 @@ class BakeImagesApiHandler(ProjectAccessMixin):
                         payload_line = BakeImageSchema().dumps(image)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    BakeImageSchema().dump(image) async for image in bake_images
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                BakeImageSchema().dump(image) async for image in bake_images
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["bake_images"],
@@ -1426,25 +1420,22 @@ def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> None:
     if not config.allowed_origins:
         return
 
-    logger.info(f"Setting up CORS with allowed origins: {config.allowed_origins}")
+    logger.info("Setting up CORS with allowed origins: %s", config.allowed_origins)
     default_options = aiohttp_cors.ResourceOptions(
         allow_credentials=True,
         expose_headers="*",
         allow_headers="*",
     )
     cors = aiohttp_cors.setup(
-        app, defaults={origin: default_options for origin in config.allowed_origins}
+        app, defaults=dict.fromkeys(config.allowed_origins, default_options)
     )
     for route in app.router.routes():
-        logger.debug(f"Setting up CORS for {route}")
+        logger.debug("Setting up CORS for %s", route)
         cors.add(route)
 
 
-package_version = version(__package__)
-
-
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:
-    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{package_version}"
+    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{__version__}"
 
 
 async def create_app(config: Config) -> aiohttp.web.Application:

@@ -6,7 +6,9 @@ Create Date: 2021-09-15 17:50:21.723475
 
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from alembic import op
 
@@ -20,7 +22,7 @@ depends_on = None
 def _recreate_fkey(
     source_table: str,
     column: str,
-    target_table: Optional[str] = None,
+    target_table: str | None = None,
     target_column: str = "id",
     **kwargs: Any,
 ) -> None:

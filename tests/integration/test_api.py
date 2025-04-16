@@ -931,7 +931,7 @@ class ProjectFactory(Protocol):
         pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def project_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
@@ -1727,7 +1727,7 @@ class TestBakeApi:
                         assert bake_data["id"] == bakes[l + index][0]
 
 
-@pytest.fixture()
+@pytest.fixture
 def bake_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
@@ -2285,13 +2285,13 @@ class TestConfigFileApi:
             assert payload["content"] == "<batch content>"
 
 
-@pytest.fixture()
+@pytest.fixture
 def attempt_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
     bake_factory: Callable[[_User], Awaitable[Bake]],
 ) -> Callable[[_User], Awaitable[Attempt]]:
-    CONFIGS_META = {
+    configs_meta = {
         "workspace": "workspace",
         "flow_config_id": "<flow_config_id>",
         "project_config_id": "<project_config_id>",
@@ -2310,7 +2310,7 @@ def attempt_factory(
                 "bake_id": bake.id,
                 "number": 1,
                 "result": "pending",
-                "configs_meta": CONFIGS_META,
+                "configs_meta": configs_meta,
             },
             headers=user.headers,
         ) as resp:

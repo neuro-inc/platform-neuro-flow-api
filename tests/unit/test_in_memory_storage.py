@@ -492,7 +492,7 @@ class TestBakeStorage:
         found = []
         async for item in storage.list(project_id="project-2", reverse=False):
             found.append(item.batch)
-        assert found == [f"batch-id-{index}" for index in range(0, 5)]
+        assert found == [f"batch-id-{index}" for index in range(5)]
 
         found = []
         async for item in storage.list(project_id="project-2", reverse=True):
@@ -531,7 +531,7 @@ class TestBakeStorage:
             project_id="project-2", until=now + timedelta(seconds=2.5)
         ):
             found.append(item.batch)
-        assert found == [f"batch-id-{index}" for index in range(0, 3)]
+        assert found == [f"batch-id-{index}" for index in range(3)]
 
 
 class TestAttemptStorage:
