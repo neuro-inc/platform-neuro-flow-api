@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from apolo_api_client import (
@@ -22,7 +22,7 @@ def make_job(
     tags: Iterable[str] = (),
     description: str = "",
     scheduler_enabled: bool = False,
-    created_at: datetime = datetime.now(timezone.utc),
+    created_at: datetime = datetime.now(UTC),
     started_at: datetime | None = None,
     finished_at: datetime | None = None,
     exit_code: int | None = None,

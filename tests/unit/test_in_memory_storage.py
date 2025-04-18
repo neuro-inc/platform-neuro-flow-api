@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import asdict, replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -110,7 +110,7 @@ class MockDataHelper:
         data = BakeData(
             project_id=secrets.token_hex(8),
             batch=secrets.token_hex(8),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             graphs={},
             params=None,
             tags=(),
@@ -126,7 +126,7 @@ class MockDataHelper:
         data = AttemptData(
             bake_id=secrets.token_hex(8),
             number=secrets.randbits(20),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             result=TaskStatus.PENDING,
             executor_id=secrets.token_hex(8),
             configs_meta=ConfigsMeta(
@@ -156,7 +156,7 @@ class MockDataHelper:
             state=None,
             statuses=[
                 TaskStatusItem(
-                    when=datetime.now(timezone.utc),
+                    when=datetime.now(UTC),
                     status=TaskStatus.PENDING,
                 )
             ],
@@ -175,7 +175,7 @@ class MockDataHelper:
             key=secrets.token_hex(8),
             outputs={},
             state={},
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         # Updating this way so constructor call is typechecked properly
         for key, value in kwargs.items():
@@ -613,6 +613,7 @@ class TestAttemptStorage:
                 TaskStatus.SUCCEEDED,
                 TaskStatus.FAILED,
             ],
+            strict=False,
         ):
             data = await self.helper.gen_attempt_data(
                 bake_id=f"bake-id-{bake_id}",

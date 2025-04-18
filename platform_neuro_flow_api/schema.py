@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import functools
 from collections.abc import Callable, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 
-import aiohttp.web
-from aiohttp_apispec import querystring_schema
 from marshmallow import Schema, fields, post_load, pre_load, validate
 
 from platform_neuro_flow_api.storage.base import (
@@ -27,30 +24,6 @@ from platform_neuro_flow_api.storage.base import (
 )
 
 F = TypeVar("F", bound=Callable[..., Any])
-
-
-def query_schema(**kwargs: fields.Field) -> Callable[[F], F]:
-    schema: Schema = Schema.from_dict(kwargs)()  # type: ignore
-
-    def _decorator(handler: F) -> F:
-        @querystring_schema(schema)
-        @functools.wraps(handler)
-        async def _wrapped(self: Any, request: aiohttp.web.Request) -> Any:
-            query_data = {
-                key: (
-                    request.query.getall(key)
-                    if len(request.query.getall(key)) > 1
-                    or isinstance(schema.fields.get(key), fields.List)
-                    else request.query[key]
-                )
-                for key in request.query.keys()
-            }
-            validated = schema.load(query_data)
-            return await handler(self, request, **validated)
-
-        return _wrapped
-
-    return _decorator
 
 
 class ProjectSchema(Schema):
@@ -120,7 +93,7 @@ class BakeSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     project_id = fields.String(required=True)
     batch = fields.String(required=True)
-    created_at = fields.AwareDateTime(load_default=lambda: datetime.now(timezone.utc))
+    created_at = fields.AwareDateTime(load_default=lambda: datetime.now(UTC))
     meta = fields.Nested(
         BakeMetaSchema, required=False, load_default=lambda: BakeMeta(None)
     )
@@ -179,9 +152,7 @@ class AttemptSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     bake_id = fields.String(required=True)
     number = fields.Integer(required=True, strict=True)
-    created_at = fields.AwareDateTime(
-        load_default=lambda: datetime.now(timezone.utc)
-    )  # when
+    created_at = fields.AwareDateTime(load_default=lambda: datetime.now(UTC))  # when
     result = TaskStatusField(required=True)
     configs_meta = fields.Nested(ConfigsMetaSchema(), required=True)
     executor_id = fields.String(required=True, allow_none=True)
@@ -236,7 +207,7 @@ class CacheEntrySchema(Schema):
     task_id = FullIDField(required=True)
     batch = fields.String(required=True)
     key = fields.String(required=True)
-    created_at = fields.AwareDateTime(load_default=lambda: datetime.now(timezone.utc))
+    created_at = fields.AwareDateTime(load_default=lambda: datetime.now(UTC))
     raw_id = fields.String(load_default="")
     outputs = fields.Dict(values=fields.String(), required=True)
     state = fields.Dict(values=fields.String(), required=True)

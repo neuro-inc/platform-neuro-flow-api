@@ -52,7 +52,7 @@ class NeuroFlowApiEndpoints:
 
     @property
     def openapi_json_url(self) -> str:
-        return f"{self.server_base_url}/api/docs/v1/flow/swagger.json"
+        return f"{self.server_base_url}/api/docs/v1/flow/ui/swagger.json"
 
     @property
     def projects_url(self) -> str:
