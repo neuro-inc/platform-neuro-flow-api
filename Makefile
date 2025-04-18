@@ -36,7 +36,7 @@ test_unit:
 
 .PHONY: test_integration
 test_integration:
-	poetry run pytest -vv -s --maxfail=3 --cov-config=pyproject.toml --cov=platform_neuro_flow_api --cov-report xml:.coverage-integration.xml tests/integration
+	poetry run pytest -vv --maxfail=3 --cov-config=pyproject.toml --cov=platform_neuro_flow_api --cov-report xml:.coverage-integration.xml tests/integration
 
 .PHONY: docker_build
 docker_build: .python-version dist
