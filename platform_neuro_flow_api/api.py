@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import json
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -14,6 +15,7 @@ from aiohttp import web
 from aiohttp.web import (
     HTTPBadRequest,
     HTTPInternalServerError,
+    HTTPUnauthorized,
     Request,
     Response,
     StreamResponse,
@@ -31,6 +33,7 @@ from aiohttp.web_exceptions import (
     HTTPNoContent,
     HTTPNotFound,
     HTTPOk,
+    HTTPUnprocessableEntity,
 )
 from aiohttp_security import check_authorized
 from apolo_api_client import ApiClient as PlatformApiClient
@@ -1874,14 +1877,22 @@ async def handle_exceptions(
 ) -> StreamResponse:
     try:
         return await handler(request)
-    except ValueError as e:
-        payload = {"error": str(e)}
-        return json_response(payload, status=HTTPBadRequest.status_code)
-    except ValidationError as e:
-        payload = {"error": str(e)}
-        return json_response(payload, status=HTTPBadRequest.status_code)
-    except aiohttp.web.HTTPException:
-        raise
+    except (ValueError, ValidationError) as e:
+        return web.json_response({"error": str(e)}, status=HTTPBadRequest.status_code)
+    except aiohttp.web.HTTPException as e:
+        msg = str(e)
+        if "authorization" in msg.lower():
+            code = HTTPUnauthorized.status_code
+        elif "required property" in msg.lower():
+            code = HTTPUnprocessableEntity.status_code
+        else:
+            code = e.status
+
+        try:
+            msg = json.loads(msg)
+        except Exception:
+            msg = str(e)
+        return web.json_response({"error": msg}, status=code)
     except Exception as e:
         msg_str = f"Unexpected exception: {str(e)}. Path with query: {request.path_qs}."
         logging.exception(msg_str)
@@ -2061,7 +2072,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
         docs = SwaggerDocs(
             app,
             info=SwaggerInfo(
-                title="Neuro Flow API documentation",
+                title="Apolo Flow API documentation",
                 version="v1",
                 description="API for managing flow entities",
             ),
