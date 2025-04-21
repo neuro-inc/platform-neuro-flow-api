@@ -10,6 +10,8 @@ from datetime import datetime
 import aiohttp
 import aiohttp.web
 from aiohttp.web import (
+    AppKey,
+    Application,
     HTTPBadRequest,
     HTTPInternalServerError,
     Request,
@@ -71,6 +73,18 @@ from .utils import auto_close, ndjson_error_handler
 from .watchers import ExecutorAliveWatcher, WatchersPoller
 
 logger = logging.getLogger(__name__)
+CONFIG: AppKey[Config] = AppKey("CONFIG", Config)
+API_V1_APP: AppKey[Application] = AppKey("API_V1_APP", Application)
+LIVE_JOBS_APP: AppKey[Application] = AppKey("LIVE_JOBS_APP", Application)
+PROJECTS_APP: AppKey[Application] = AppKey("PROJECTS_APP", Application)
+BAKES_APP: AppKey[Application] = AppKey("BAKES_APP", Application)
+ATTEMPTS_APP: AppKey[Application] = AppKey("ATTEMPTS_APP", Application)
+TASKS_APP: AppKey[Application] = AppKey("TASKS_APP", Application)
+CACHE_ENTRIES_APP: AppKey[Application] = AppKey("CACHE_ENTRIES_APP", Application)
+CONFIG_FILES_APP: AppKey[Application] = AppKey("CONFIG_FILES_APP", Application)
+BAKE_IMAGES_APP: AppKey[Application] = AppKey("BAKE_IMAGES_APP", Application)
+STORAGE: AppKey[Storage] = AppKey("STORAGE", Storage)
+AUTH_CLIENT: AppKey[AuthClient] = AppKey("AUTH_CLIENT", AuthClient)
 
 
 def accepts_ndjson(request: aiohttp.web.Request) -> bool:
@@ -166,11 +180,11 @@ class ProjectsApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @property
     def auth_client(self) -> AuthClient:
-        return self._app["auth_client"]
+        return self._app[AUTH_CLIENT]
 
     @docs(tags=["projects"], summary="List all users projects")
     @query_schema(
@@ -348,7 +362,7 @@ class LiveJobApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(tags=["live_jobs"], summary="List live jobs in given project")
     @query_schema(project_id=fields.String(required=True))
@@ -491,7 +505,7 @@ class BakeApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(tags=["bakes"], summary="List bakes in given project")
     @query_schema(
@@ -643,7 +657,7 @@ class AttemptApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -808,7 +822,7 @@ class TaskApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -980,7 +994,7 @@ class ConfigFileApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -1057,7 +1071,7 @@ class CacheEntryApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(
         tags=["cache_entries"],
@@ -1177,7 +1191,7 @@ class BakeImagesApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -1416,7 +1430,7 @@ async def add_version_to_header(request: Request, response: StreamResponse) -> N
 
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application(middlewares=[handle_exceptions])
-    app["config"] = config
+    app[CONFIG] = config
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
@@ -1452,15 +1466,15 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             )
 
-            app["projects_app"]["storage"] = storage
-            app["projects_app"]["auth_client"] = auth_client
-            app["live_jobs_app"]["storage"] = storage
-            app["bakes_app"]["storage"] = storage
-            app["attempts_app"]["storage"] = storage
-            app["tasks_app"]["storage"] = storage
-            app["cache_entries_app"]["storage"] = storage
-            app["config_files_app"]["storage"] = storage
-            app["bake_images_app"]["storage"] = storage
+            app[PROJECTS_APP][STORAGE] = storage
+            app[PROJECTS_APP][AUTH_CLIENT] = auth_client
+            app[LIVE_JOBS_APP][STORAGE] = storage
+            app[BAKES_APP][STORAGE] = storage
+            app[ATTEMPTS_APP][STORAGE] = storage
+            app[TASKS_APP][STORAGE] = storage
+            app[CACHE_ENTRIES_APP][STORAGE] = storage
+            app[CONFIG_FILES_APP][STORAGE] = storage
+            app[BAKE_IMAGES_APP][STORAGE] = storage
 
             yield
 
@@ -1469,38 +1483,38 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     api_v1_app = aiohttp.web.Application()
     api_v1_handler = ApiHandler()
     api_v1_handler.register(api_v1_app)
-    app["api_v1_app"] = api_v1_app
+    app[API_V1_APP] = api_v1_app
 
     projects_app = await create_projects_app(config)
-    app["projects_app"] = projects_app
+    app[PROJECTS_APP] = projects_app
     api_v1_app.add_subapp("/flow/projects", projects_app)
 
     live_jobs_app = await create_live_jobs_app(config)
-    app["live_jobs_app"] = live_jobs_app
+    app[LIVE_JOBS_APP] = live_jobs_app
     api_v1_app.add_subapp("/flow/live_jobs", live_jobs_app)
 
     bakes_app = await create_bakes_app(config)
-    app["bakes_app"] = bakes_app
+    app[BAKES_APP] = bakes_app
     api_v1_app.add_subapp("/flow/bakes", bakes_app)
 
     attempts_app = await create_attempts_app(config)
-    app["attempts_app"] = attempts_app
+    app[ATTEMPTS_APP] = attempts_app
     api_v1_app.add_subapp("/flow/attempts", attempts_app)
 
     tasks_app = await create_tasks_app(config)
-    app["tasks_app"] = tasks_app
+    app[TASKS_APP] = tasks_app
     api_v1_app.add_subapp("/flow/tasks", tasks_app)
 
     cache_entries_app = await create_cache_entries_app(config)
-    app["cache_entries_app"] = cache_entries_app
+    app[CACHE_ENTRIES_APP] = cache_entries_app
     api_v1_app.add_subapp("/flow/cache_entries", cache_entries_app)
 
     config_files_app = await create_config_files_app(config)
-    app["config_files_app"] = config_files_app
+    app[CONFIG_FILES_APP] = config_files_app
     api_v1_app.add_subapp("/flow/config_files", config_files_app)
 
     bake_images_app = await create_bake_images_app(config)
-    app["bake_images_app"] = bake_images_app
+    app[BAKE_IMAGES_APP] = bake_images_app
     api_v1_app.add_subapp("/flow/bake_images", bake_images_app)
 
     app.add_subapp("/api/v1", api_v1_app)

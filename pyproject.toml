@@ -18,7 +18,7 @@ packages = [{ include = "platform_neuro_flow_api" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
-aiohttp = "3.8.6"
+aiohttp = "3.10.11"
 apolo-api-client = "25.3.0"
 neuro-auth-client = "22.6.1"
 neuro-logging = "25.1.0"
@@ -68,6 +68,7 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:jose",
     "ignore::DeprecationWarning:.*",
+    "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_apispec",
     "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning:apispec.ext.marshmallow.field_converter"
 ]
 
