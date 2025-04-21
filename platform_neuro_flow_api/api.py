@@ -362,7 +362,7 @@ class LiveJobApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(tags=["live_jobs"], summary="List live jobs in given project")
     @query_schema(project_id=fields.String(required=True))
@@ -505,7 +505,7 @@ class BakeApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(tags=["bakes"], summary="List bakes in given project")
     @query_schema(
@@ -657,7 +657,7 @@ class AttemptApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -822,7 +822,7 @@ class TaskApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -994,7 +994,7 @@ class ConfigFileApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -1071,7 +1071,7 @@ class CacheEntryApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(
         tags=["cache_entries"],
@@ -1191,7 +1191,7 @@ class BakeImagesApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
