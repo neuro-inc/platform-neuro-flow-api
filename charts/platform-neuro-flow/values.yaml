@@ -37,8 +37,6 @@ postgres-db-init:
 
 secrets: []
 
-zipkin: {}
-
 sentry: {}
 
 platform:
@@ -49,8 +47,13 @@ platform:
 postgres:
   dsn: {}
 
-cors: {}
-
 enableDocs: false
 
 priorityClassName: ""
+
+securityContext:
+  enabled: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false

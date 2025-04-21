@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+import asyncio
 from collections.abc import AsyncIterator, Iterator
 
 import asyncpg
@@ -78,7 +78,7 @@ async def _wait_for_postgres_server(
         finally:
             if conn:
                 await conn.close()
-        time.sleep(interval_s)
+        await asyncio.sleep(interval_s)
 
 
 @pytest.fixture

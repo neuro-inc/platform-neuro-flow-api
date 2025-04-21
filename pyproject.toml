@@ -1,18 +1,122 @@
 [build-system]
-requires = [
-    "setuptools>=45",
-    "wheel",
-    "setuptools_scm>=6.2"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.poetry]
+name = "platform-neuro-flow-api"
+version = "0.0.0"
+description = "Apolo.us service"
+readme = "README.md"
+license = "Proprietary"
+homepage = "https://github.com/neuro-inc/platform-neuro-flow-api"
+authors = ["Apolo.us <team@apolo.us>"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
 ]
-build-backend = "setuptools.build_meta"
+packages = [{ include = "platform_neuro_flow_api" }]
 
-[tool.setuptools_scm]
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+aiohttp = "3.10.11"
+apolo-api-client = "25.3.0"
+neuro-auth-client = "22.6.1"
+neuro-logging = "25.1.0"
+marshmallow = "3.20.1"
+aiohttp-apispec = "3.0.0b2"
+markupsafe = "2.1.3"
+alembic = "1.12.1"
+psycopg2-binary = "2.9.9"
+asyncpg = "0.28.0"
+sqlalchemy = "1.4.25"
+yarl = "1.12.1"
+greenlet = "3.1.1"
 
-[tool.black]
-exclude = '''
-/(
-      \.git
-    | venv
-    | __pycache__
-)/
-'''
+[tool.poetry.scripts]
+platform-neuro-flow-api = "platform_neuro_flow_api.api:main"
+
+[tool.poetry.group.dev.dependencies]
+docker = "7.1.0"
+pytest = "7.4.3"
+pytest-asyncio = "0.21.1"
+pytest-cov = "4.1.0"
+mypy = "1.6.1"
+pre-commit = "4.2.0"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "C90", "UP", "B", "ASYNC", "N", "FBT", "A", "C4", "EM", "FA", "ICN",
+    "G", "PIE", "PYI", "PT", "RET", "PTH"
+]
+ignore = [
+    "A001", "A002", "A003", "N818", "PT006", "PT011", "EM101", "EM102", "B008",
+    "RET503", "PT012", "FBT001", "FBT002", "B904"
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:jose",
+    "ignore::DeprecationWarning:.*",
+    "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_apispec",
+    "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning:apispec.ext.marshmallow.field_converter"
+]
+
+[tool.coverage.run]
+branch = true
+source = ["platform_neuro_flow_api"]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+follow_imports = "silent"
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "aiohttp_security.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "aiohttp_apispec.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "neuro_auth_client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "jose.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "docker.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "asyncpg.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sqlalchemy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "aiohttp_cors"
+ignore_missing_imports = true

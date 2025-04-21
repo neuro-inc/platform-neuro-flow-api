@@ -6,12 +6,12 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 from datetime import datetime
-from importlib.metadata import version
 
 import aiohttp
 import aiohttp.web
-import aiohttp_cors
 from aiohttp.web import (
+    AppKey,
+    Application,
     HTTPBadRequest,
     HTTPInternalServerError,
     Request,
@@ -36,15 +36,13 @@ from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
     init_logging,
-    notrace,
     setup_sentry,
-    setup_zipkin,
-    setup_zipkin_tracer,
 )
 
+from platform_neuro_flow_api import __version__
 from platform_neuro_flow_api.identity import untrusted_user
 
-from .config import Config, CORSConfig, PlatformAuthConfig
+from .config import Config, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import make_async_engine
 from .schema import (
@@ -75,6 +73,18 @@ from .utils import auto_close, ndjson_error_handler
 from .watchers import ExecutorAliveWatcher, WatchersPoller
 
 logger = logging.getLogger(__name__)
+CONFIG: AppKey[Config] = AppKey("CONFIG", Config)
+API_V1_APP: AppKey[Application] = AppKey("API_V1_APP", Application)
+LIVE_JOBS_APP: AppKey[Application] = AppKey("LIVE_JOBS_APP", Application)
+PROJECTS_APP: AppKey[Application] = AppKey("PROJECTS_APP", Application)
+BAKES_APP: AppKey[Application] = AppKey("BAKES_APP", Application)
+ATTEMPTS_APP: AppKey[Application] = AppKey("ATTEMPTS_APP", Application)
+TASKS_APP: AppKey[Application] = AppKey("TASKS_APP", Application)
+CACHE_ENTRIES_APP: AppKey[Application] = AppKey("CACHE_ENTRIES_APP", Application)
+CONFIG_FILES_APP: AppKey[Application] = AppKey("CONFIG_FILES_APP", Application)
+BAKE_IMAGES_APP: AppKey[Application] = AppKey("BAKE_IMAGES_APP", Application)
+STORAGE: AppKey[Storage] = AppKey("STORAGE", Storage)
+AUTH_CLIENT: AppKey[AuthClient] = AppKey("AUTH_CLIENT", AuthClient)
 
 
 def accepts_ndjson(request: aiohttp.web.Request) -> bool:
@@ -144,11 +154,9 @@ class ApiHandler:
             ]
         )
 
-    @notrace
     async def handle_ping(self, request: Request) -> Response:
         return Response(text="Pong")
 
-    @notrace
     async def handle_secured_ping(self, request: Request) -> Response:
         await check_authorized(request)
         return Response(text="Secured Pong")
@@ -172,11 +180,11 @@ class ProjectsApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @property
     def auth_client(self) -> AuthClient:
-        return self._app["auth_client"]
+        return self._app[AUTH_CLIENT]
 
     @docs(tags=["projects"], summary="List all users projects")
     @query_schema(
@@ -229,13 +237,12 @@ class ProjectsApiHandler(ProjectAccessMixin):
                         payload_line = ProjectSchema().dumps(project)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    ProjectSchema().dump(project) async for project in projects
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                ProjectSchema().dump(project) async for project in projects
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["projects"],
@@ -355,7 +362,7 @@ class LiveJobApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(tags=["live_jobs"], summary="List live jobs in given project")
     @query_schema(project_id=fields.String(required=True))
@@ -380,13 +387,12 @@ class LiveJobApiHandler(ProjectAccessMixin):
                         payload_line = LiveJobSchema().dumps(live_job)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    LiveJobSchema().dump(live_job) async for live_job in live_jobs
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                LiveJobSchema().dump(live_job) async for live_job in live_jobs
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["live_jobs"],
@@ -499,7 +505,7 @@ class BakeApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(tags=["bakes"], summary="List bakes in given project")
     @query_schema(
@@ -546,11 +552,10 @@ class BakeApiHandler(ProjectAccessMixin):
                         payload_line = BakeSchema().dumps(bake)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [BakeSchema().dump(bake) async for bake in bakes]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [BakeSchema().dump(bake) async for bake in bakes]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["bakes"],
@@ -652,7 +657,7 @@ class AttemptApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -684,13 +689,12 @@ class AttemptApiHandler(ProjectAccessMixin):
                         payload_line = AttemptSchema().dumps(attempt)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    AttemptSchema().dump(attempt) async for attempt in attempts
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                AttemptSchema().dump(attempt) async for attempt in attempts
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["attempts"],
@@ -818,7 +822,7 @@ class TaskApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -857,11 +861,10 @@ class TaskApiHandler(ProjectAccessMixin):
                         payload_line = TaskSchema().dumps(task)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [TaskSchema().dump(task) async for task in tasks]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [TaskSchema().dump(task) async for task in tasks]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["tasks"],
@@ -991,7 +994,7 @@ class ConfigFileApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -1068,7 +1071,7 @@ class CacheEntryApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @docs(
         tags=["cache_entries"],
@@ -1188,7 +1191,7 @@ class BakeImagesApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     async def _get_bake(self, bake_id: str) -> Bake:
         try:
@@ -1220,13 +1223,12 @@ class BakeImagesApiHandler(ProjectAccessMixin):
                         payload_line = BakeImageSchema().dumps(image)
                         await response.write(payload_line.encode() + b"\n")
                 return response
-            else:
-                response_payload = [
-                    BakeImageSchema().dump(image) async for image in bake_images
-                ]
-                return aiohttp.web.json_response(
-                    data=response_payload, status=HTTPOk.status_code
-                )
+            response_payload = [
+                BakeImageSchema().dump(image) async for image in bake_images
+            ]
+            return aiohttp.web.json_response(
+                data=response_payload, status=HTTPOk.status_code
+            )
 
     @docs(
         tags=["bake_images"],
@@ -1422,34 +1424,13 @@ async def create_auth_client(config: PlatformAuthConfig) -> AsyncIterator[AuthCl
         yield client
 
 
-def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> None:
-    if not config.allowed_origins:
-        return
-
-    logger.info(f"Setting up CORS with allowed origins: {config.allowed_origins}")
-    default_options = aiohttp_cors.ResourceOptions(
-        allow_credentials=True,
-        expose_headers="*",
-        allow_headers="*",
-    )
-    cors = aiohttp_cors.setup(
-        app, defaults={origin: default_options for origin in config.allowed_origins}
-    )
-    for route in app.router.routes():
-        logger.debug(f"Setting up CORS for {route}")
-        cors.add(route)
-
-
-package_version = version(__package__)
-
-
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:
-    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{package_version}"
+    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{__version__}"
 
 
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application(middlewares=[handle_exceptions])
-    app["config"] = config
+    app[CONFIG] = config
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
@@ -1485,15 +1466,15 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             )
 
-            app["projects_app"]["storage"] = storage
-            app["projects_app"]["auth_client"] = auth_client
-            app["live_jobs_app"]["storage"] = storage
-            app["bakes_app"]["storage"] = storage
-            app["attempts_app"]["storage"] = storage
-            app["tasks_app"]["storage"] = storage
-            app["cache_entries_app"]["storage"] = storage
-            app["config_files_app"]["storage"] = storage
-            app["bake_images_app"]["storage"] = storage
+            app[PROJECTS_APP][STORAGE] = storage
+            app[PROJECTS_APP][AUTH_CLIENT] = auth_client
+            app[LIVE_JOBS_APP][STORAGE] = storage
+            app[BAKES_APP][STORAGE] = storage
+            app[ATTEMPTS_APP][STORAGE] = storage
+            app[TASKS_APP][STORAGE] = storage
+            app[CACHE_ENTRIES_APP][STORAGE] = storage
+            app[CONFIG_FILES_APP][STORAGE] = storage
+            app[BAKE_IMAGES_APP][STORAGE] = storage
 
             yield
 
@@ -1501,44 +1482,43 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     api_v1_app = aiohttp.web.Application()
     api_v1_handler = ApiHandler()
-    probes_routes = api_v1_handler.register(api_v1_app)
-    app["api_v1_app"] = api_v1_app
+    api_v1_handler.register(api_v1_app)
+    app[API_V1_APP] = api_v1_app
 
     projects_app = await create_projects_app(config)
-    app["projects_app"] = projects_app
+    app[PROJECTS_APP] = projects_app
     api_v1_app.add_subapp("/flow/projects", projects_app)
 
     live_jobs_app = await create_live_jobs_app(config)
-    app["live_jobs_app"] = live_jobs_app
+    app[LIVE_JOBS_APP] = live_jobs_app
     api_v1_app.add_subapp("/flow/live_jobs", live_jobs_app)
 
     bakes_app = await create_bakes_app(config)
-    app["bakes_app"] = bakes_app
+    app[BAKES_APP] = bakes_app
     api_v1_app.add_subapp("/flow/bakes", bakes_app)
 
     attempts_app = await create_attempts_app(config)
-    app["attempts_app"] = attempts_app
+    app[ATTEMPTS_APP] = attempts_app
     api_v1_app.add_subapp("/flow/attempts", attempts_app)
 
     tasks_app = await create_tasks_app(config)
-    app["tasks_app"] = tasks_app
+    app[TASKS_APP] = tasks_app
     api_v1_app.add_subapp("/flow/tasks", tasks_app)
 
     cache_entries_app = await create_cache_entries_app(config)
-    app["cache_entries_app"] = cache_entries_app
+    app[CACHE_ENTRIES_APP] = cache_entries_app
     api_v1_app.add_subapp("/flow/cache_entries", cache_entries_app)
 
     config_files_app = await create_config_files_app(config)
-    app["config_files_app"] = config_files_app
+    app[CONFIG_FILES_APP] = config_files_app
     api_v1_app.add_subapp("/flow/config_files", config_files_app)
 
     bake_images_app = await create_bake_images_app(config)
-    app["bake_images_app"] = bake_images_app
+    app[BAKE_IMAGES_APP] = bake_images_app
     api_v1_app.add_subapp("/flow/bake_images", bake_images_app)
 
     app.add_subapp("/api/v1", api_v1_app)
 
-    _setup_cors(app, config.cors)
     if config.enable_docs:
         prefix = "/api/docs/v1/flow"
         setup_aiohttp_apispec(
@@ -1556,37 +1536,14 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     app.on_response_prepare.append(add_version_to_header)
 
-    if config.zipkin:
-        setup_zipkin(app, skip_routes=probes_routes)
-
     return app
-
-
-def setup_tracing(config: Config) -> None:
-    if config.zipkin:
-        setup_zipkin_tracer(
-            config.zipkin.app_name,
-            config.server.host,
-            config.server.port,
-            config.zipkin.url,
-            config.zipkin.sample_rate,
-        )
-
-    if config.sentry:
-        setup_sentry(
-            config.sentry.dsn,
-            app_name=config.sentry.app_name,
-            cluster_name=config.sentry.cluster_name,
-            sample_rate=config.sentry.sample_rate,
-            exclude=[NotExistsError],
-        )
 
 
 def main() -> None:  # pragma: no coverage
     init_logging()
     config = EnvironConfigFactory().create()
     logging.info("Loaded config: %r", config)
-    setup_tracing(config)
+    setup_sentry()
     aiohttp.web.run_app(
         create_app(config), host=config.server.host, port=config.server.port
     )

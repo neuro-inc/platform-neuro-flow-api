@@ -5,10 +5,12 @@ import logging
 import os
 from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 import aiohttp
 import pytest
+import pytest_asyncio
 from aiohttp.hdrs import AUTHORIZATION
 from async_timeout import timeout
 from docker import DockerClient
@@ -21,7 +23,6 @@ from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformAuthConfig
 from platform_neuro_flow_api.storage.base import Project
-
 from tests.integration.conftest import random_name
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="session")
 def auth_image() -> str:
-    with open("AUTH_SERVER_IMAGE_NAME") as f:
+    with Path("AUTH_SERVER_IMAGE_NAME").open() as f:
         return f.read().strip()
 
 
@@ -112,13 +113,13 @@ async def wait_for_auth_server(
                         break
                 except (AssertionError, OSError, aiohttp.ClientError) as exc:
                     last_exc = exc
-                logger.debug(f"waiting for {url}: {last_exc}")
+                logger.debug("waiting for %s: %s", url, last_exc)
                 await asyncio.sleep(interval_s)
     except asyncio.TimeoutError:
         pytest.fail(f"failed to connect to {url}: {last_exc}")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def auth_server(_auth_server: URL) -> AsyncIterator[URL]:
     await wait_for_auth_server(_auth_server)
     yield _auth_server
@@ -127,7 +128,7 @@ async def auth_server(_auth_server: URL) -> AsyncIterator[URL]:
 @pytest.fixture
 def token_factory(auth_jwt_secret: str) -> Callable[[str], str]:
     def _factory(identity: str) -> str:
-        payload = {claim: identity for claim in JWT_IDENTITY_CLAIM_OPTIONS}
+        payload = dict.fromkeys(JWT_IDENTITY_CLAIM_OPTIONS, identity)
         return jwt.encode(payload, auth_jwt_secret, algorithm="HS256")
 
     return _factory
@@ -182,7 +183,7 @@ class UserFactory(Protocol):
         pass
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def regular_user_factory(
     auth_client: AuthClient,
     token_factory: Callable[[str], str],
@@ -242,7 +243,7 @@ class ProjectGranter(Protocol):
         pass
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def grant_project_permission(
     auth_client: AuthClient,
     token_factory: Callable[[str], str],
