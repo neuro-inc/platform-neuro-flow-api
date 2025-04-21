@@ -83,6 +83,8 @@ TASKS_APP: AppKey[Application] = AppKey("TASKS_APP", Application)
 CACHE_ENTRIES_APP: AppKey[Application] = AppKey("CACHE_ENTRIES_APP", Application)
 CONFIG_FILES_APP: AppKey[Application] = AppKey("CONFIG_FILES_APP", Application)
 BAKE_IMAGES_APP: AppKey[Application] = AppKey("BAKE_IMAGES_APP", Application)
+STORAGE: AppKey[Storage] = AppKey("STORAGE", Storage)
+AUTH_CLIENT: AppKey[AuthClient] = AppKey("AUTH_CLIENT", AuthClient)
 
 
 def accepts_ndjson(request: aiohttp.web.Request) -> bool:
@@ -1464,15 +1466,15 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             )
 
-            app["projects_app"]["storage"] = storage
-            app["projects_app"]["auth_client"] = auth_client
-            app["live_jobs_app"]["storage"] = storage
-            app["bakes_app"]["storage"] = storage
-            app["attempts_app"]["storage"] = storage
-            app["tasks_app"]["storage"] = storage
-            app["cache_entries_app"]["storage"] = storage
-            app["config_files_app"]["storage"] = storage
-            app["bake_images_app"]["storage"] = storage
+            app[PROJECTS_APP][STORAGE] = storage
+            app[PROJECTS_APP][AUTH_CLIENT] = auth_client
+            app[LIVE_JOBS_APP][STORAGE] = storage
+            app[BAKES_APP][STORAGE] = storage
+            app[ATTEMPTS_APP][STORAGE] = storage
+            app[TASKS_APP][STORAGE] = storage
+            app[CACHE_ENTRIES_APP][STORAGE] = storage
+            app[CONFIG_FILES_APP][STORAGE] = storage
+            app[BAKE_IMAGES_APP][STORAGE] = storage
 
             yield
 
