@@ -29,7 +29,7 @@ alembic = "1.12.1"
 psycopg2-binary = "2.9.9"
 asyncpg = "0.30.0"
 sqlalchemy = "1.4.25"
-yarl = "1.12.1"
+yarl = "1.20.0"
 greenlet = "3.1.1"
 
 [tool.poetry.scripts]
