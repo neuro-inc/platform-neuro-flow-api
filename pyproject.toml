@@ -68,6 +68,7 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:jose",
     "ignore::DeprecationWarning:.*",
+    "ignore::NotAppKeyWarning:.*",
     "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning:apispec.ext.marshmallow.field_converter"
 ]
 

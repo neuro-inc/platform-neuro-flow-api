@@ -32,7 +32,7 @@ async def untrusted_user(request: Request) -> Identity:
 
 async def _get_identity(request: Request) -> str:
     identity_policy = request.config_dict.get(IDENTITY_KEY)
-    identity = await identity_policy.identify(request)  # type ignore[union-attr]
+    identity = await identity_policy.identify(request)  # type: ignore[union-attr]
     if identity is None:
         raise HTTPUnauthorized()
     return identity
