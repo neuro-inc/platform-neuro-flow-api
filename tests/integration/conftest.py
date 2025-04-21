@@ -15,7 +15,6 @@ import pytest
 
 from platform_neuro_flow_api.config import (
     Config,
-    CORSConfig,
     PlatformApiConfig,
     PlatformAuthConfig,
     PostgresConfig,
@@ -52,15 +51,13 @@ def config_factory(
     postgres_config: PostgresConfig,
 ) -> Callable[..., Config]:
     def _f(**kwargs: Any) -> Config:
-        defaults = dict(
-            server=ServerConfig(host="0.0.0.0", port=8080),
-            platform_auth=auth_config,
-            platform_api=platform_api_config,
-            cors=CORSConfig(allowed_origins=["https://neu.ro"]),
-            postgres=postgres_config,
-            watchers=WatchersConfig(polling_interval_sec=1),
-            sentry=None,
-        )
+        defaults = {
+            "server": ServerConfig(host="0.0.0.0", port=8080),
+            "platform_auth": auth_config,
+            "platform_api": platform_api_config,
+            "postgres": postgres_config,
+            "watchers": WatchersConfig(polling_interval_sec=1),
+        }
         kwargs = {**defaults, **kwargs}
         return Config(**kwargs)
 

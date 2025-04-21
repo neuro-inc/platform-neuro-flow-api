@@ -18,13 +18,13 @@ from aiohttp.web_exceptions import (
     HTTPNotFound,
     HTTPUnauthorized,
 )
-from neuro_sdk import JobStatus
+from apolo_api_client import JobStatus
 
 from platform_neuro_flow_api.api import create_app
 from platform_neuro_flow_api.config import Config
 from platform_neuro_flow_api.storage.base import Attempt, Bake, Project
 
-from ..utils import make_descr
+from ..utils import make_job
 from .api import PlatformApiServer
 from .auth import ProjectGranter, UserFactory, _User
 from .conftest import ApiAddress, create_local_app_server
@@ -231,57 +231,6 @@ class TestApi:
         ) as response:
             assert response.status == HTTPOk.status_code, await response.text()
             assert "Access-Control-Allow-Origin" not in response.headers
-
-    async def test_ping_allowed_origin(
-        self, neuro_flow_api: NeuroFlowApiEndpoints, client: aiohttp.ClientSession
-    ) -> None:
-        async with client.get(
-            neuro_flow_api.ping_url, headers={"Origin": "https://neu.ro"}
-        ) as resp:
-            assert resp.status == HTTPOk.status_code, await resp.text()
-            assert resp.headers["Access-Control-Allow-Origin"] == "https://neu.ro"
-            assert resp.headers["Access-Control-Allow-Credentials"] == "true"
-
-    async def test_ping_options_no_headers(
-        self, neuro_flow_api: NeuroFlowApiEndpoints, client: aiohttp.ClientSession
-    ) -> None:
-        async with client.options(neuro_flow_api.ping_url) as resp:
-            assert resp.status == HTTPForbidden.status_code, await resp.text()
-            assert await resp.text() == (
-                "CORS preflight request failed: "
-                "origin header is not specified in the request"
-            )
-
-    async def test_ping_options_unknown_origin(
-        self, neuro_flow_api: NeuroFlowApiEndpoints, client: aiohttp.ClientSession
-    ) -> None:
-        async with client.options(
-            neuro_flow_api.ping_url,
-            headers={
-                "Origin": "http://unknown",
-                "Access-Control-Request-Method": "GET",
-            },
-        ) as resp:
-            assert resp.status == HTTPForbidden.status_code, await resp.text()
-            assert await resp.text() == (
-                "CORS preflight request failed: "
-                "origin 'http://unknown' is not allowed"
-            )
-
-    async def test_ping_options(
-        self, neuro_flow_api: NeuroFlowApiEndpoints, client: aiohttp.ClientSession
-    ) -> None:
-        async with client.options(
-            neuro_flow_api.ping_url,
-            headers={
-                "Origin": "https://neu.ro",
-                "Access-Control-Request-Method": "GET",
-            },
-        ) as resp:
-            assert resp.status == HTTPOk.status_code, await resp.text()
-            assert resp.headers["Access-Control-Allow-Origin"] == "https://neu.ro"
-            assert resp.headers["Access-Control-Allow-Credentials"] == "true"
-            assert resp.headers["Access-Control-Allow-Methods"] == "GET"
 
 
 class TestProjectsApi:
@@ -932,7 +881,7 @@ class ProjectFactory(Protocol):
         pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def project_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
@@ -1728,7 +1677,7 @@ class TestBakeApi:
                         assert bake_data["id"] == bakes[l + index][0]
 
 
-@pytest.fixture()
+@pytest.fixture
 def bake_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
@@ -1803,7 +1752,7 @@ class TestAttemptApi:
         config: Config,
     ) -> None:
         mock_platform_api_server.jobs.append(
-            make_descr(
+            make_job(
                 job_id="test-job-id",
                 status=JobStatus.FAILED,
             )
@@ -2286,13 +2235,13 @@ class TestConfigFileApi:
             assert payload["content"] == "<batch content>"
 
 
-@pytest.fixture()
+@pytest.fixture
 def attempt_factory(
     neuro_flow_api: NeuroFlowApiEndpoints,
     client: aiohttp.ClientSession,
     bake_factory: Callable[[_User], Awaitable[Bake]],
 ) -> Callable[[_User], Awaitable[Attempt]]:
-    CONFIGS_META = {
+    configs_meta = {
         "workspace": "workspace",
         "flow_config_id": "<flow_config_id>",
         "project_config_id": "<project_config_id>",
@@ -2311,7 +2260,7 @@ def attempt_factory(
                 "bake_id": bake.id,
                 "number": 1,
                 "result": "pending",
-                "configs_meta": CONFIGS_META,
+                "configs_meta": configs_meta,
             },
             headers=user.headers,
         ) as resp:

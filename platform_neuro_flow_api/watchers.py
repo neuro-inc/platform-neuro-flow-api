@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import abc
 import asyncio
 import contextlib
 import logging
 from dataclasses import replace
-from typing import Any, Optional
 
+from apolo_api_client import ApiClient as PlatformClient, JobStatus
 from neuro_logging import new_trace
-from neuro_sdk import Client as PlatformClient, JobStatus
+from typing_extensions import Self
 
 from .storage.base import Attempt, AttemptStorage, TaskStatus
 from .utils import auto_close
@@ -35,10 +37,11 @@ class ExecutorAliveWatcher(Watcher):
     async def _check_attempt(self, attempt: Attempt) -> None:
         if attempt.executor_id:
             try:
-                job = await self._platform_client.jobs.status(attempt.executor_id)
+                job = await self._platform_client.get_job(attempt.executor_id)
             except Exception as exc:
                 logger.warning(
-                    f"Failed to check status of executor {attempt.executor_id}",
+                    "Failed to check status of executor %s",
+                    attempt.executor_id,
                     exc_info=exc,
                 )
             else:
@@ -71,20 +74,20 @@ class WatchersPoller:
         self._watchers = watchers
         self._interval_sec = interval_sec
 
-        self._task: Optional[asyncio.Task[None]] = None
+        self._task: asyncio.Task[None] | None = None
 
-    async def __aenter__(self) -> "WatchersPoller":
+    async def __aenter__(self) -> Self:
         await self.start()
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         await self.stop()
 
     async def start(self) -> None:
         if self._task is not None:
             raise RuntimeError("Concurrent usage of watchers poller not allowed")
         names = ", ".join(self._get_watcher_name(e) for e in self._watchers)
-        logger.info(f"Starting watchers polling with [{names}]")
+        logger.info("Starting watchers polling with [%s]", names)
         self._task = self._loop.create_task(self._run())
 
     async def stop(self) -> None:
@@ -111,7 +114,7 @@ class WatchersPoller:
             raise
         except BaseException:
             name = f"watcher {self._get_watcher_name(watcher)}"
-            logger.exception(f"Failed to run iteration of the {name}, ignoring...")
+            logger.exception("Failed to run iteration of the %s, ignoring...", name)
 
     @new_trace
     async def _run_once(self) -> None:

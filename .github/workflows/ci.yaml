@@ -11,67 +11,14 @@ on:
 
 jobs:
   test:
-    name: Run tests
-    runs-on: ubuntu-latest
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-    - name: Install python
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.9
-    - name: Cache packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml', 'setup.cfg',
-          'requirements/*.txt') }}
-    - name: Cache pre-commit hooks
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pre-commit
-        key: pre-commit|py3.9|${{ hashFiles('.pre-commit-config.yaml') }}
-    - name: Install dependencies
-      run: make setup
-    - name: Lint
-      run: |
-        echo "::add-matcher::.github/actionlint-matcher.json"
-        make lint
-    - name: Run unit tests
-      run: make test_unit
-    - name: Login to ghcr.io
-      uses: docker/login-action@v3.0.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ github.token }}
-    - name: Run integration tests
-      run: make test_integration
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: .coverage-integration.xml
-        flags: integration
-        name: codecov-integration
-    - name: Build Docker image
-      run: make docker_build
-    - name: Upload image artifact
-      uses: neuro-inc/upload-image-action@v24.4.0
-      with:
-        image: platformneuroflowapi
-        token: ${{ secrets.GITHUB_TOKEN }}
+    name: All checks are passed
+    uses: ./.github/workflows/test.yaml
 
   release:
     name: Create release
     needs: test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
-    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v24.10.0
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v25.4.0
     with:
       image: platformneuroflowapi
       helm_charts: platform-neuro-flow
@@ -79,7 +26,7 @@ jobs:
   deploy:
     name: Deploy
     needs: release
-    uses: neuro-inc/reuse/.github/workflows/deploy-service.yaml@v24.10.0
+    uses: neuro-inc/reuse/.github/workflows/deploy-service.yaml@v25.4.0
     secrets:
       tf_api_token: ${{ secrets.TF_API_TOKEN }}
     with:
