@@ -180,11 +180,11 @@ class ProjectsApiHandler(ProjectAccessMixin):
 
     @property
     def storage(self) -> Storage:
-        return self._app["storage"]
+        return self._app[STORAGE]
 
     @property
     def auth_client(self) -> AuthClient:
-        return self._app["auth_client"]
+        return self._app[AUTH_CLIENT]
 
     @docs(tags=["projects"], summary="List all users projects")
     @query_schema(
