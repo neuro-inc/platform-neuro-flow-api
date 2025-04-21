@@ -10,6 +10,7 @@ from datetime import datetime
 import aiohttp
 import aiohttp.web
 from aiohttp.web import (
+    AppKey,
     HTTPBadRequest,
     HTTPInternalServerError,
     Request,
@@ -71,6 +72,7 @@ from .utils import auto_close, ndjson_error_handler
 from .watchers import ExecutorAliveWatcher, WatchersPoller
 
 logger = logging.getLogger(__name__)
+CONFIG: AppKey[Config] = AppKey("CONFIG", Config)
 
 
 def accepts_ndjson(request: aiohttp.web.Request) -> bool:
@@ -1416,7 +1418,7 @@ async def add_version_to_header(request: Request, response: StreamResponse) -> N
 
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application(middlewares=[handle_exceptions])
-    app["config"] = config
+    app[CONFIG] = config
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
