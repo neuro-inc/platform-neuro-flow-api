@@ -144,18 +144,18 @@ webargs = ">=8.0.1"
 
 [[package]]
 name = "aiohttp-security"
-version = "0.4.0"
+version = "0.5.0"
 description = "security for aiohttp.web"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "aiohttp-security-0.4.0.tar.gz", hash = "sha256:40d4bb150454e392c2dfa3620f6eab28e140e94cf0c2d3b4bf43aef653ec9405"},
-    {file = "aiohttp_security-0.4.0-py3-none-any.whl", hash = "sha256:0bd0ffbe2195c6f79378f24fb89fa19de62c747ab8f1c4df690fada7f8b45834"},
+    {file = "aiohttp-security-0.5.0.tar.gz", hash = "sha256:50cb724d310e1d0289798bb98ae852c3b75b77e8f51ce5159c57b7261d0638bd"},
+    {file = "aiohttp_security-0.5.0-py3-none-any.whl", hash = "sha256:791ecbb4bbdb95b3a2033bda345231628ea42903b2d33b6a3bf8737ed68c6072"},
 ]
 
 [package.dependencies]
-aiohttp = ">=3.2.0"
+aiohttp = ">=3.9"
 
 [package.extras]
 session = ["aiohttp-session"]
