@@ -37,7 +37,7 @@ platform-neuro-flow-api = "platform_neuro_flow_api.api:main"
 
 [tool.poetry.group.dev.dependencies]
 docker = "7.1.0"
-pytest = "7.4.3"
+pytest = "8.3.5"
 pytest-asyncio = "0.23.8"
 pytest-cov = "4.1.0"
 mypy = "1.15.0"
