@@ -13,6 +13,8 @@ import aiohttp
 import aiohttp.web
 from aiohttp import web
 from aiohttp.web import (
+    AppKey,
+    Application,
     HTTPBadRequest,
     HTTPInternalServerError,
     HTTPUnauthorized,
@@ -78,30 +80,19 @@ from .watchers import ExecutorAliveWatcher, WatchersPoller
 
 logger = logging.getLogger(__name__)
 
-CONFIG: web.AppKey[Config] = web.AppKey("config", Config)
-
-API_V1_APP: web.AppKey[web.Application] = web.AppKey("api_v1_app", web.Application)
-PROJECTS_APP: web.AppKey[web.Application] = web.AppKey("projects_app", web.Application)
-LIVE_JOBS_APP: web.AppKey[web.Application] = web.AppKey(
-    "live_jobs_app", web.Application
-)
-BAKES_APP: web.AppKey[web.Application] = web.AppKey("bakes_app", web.Application)
-ATTEMPTS_APP: web.AppKey[web.Application] = web.AppKey("attempts_app", web.Application)
-TASKS_APP: web.AppKey[web.Application] = web.AppKey("tasks_app", web.Application)
-CONFIG_FILES_APP: web.AppKey[web.Application] = web.AppKey(
-    "config_files_app", web.Application
-)
-CACHE_ENTRIES_APP: web.AppKey[web.Application] = web.AppKey(
-    "cache_entries_app", web.Application
-)
-BAKE_IMAGES_APP: web.AppKey[web.Application] = web.AppKey(
-    "bake_images_app", web.Application
-)
-
-STORAGE: web.AppKey[Storage] = web.AppKey("storage", Storage)
-AUTH_CLIENT: web.AppKey[AuthClient] = web.AppKey("auth_client", AuthClient)
-
-HANDLER: web.AppKey[Any] = web.AppKey("handler", None)
+CONFIG: AppKey[Config] = AppKey("CONFIG", Config)
+API_V1_APP: AppKey[Application] = AppKey("API_V1_APP", Application)
+LIVE_JOBS_APP: AppKey[Application] = AppKey("LIVE_JOBS_APP", Application)
+PROJECTS_APP: AppKey[Application] = AppKey("PROJECTS_APP", Application)
+BAKES_APP: AppKey[Application] = AppKey("BAKES_APP", Application)
+ATTEMPTS_APP: AppKey[Application] = AppKey("ATTEMPTS_APP", Application)
+TASKS_APP: AppKey[Application] = AppKey("TASKS_APP", Application)
+CACHE_ENTRIES_APP: AppKey[Application] = AppKey("CACHE_ENTRIES_APP", Application)
+CONFIG_FILES_APP: AppKey[Application] = AppKey("CONFIG_FILES_APP", Application)
+BAKE_IMAGES_APP: AppKey[Application] = AppKey("BAKE_IMAGES_APP", Application)
+STORAGE: AppKey[Storage] = AppKey("STORAGE", Storage)
+AUTH_CLIENT: AppKey[AuthClient] = AppKey("AUTH_CLIENT", AuthClient)
+HANDLER: AppKey[Any] = AppKey("handler", None)
 
 
 def parse_iso8601(s: str) -> datetime:
