@@ -78,20 +78,28 @@ from .watchers import ExecutorAliveWatcher, WatchersPoller
 
 logger = logging.getLogger(__name__)
 
-CONFIG: web.AppKey[Config] = web.AppKey("config", None)
+CONFIG: web.AppKey[Config] = web.AppKey("config", Config)
 
-API_V1_APP: web.AppKey[web.Application] = web.AppKey("api_v1_app", None)
-PROJECTS_APP: web.AppKey[web.Application] = web.AppKey("projects_app", None)
-LIVE_JOBS_APP: web.AppKey[web.Application] = web.AppKey("live_jobs_app", None)
-BAKES_APP: web.AppKey[web.Application] = web.AppKey("bakes_app", None)
-ATTEMPTS_APP: web.AppKey[web.Application] = web.AppKey("attempts_app", None)
-TASKS_APP: web.AppKey[web.Application] = web.AppKey("tasks_app", None)
-CONFIG_FILES_APP: web.AppKey[web.Application] = web.AppKey("config_files_app", None)
-CACHE_ENTRIES_APP: web.AppKey[web.Application] = web.AppKey("cache_entries_app", None)
-BAKE_IMAGES_APP: web.AppKey[web.Application] = web.AppKey("bake_images_app", None)
+API_V1_APP: web.AppKey[web.Application] = web.AppKey("api_v1_app", web.Application)
+PROJECTS_APP: web.AppKey[web.Application] = web.AppKey("projects_app", web.Application)
+LIVE_JOBS_APP: web.AppKey[web.Application] = web.AppKey(
+    "live_jobs_app", web.Application
+)
+BAKES_APP: web.AppKey[web.Application] = web.AppKey("bakes_app", web.Application)
+ATTEMPTS_APP: web.AppKey[web.Application] = web.AppKey("attempts_app", web.Application)
+TASKS_APP: web.AppKey[web.Application] = web.AppKey("tasks_app", web.Application)
+CONFIG_FILES_APP: web.AppKey[web.Application] = web.AppKey(
+    "config_files_app", web.Application
+)
+CACHE_ENTRIES_APP: web.AppKey[web.Application] = web.AppKey(
+    "cache_entries_app", web.Application
+)
+BAKE_IMAGES_APP: web.AppKey[web.Application] = web.AppKey(
+    "bake_images_app", web.Application
+)
 
-STORAGE: web.AppKey[Storage] = web.AppKey("storage", None)
-AUTH_CLIENT: web.AppKey[AuthClient] = web.AppKey("auth_client", None)
+STORAGE: web.AppKey[Storage] = web.AppKey("storage", Storage)
+AUTH_CLIENT: web.AppKey[AuthClient] = web.AppKey("auth_client", AuthClient)
 
 HANDLER: web.AppKey[Any] = web.AppKey("handler", None)
 
