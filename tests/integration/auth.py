@@ -23,7 +23,6 @@ from yarl import URL
 
 from platform_neuro_flow_api.config import PlatformAuthConfig
 from platform_neuro_flow_api.storage.base import Project
-
 from tests.integration.conftest import random_name
 
 logger = logging.getLogger(__name__)
