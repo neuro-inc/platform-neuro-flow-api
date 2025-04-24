@@ -23,7 +23,7 @@ apolo-api-client = "25.3.0"
 neuro-auth-client = "22.6.1"
 neuro-logging = "25.1.0"
 marshmallow = "3.20.1"
-aiohttp-apispec = "3.0.0b2"
+aiohttp-swagger3 = "0.10.0"
 markupsafe = "3.0.2"
 alembic = "1.15.2"
 psycopg2-binary = "2.9.10"
@@ -49,7 +49,7 @@ vcs = "git"
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
@@ -68,8 +68,9 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:jose",
     "ignore::DeprecationWarning:.*",
-    "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_apispec",
-    "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning:apispec.ext.marshmallow.field_converter"
+    "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning:apispec.ext.marshmallow.field_converter",
+    "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_swagger3",
+    "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_security"
 ]
 
 [tool.coverage.run]

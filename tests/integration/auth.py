@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from asyncio import timeout
 from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +13,6 @@ import aiohttp
 import pytest
 import pytest_asyncio
 from aiohttp.hdrs import AUTHORIZATION
-from async_timeout import timeout
 from docker import DockerClient
 from docker.errors import NotFound as ContainerNotFound
 from docker.models.containers import Container
@@ -115,7 +115,7 @@ async def wait_for_auth_server(
                     last_exc = exc
                 logger.debug("waiting for %s: %s", url, last_exc)
                 await asyncio.sleep(interval_s)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail(f"failed to connect to {url}: {last_exc}")
 
 
