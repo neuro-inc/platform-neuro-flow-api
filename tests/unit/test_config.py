@@ -30,6 +30,7 @@ def test_create() -> None:
         "NP_DB_POSTGRES_DSN": dsn,
         "NP_DB_POSTGRES_POOL_MIN": "50",
         "NP_DB_POSTGRES_POOL_MAX": "500",
+        "NP_DB_POSTGRES_POOL_RECYCLE": "7200",
     }
     config = EnvironConfigFactory(environ).create()
     assert config == Config(
@@ -45,6 +46,7 @@ def test_create() -> None:
             pool_min_size=50,
             pool_max_size=500,
             alembic=ANY,
+            pool_recycle=7_200,
         ),
         enable_docs=True,
     )
