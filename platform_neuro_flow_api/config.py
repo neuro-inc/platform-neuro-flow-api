@@ -39,6 +39,8 @@ class PostgresConfig:
     connect_timeout_s: float = 60.0
     command_timeout_s: float | None = 60.0
 
+    pool_recycle: int = 3_600  # 1 hour
+
 
 @dataclass(frozen=True)
 class WatchersConfig:

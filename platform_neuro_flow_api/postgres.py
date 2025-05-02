@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 import alembic
 
+from . import APP_NAME
 from .config import PostgresConfig
 
 
@@ -15,6 +16,13 @@ def make_async_engine(db_config: PostgresConfig) -> AsyncEngine:
         pool_size=db_config.pool_min_size,
         max_overflow=max(0, db_config.pool_max_size - db_config.pool_min_size),
         pool_timeout=db_config.connect_timeout_s,
+        pool_pre_ping=True,
+        pool_recycle=db_config.pool_recycle,
+        connect_args={
+            "server_settings": {
+                "application_name": APP_NAME,
+            }
+        },
     )
 
 

@@ -5,6 +5,7 @@ from unittest.mock import ANY
 
 from yarl import URL
 
+from platform_neuro_flow_api import APP_NAME
 from platform_neuro_flow_api.config import (
     Config,
     PlatformApiConfig,
@@ -25,11 +26,12 @@ def test_create() -> None:
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN": "platform-auth-token",
         "SENTRY_DSN": "https://test.com",
         "SENTRY_CLUSTER_NAME": "test",
-        "SENTRY_APP_NAME": "platform-neuro-flow-api-test",
+        "SENTRY_APP_NAME": f"{APP_NAME}-test",
         "NP_NEURO_FLOW_API_ENABLE_DOCS": "true",
         "NP_DB_POSTGRES_DSN": dsn,
         "NP_DB_POSTGRES_POOL_MIN": "50",
         "NP_DB_POSTGRES_POOL_MAX": "500",
+        "NP_DB_POSTGRES_POOL_RECYCLE": "7200",
     }
     config = EnvironConfigFactory(environ).create()
     assert config == Config(
@@ -45,6 +47,7 @@ def test_create() -> None:
             pool_min_size=50,
             pool_max_size=500,
             alembic=ANY,
+            pool_recycle=7_200,
         ),
         enable_docs=True,
     )
