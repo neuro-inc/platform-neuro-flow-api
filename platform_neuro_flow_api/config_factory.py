@@ -69,7 +69,8 @@ class EnvironConfigFactory:
         )
         pool_recycle = int(
             self._environ.get(
-                "NP_DB_POSTGRES_POOL_RECYCLE", PostgresConfig.pool_recycle)
+                "NP_DB_POSTGRES_POOL_RECYCLE", PostgresConfig.pool_recycle
+            )
         )
         command_timeout_s = PostgresConfig.command_timeout_s
         if self._environ.get("NP_DB_POSTGRES_COMMAND_TIMEOUT"):

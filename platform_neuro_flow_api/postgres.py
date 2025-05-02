@@ -17,9 +17,9 @@ def make_async_engine(db_config: PostgresConfig) -> AsyncEngine:
         pool_timeout=db_config.connect_timeout_s,
         pool_pre_ping=True,
         pool_recycle=db_config.pool_recycle,
-        server_settings = {
+        server_settings={
             "application_name": "platform-neuro-flow-api",
-        }
+        },
     )
 
 
