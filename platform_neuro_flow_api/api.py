@@ -47,7 +47,7 @@ from neuro_logging import (
     setup_sentry,
 )
 
-from platform_neuro_flow_api import __version__
+from platform_neuro_flow_api import APP_NAME, __version__
 from platform_neuro_flow_api.identity import untrusted_user
 
 from .config import Config, PlatformAuthConfig
@@ -1970,7 +1970,7 @@ async def create_auth_client(config: PlatformAuthConfig) -> AsyncIterator[AuthCl
 
 
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:
-    response.headers["X-Service-Version"] = f"platform-neuro-flow-api/{__version__}"
+    response.headers["X-Service-Version"] = f"{APP_NAME}/{__version__}"
 
 
 async def create_app(config: Config) -> aiohttp.web.Application:
