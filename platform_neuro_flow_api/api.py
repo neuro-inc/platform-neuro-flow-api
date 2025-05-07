@@ -739,8 +739,10 @@ class BakeApiHandler(ProjectAccessMixin):
               type: boolean
           - name: fetch_last_attempt
             in: query
+            required: false
             schema:
-              type: boolean
+              type: string
+              enum: ["1", "true"]
         responses:
           '200':
             description: A list of bakes (JSON or NDJSON)
@@ -852,8 +854,10 @@ class BakeApiHandler(ProjectAccessMixin):
             required: true
           - name: fetch_last_attempt
             in: query
+            required: false
             schema:
-              type: boolean
+              type: string
+              enum: ["1", "true"]
         responses:
           '200':
             description: The bake object
@@ -896,8 +900,10 @@ class BakeApiHandler(ProjectAccessMixin):
             required: true
           - name: fetch_last_attempt
             in: query
+            required: false
             schema:
-              type: boolean
+              type: string
+              enum: ["1", "true"]
         responses:
           '200':
             description: The bake object
@@ -2090,9 +2096,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     "type": "object",
                     "required": ["id", "name", "owner", "project_name", "cluster"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "name": {"type": "string"},
-                        "owner": {"type": "string"},
+                        "owner": {"type": "string", "readOnly": True},
                         "project_name": {"type": "string"},
                         "cluster": {"type": "string"},
                         "org_name": {"type": "string", "nullable": True},
@@ -2102,7 +2108,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     "type": "object",
                     "required": ["id", "yaml_id", "project_id", "multi", "tags"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "yaml_id": {"type": "string"},
                         "project_id": {"type": "string"},
                         "multi": {"type": "boolean"},
@@ -2121,7 +2127,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                         "tags",
                     ],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "project_id": {"type": "string"},
                         "batch": {"type": "string"},
                         "created_at": {"type": "string", "format": "date-time"},
@@ -2130,14 +2136,17 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                         "params": {"type": "object"},
                         "name": {"type": "string", "nullable": True},
                         "tags": {"type": "array", "items": {"type": "string"}},
-                        "last_attempt": {"$ref": "#/components/schemas/Attempt"},
+                        "last_attempt": {
+                            "$ref": "#/components/schemas/Attempt",
+                            "readOnly": True,
+                        },
                     },
                 },
                 "Attempt": {
                     "type": "object",
                     "required": ["id", "bake_id", "number", "result", "configs_meta"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "bake_id": {"type": "string"},
                         "number": {"type": "integer"},
                         "created_at": {"type": "string", "format": "date-time"},
@@ -2150,7 +2159,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     "type": "object",
                     "required": ["yaml_id", "attempt_id", "statuses"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "yaml_id": {"type": "string"},
                         "attempt_id": {"type": "string"},
                         "raw_id": {"type": "string"},
@@ -2174,7 +2183,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     "type": "object",
                     "required": ["id", "bake_id", "filename", "content"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "bake_id": {"type": "string"},
                         "filename": {"type": "string"},
                         "content": {"type": "string"},
@@ -2184,7 +2193,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     "type": "object",
                     "required": ["id", "project_id", "task_id", "batch", "key"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "project_id": {"type": "string"},
                         "task_id": {"type": "string"},
                         "batch": {"type": "string"},
@@ -2199,7 +2208,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     "type": "object",
                     "required": ["id", "bake_id", "ref", "status", "yaml_defs"],
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": {"type": "string", "readOnly": True},
                         "bake_id": {"type": "string"},
                         "ref": {"type": "string"},
                         "status": {"type": "string"},
