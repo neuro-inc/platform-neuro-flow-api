@@ -265,7 +265,11 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": regular_user.name,
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -373,7 +377,12 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster", "org_name": org_name},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "org_name": org_name,
+                "project_name": regular_org_user.name,
+            },
             headers=regular_org_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -402,7 +411,11 @@ class TestProjectsApi:
         user2 = await regular_user_factory(project_name="test-project2")
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": "test-project1",
+            },
             headers=user1.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -422,6 +435,7 @@ class TestProjectsApi:
                 "name": project.name,
                 "cluster": project.cluster,
                 "owner": project.owner,
+                "project_name": "test-project1",
             },
             headers=user2.headers,
         ) as resp:
@@ -638,6 +652,7 @@ class TestProjectsApi:
                 json={
                     "name": f"test-{index}" + secrets.token_hex(200),
                     "cluster": "test-cluster",
+                    "project_name": regular_user.name,
                 },
                 headers=regular_user.headers,
             ) as resp:
@@ -854,7 +869,11 @@ class TestProjectsApi:
     ) -> None:
         async with client.post(
             url=neuro_flow_api.projects_url,
-            json={"name": "test", "cluster": "test-cluster"},
+            json={
+                "name": "test",
+                "cluster": "test-cluster",
+                "project_name": regular_user.name,
+            },
             headers=regular_user.headers,
         ) as resp:
             assert resp.status == HTTPCreated.status_code, await resp.text()
@@ -1270,6 +1289,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": [],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -1302,6 +1322,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": [],
             },
             headers=user2.headers,
         ) as resp:
@@ -1334,6 +1355,7 @@ class TestBakeApi:
                 "batch": "test-batch",
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
+                "tags": ["foo", "bar"],
             },
             headers=user2.headers,
         ) as resp:
@@ -1361,6 +1383,7 @@ class TestBakeApi:
                         "tags": ["tag1", "tag2", "tag3"],
                     }
                 },
+                "tags": ["foo", "bar"],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -1390,6 +1413,7 @@ class TestBakeApi:
                 "graphs": {"": {"a": [], "b": ["a"]}},
                 "params": {"p1": "v1"},
                 "meta": {"git_info": None},
+                "tags": ["foo", "bar"],
             },
             headers=regular_user.headers,
         ) as resp:
@@ -2799,6 +2823,7 @@ class TestBakeImagesApi:
                 "context_on_storage": "storage://default/user/ctx",
                 "dockerfile_rel": "Dockerfile",
                 "status": "pending",
+                "yaml_defs": ["foo.bar.test"],
             },
             headers=regular_user.headers,
         ) as resp:

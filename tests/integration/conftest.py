@@ -57,6 +57,7 @@ def config_factory(
             "platform_api": platform_api_config,
             "postgres": postgres_config,
             "watchers": WatchersConfig(polling_interval_sec=1),
+            "enable_docs": True,
         }
         kwargs = {**defaults, **kwargs}
         return Config(**kwargs)
