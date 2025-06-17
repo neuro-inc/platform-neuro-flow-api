@@ -40,7 +40,7 @@ docker = "7.1.0"
 pytest = "8.3.5"
 pytest-asyncio = "1.0.0"
 pytest-cov = "6.2.1"
-mypy = "1.16.0"
+mypy = "1.16.1"
 pre-commit = "4.2.0"
 
 [tool.poetry-dynamic-versioning]
