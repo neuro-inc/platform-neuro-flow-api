@@ -46,14 +46,14 @@ def postgres_storage(sqalchemy_engine: AsyncEngine) -> PostgresStorage:
 
 class TestPostgresProjectStorage(_TestProjectStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> ProjectStorage:
@@ -62,14 +62,14 @@ class TestPostgresProjectStorage(_TestProjectStorage):
 
 class TestPostgresLiveJobsStorage(_TestLiveJobStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> LiveJobStorage:
@@ -88,14 +88,14 @@ class TestPostgresLiveJobsStorage(_TestLiveJobStorage):
 
 class TestPostgresBakeStorage(_TestBakeStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> BakeStorage:
@@ -239,14 +239,14 @@ class TestPostgresBakeStorage(_TestBakeStorage):
 
 class TestPostgresAttemptStorage(_TestAttemptStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> AttemptStorage:
@@ -266,14 +266,14 @@ class TestPostgresAttemptStorage(_TestAttemptStorage):
 
 class TestPostgresTaskStorage(_TestTaskStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> TaskStorage:
@@ -292,14 +292,14 @@ class TestPostgresTaskStorage(_TestTaskStorage):
 
 class TestPostgresCacheEntryStorage(_TestCacheEntryStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> CacheEntryStorage:
@@ -318,14 +318,14 @@ class TestPostgresCacheEntryStorage(_TestCacheEntryStorage):
 
 class TestPostgresConfigFileStorage(_TestConfigFileStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> ConfigFileStorage:
@@ -345,14 +345,14 @@ class TestPostgresConfigFileStorage(_TestConfigFileStorage):
 
 class TestPostgresBakeImageStorage(_TestBakeImageStorage):
     @pytest.fixture(autouse=True)
-    def _helper(  # type: ignore
+    def _helper(
         self,
         postgres_storage: PostgresStorage,
     ) -> None:
         self.helper = MockDataHelper(postgres_storage)
 
     @pytest.fixture
-    def storage(  # type: ignore
+    def storage(
         self,
         postgres_storage: PostgresStorage,
     ) -> BakeImageStorage:
