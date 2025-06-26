@@ -6,7 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Mapping, Sequence, Set as AbstractSet
 from dataclasses import dataclass, fields
-from typing import Any, Generic, Self, TypeVar
+from typing import Any, Self, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +242,7 @@ _D = TypeVar("_D")
 _E = TypeVar("_E", bound=HasId)
 
 
-class BaseStorage(ABC, Generic[_D, _E]):
+class BaseStorage[D, E: HasId](ABC):
     @abstractmethod
     async def insert(self, data: _E) -> None:
         pass
