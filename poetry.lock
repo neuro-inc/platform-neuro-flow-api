@@ -194,14 +194,14 @@ tz = ["tzdata"]
 
 [[package]]
 name = "apolo-api-client"
-version = "25.3.0"
+version = "25.6.0"
 description = "Apolo internal client for Platform API"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = "<4.0,>=3.11"
 groups = ["main"]
 files = [
-    {file = "apolo_api_client-25.3.0-py3-none-any.whl", hash = "sha256:a272d9b444bd255be6e91f75a5578e692857c3d8dba346f49760461ef9218d07"},
-    {file = "apolo_api_client-25.3.0.tar.gz", hash = "sha256:c43e6165f212ffa938f5abdf3eabe7a5f964507669d9513f8354afa6bc319a35"},
+    {file = "apolo_api_client-25.6.0-py3-none-any.whl", hash = "sha256:585ceb431a0b24c4db836a658ba1babfd1e12f2efc53fe16df3c327acd1eea92"},
+    {file = "apolo_api_client-25.6.0.tar.gz", hash = "sha256:d87ee4eff0dea67738d5997e99e75b4a4b5b5811ca95bf134ad694d477279484"},
 ]
 
 [package.dependencies]
@@ -2090,4 +2090,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "5316df101018a76071ea3d9b5936e542bf60aebd30bc9d7014ea83a8a16e8a72"
+content-hash = "d9679b7afabf0631e51894bbe0cbc7b77d9c872981bb4c028467c5803ebbe703"
