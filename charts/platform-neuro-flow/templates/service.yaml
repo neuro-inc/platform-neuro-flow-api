@@ -3,35 +3,25 @@ kind: Service
 metadata:
   name: {{ include "platformNeuroFlow.fullname" . }}
   labels: {{ include "platformNeuroFlow.labels.standard" . | nindent 4 }}
-    service: platform-neuro-flow
+    platform.apolo.us/ping: "true"
+    {{- with .Values.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   annotations:
+    platform.apolo.us/ping-url: http://{{ include "platformNeuroFlow.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.port }}/ping
+    {{- if .Capabilities.APIVersions.Has "traefik.io/v1alpha1" }}
     traefik.ingress.kubernetes.io/affinity: "true"
     traefik.ingress.kubernetes.io/session-cookie-name: NEURO_NEURO_FLOW_API_SESSION
+    {{- end }}
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   type: ClusterIP
   ports:
   - name: http
     port: {{ .Values.port }}
-    targetPort: tcp-web
-  selector:
-    app: {{ include "platformNeuroFlow.name" . }}
-    release: {{ .Release.Name }}
-    service: platform-neuro-flow
----
-# TODO: Old service definition. Check that it is not used elsewhere and remove.
-apiVersion: v1
-kind: Service
-metadata:
-  name: platformneuroflowapi
-  annotations:
-    traefik.ingress.kubernetes.io/affinity: "true"
-    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_NEURO_FLOW_API_SESSION
-spec:
-  type: ClusterIP
-  ports:
-  - name: http
-    port: {{ .Values.port }}
-    targetPort: tcp-web
+    targetPort: http
   selector:
     app: {{ include "platformNeuroFlow.name" . }}
     release: {{ .Release.Name }}

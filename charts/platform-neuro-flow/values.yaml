@@ -18,8 +18,19 @@ resources:
     cpu: '0.2'
     memory: 600Mi
 
+service:
+  labels: {}
+  annotations: {}
+
 ingress:
   enabled: false
+
+  hosts: []
+
+  className: ""
+
+  labels: {}
+  annotations: {}
 
 postgres-db-init:
   adminDsn: {}
@@ -37,17 +48,17 @@ postgres-db-init:
 
 secrets: []
 
-externalSecrets:
-  - name: platform-admin-secret
-    secretStoreName: vault-backend
-    secretStoreKind: ClusterSecretStore
-    data:
-      DATABASE_URL:
-        key: kv-v2/platform
-        property: DATABASE_URL
-      API_KEY:
-        key: kv-v2/platform
-        property: API_KEY
+externalSecrets: []
+#   - name: platform-admin-secret
+#     secretStoreName: vault-backend
+#     secretStoreKind: ClusterSecretStore
+#     data:
+#       DATABASE_URL:
+#         key: kv-v2/platform
+#         property: DATABASE_URL
+#       API_KEY:
+#         key: kv-v2/platform
+#         property: API_KEY
 
 sentry: {}
 
