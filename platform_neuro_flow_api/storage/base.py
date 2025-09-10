@@ -372,6 +372,10 @@ class CacheEntryStorage(BaseStorage[CacheEntryData, CacheEntry], ABC):
         pass
 
     @abstractmethod
+    def list(self, project_id: str | None = None) -> AsyncIterator[CacheEntry]:
+        pass
+
+    @abstractmethod
     async def delete_all(
         self,
         project_id: str | None = None,
@@ -392,7 +396,9 @@ class BakeImageStorage(BaseStorage[BakeImageData, BakeImage], ABC):
 
 
 class ConfigFileStorage(BaseStorage[ConfigFileData, ConfigFile], ABC):
-    pass
+    @abstractmethod
+    def list(self, bake_id: str | None = None) -> AsyncIterator[ConfigFile]:
+        pass
 
 
 class Storage(ABC):

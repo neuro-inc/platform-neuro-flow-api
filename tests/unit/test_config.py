@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import ANY
 
+from apolo_kube_client import KubeClientAuthType, KubeConfig
 from yarl import URL
 
 from platform_neuro_flow_api import APP_NAME
@@ -48,6 +49,9 @@ def test_create() -> None:
             pool_max_size=500,
             alembic=ANY,
             pool_recycle=7_200,
+        ),
+        kube=KubeConfig(
+            endpoint_url="https://localhost:8443", auth_type=KubeClientAuthType.NONE
         ),
         enable_docs=True,
     )

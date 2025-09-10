@@ -25,3 +25,7 @@ chart: {{ include "platformNeuroFlow.chart" . }}
 heritage: {{ .Release.Service | quote }}
 release: {{ .Release.Name | quote }}
 {{- end -}}
+
+{{- define "platformNeuroFlow.kubeAuthMountRoot" -}}
+{{- printf "/var/run/secrets/kubernetes.io/serviceaccount" -}}
+{{- end -}}

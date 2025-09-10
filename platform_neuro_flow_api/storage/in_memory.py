@@ -303,6 +303,12 @@ class InMemoryCacheEntryStorage(
                 return item
         raise NotExistsError
 
+    async def list(self, project_id: str | None = None) -> AsyncIterator[CacheEntry]:
+        for item in self._items.values():
+            if project_id is not None and item.project_id != project_id:
+                continue
+            yield item
+
     async def delete_all(
         self,
         project_id: str | None = None,
@@ -324,7 +330,11 @@ class InMemoryCacheEntryStorage(
 class InMemoryConfigFileStorage(
     ConfigFileStorage, InMemoryBaseStorage[ConfigFileData, ConfigFile]
 ):
-    pass
+    async def list(self, bake_id: str | None = None) -> AsyncIterator[ConfigFile]:
+        for item in self._items.values():
+            if bake_id is not None and item.bake_id != bake_id:
+                continue
+            yield item
 
 
 class InMemoryBakeImageStorage(
