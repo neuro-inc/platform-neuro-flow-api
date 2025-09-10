@@ -92,12 +92,17 @@ class ProjectDeleter:
                             new_attempt = replace(attempt, result=TaskStatus.CANCELLED)
                             await self._storage.attempts.update(new_attempt)
 
-                            # Delete all tasks related to the attempt
+                            # Delete all k8s pods related to the attempt
                             async for task in self._storage.tasks.list(
                                 attempt_id=attempt.id
                             ):
                                 await self._delete_task_k8s_pod(task, namespace)
-                                await self._storage.tasks.delete(id=task.id)
+
+                        # Delete all tasks related to the attempt
+                        async for task in self._storage.tasks.list(
+                            attempt_id=attempt.id
+                        ):
+                            await self._storage.tasks.delete(id=task.id)
 
                         await self._storage.attempts.delete(id=attempt.id)
 
