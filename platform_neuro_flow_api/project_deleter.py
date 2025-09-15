@@ -85,13 +85,11 @@ class ProjectDeleter:
         if ev.event_type == self.PROJECT_REMOVE:
             assert ev.org
             assert ev.project
-            print(4444444444444444, ev)
             namespace = generate_namespace_name(ev.org, ev.project)
 
             async for project in self._storage.projects.list(
                 project_name=ev.project, org_name=ev.org
             ):
-                print(55555555555555, project)
                 # Delete all live jobs related to the project
                 async for live_job in self._storage.live_jobs.list(
                     project_id=project.id
@@ -100,20 +98,16 @@ class ProjectDeleter:
 
                 # Delete all bakes related to the project
                 async for bake in self._storage.bakes.list(project_id=project.id):
-                    print(88888888888888, bake)
                     # Delete all attempts related to the bake
                     async for attempt in self._storage.attempts.list(bake_id=bake.id):
-                        print(9999999999999, attempt)
                         if attempt.result in (TaskStatus.PENDING, TaskStatus.RUNNING):
                             # Mark the attempt as cancelled
                             new_attempt = replace(attempt, result=TaskStatus.CANCELLED)
                             await self._storage.attempts.update(new_attempt)
-                            print(1123123123123)
                             # Delete all k8s pods related to the attempt
                             async for task in self._storage.tasks.list(
                                 attempt_id=attempt.id
                             ):
-                                print(222222222222222, task)
                                 await self._delete_task_k8s_pod(task, namespace)
 
                         # Delete all tasks related to the attempt
