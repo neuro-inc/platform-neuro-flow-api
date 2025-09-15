@@ -65,6 +65,7 @@ sentry: {}
 platform:
   authUrl: http://platform-auth:8080
   apiUrl: http://platform-api:8080
+  eventsUrl: http://platform-events:8080/apis/events
   token: {}
 
 postgres:

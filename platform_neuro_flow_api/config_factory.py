@@ -100,7 +100,7 @@ class EnvironConfigFactory:
         return config
 
     def create_events(self) -> EventsClientConfig | None:
-        if "NP_REGISTRY_EVENTS_URL" in self._environ:
+        if "NP_NEURO_FLOW_API_PLATFORM_EVENTS_URL" in self._environ:
             url = URL(self._environ["NP_NEURO_FLOW_API_PLATFORM_EVENTS_URL"])
             token = self._environ["NP_NEURO_FLOW_API_PLATFORM_EVENTS_TOKEN"]
             return EventsClientConfig(url=url, token=token, name="platform-neuro-flow")
