@@ -55,7 +55,7 @@ class Config:
     platform_auth: PlatformAuthConfig
     platform_api: PlatformApiConfig
     postgres: PostgresConfig
-    kube: KubeConfig
+    kube: KubeConfig | None = None
     watchers: WatchersConfig = WatchersConfig()
     events: EventsClientConfig | None = None
     enable_docs: bool = False

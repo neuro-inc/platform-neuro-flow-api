@@ -33,6 +33,7 @@ yarl = "1.20.1"
 greenlet = "3.2.4"
 apolo-events-client = "^25.8.0"
 apolo-kube-client = "^25.9.3"
+tenacity = "^9.1.2"
 
 [tool.poetry.scripts]
 platform-neuro-flow-api = "platform_neuro_flow_api.api:main"
@@ -44,6 +45,7 @@ pytest-asyncio = "1.1.0"
 pytest-cov = "6.2.1"
 mypy = "1.17.1"
 pre-commit = "4.3.0"
+pytest-aiohttp = "^1.1.0"
 
 [tool.poetry-dynamic-versioning]
 enable = true

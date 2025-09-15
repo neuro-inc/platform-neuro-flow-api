@@ -39,7 +39,6 @@ from aiohttp.web_exceptions import (
 )
 from aiohttp_security import check_authorized
 from apolo_api_client import ApiClient as PlatformApiClient
-from apolo_kube_client import KubeClient
 from marshmallow import ValidationError
 from neuro_auth_client import AuthClient, Permission, check_permissions
 from neuro_auth_client.security import AuthScheme, setup_security
@@ -2019,12 +2018,8 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             )
 
-            kube_client = await exit_stack.enter_async_context(
-                KubeClient(config=config.kube),
-            )
-
             await exit_stack.enter_async_context(
-                ProjectDeleter(storage, kube_client, config.events)
+                ProjectDeleter(storage, config.kube, config.events)
             )
 
             app[PROJECTS_APP][STORAGE] = storage
