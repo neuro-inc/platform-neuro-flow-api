@@ -25,6 +25,7 @@ def test_create() -> None:
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_URL": "http://platformauthapi/api/v1",
         "NP_NEURO_FLOW_API_PLATFORM_API_URL": "http://platformapi",
         "NP_NEURO_FLOW_API_PLATFORM_AUTH_TOKEN": "platform-auth-token",
+        "NP_NEURO_FLOW_API_K8S_API_URL": "https://localhost:8443",
         "SENTRY_DSN": "https://test.com",
         "SENTRY_CLUSTER_NAME": "test",
         "SENTRY_APP_NAME": f"{APP_NAME}-test",
