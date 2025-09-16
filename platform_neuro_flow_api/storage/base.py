@@ -242,7 +242,7 @@ _D = TypeVar("_D")
 _E = TypeVar("_E", bound=HasId)
 
 
-class BaseStorage(ABC, Generic[_D, _E]):
+class BaseStorage(ABC, Generic[_D, _E]):  # noqa
     @abstractmethod
     async def insert(self, data: _E) -> None:
         pass
