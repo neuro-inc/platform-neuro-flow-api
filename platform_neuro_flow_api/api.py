@@ -53,6 +53,7 @@ from platform_neuro_flow_api.identity import untrusted_user
 from .config import Config, PlatformAuthConfig
 from .config_factory import EnvironConfigFactory
 from .postgres import make_async_engine
+from .project_deleter import ProjectDeleter
 from .schema import (
     AttemptSchema,
     BakeImagePatchSchema,
@@ -2015,6 +2016,10 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                         ExecutorAliveWatcher(storage.attempts, platform_client),
                     ],
                 )
+            )
+
+            await exit_stack.enter_async_context(
+                ProjectDeleter(storage, config.kube, config.events)
             )
 
             app[PROJECTS_APP][STORAGE] = storage

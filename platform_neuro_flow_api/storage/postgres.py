@@ -852,6 +852,17 @@ class PostgresCacheEntryStorage(
             raise NotExistsError
         return self._from_record(record)
 
+    async def list(
+        self,
+        project_id: str | None = None,
+    ) -> AsyncIterator[CacheEntry]:
+        query = self._table.select()
+        if project_id is not None:
+            query = query.where(self._table.c.project_id == project_id)
+        async with self._safe_begin() as conn:
+            async for record in await self._cursor(query, conn=conn):
+                yield self._from_record(record)
+
     @trace
     async def delete_all(
         self,
@@ -890,6 +901,17 @@ class PostgresConfigFileStorage(
         payload["filename"] = record["filename"]
         payload["content"] = record["content"]
         return ConfigFile(**payload)
+
+    async def list(
+        self,
+        bake_id: str | None = None,
+    ) -> AsyncIterator[ConfigFile]:
+        query = self._table.select()
+        if bake_id is not None:
+            query = query.where(self._table.c.bake_id == bake_id)
+        async with self._safe_begin() as conn:
+            async for record in await self._cursor(query, conn=conn):
+                yield self._from_record(record)
 
 
 class PostgresBakeImageStorage(

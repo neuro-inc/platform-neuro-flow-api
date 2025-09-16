@@ -4,6 +4,8 @@ import logging
 import os
 import pathlib
 
+from apolo_events_client import EventsClientConfig
+from apolo_kube_client import KubeClientAuthType, KubeConfig
 from yarl import URL
 
 from alembic.config import Config as AlembicConfig
@@ -31,7 +33,9 @@ class EnvironConfigFactory:
             server=self._create_server(),
             platform_auth=self._create_platform_auth(),
             platform_api=self._create_platform_api(),
+            kube=self.create_kube(),
             postgres=self.create_postgres(),
+            events=self.create_events(),
             enable_docs=enable_docs,
         )
 
@@ -94,6 +98,52 @@ class EnvironConfigFactory:
         postgres_dsn = to_sync_postgres_dsn(postgres_dsn)
         config.set_main_option("sqlalchemy.url", postgres_dsn.replace("%", "%%"))
         return config
+
+    def create_events(self) -> EventsClientConfig | None:
+        if "NP_NEURO_FLOW_API_PLATFORM_EVENTS_URL" in self._environ:
+            url = URL(self._environ["NP_NEURO_FLOW_API_PLATFORM_EVENTS_URL"])
+            token = self._environ["NP_NEURO_FLOW_API_PLATFORM_EVENTS_TOKEN"]
+            return EventsClientConfig(url=url, token=token, name="platform-neuro-flow")
+        return None
+
+    def create_kube(self) -> KubeConfig:
+        endpoint_url = self._environ["NP_NEURO_FLOW_API_K8S_API_URL"]
+        auth_type = KubeClientAuthType(
+            self._environ.get(
+                "NP_NEURO_FLOW_API_K8S_AUTH_TYPE", KubeClientAuthType.NONE
+            )
+        )
+        ca_path = self._environ.get("NP_NEURO_FLOW_API_K8S_CA_PATH")
+        ca_data = pathlib.Path(ca_path).read_text() if ca_path else None
+
+        token_path = self._environ.get("NP_NEURO_FLOW_API_K8S_TOKEN_PATH")
+        token = pathlib.Path(token_path).read_text() if token_path else None
+
+        return KubeConfig(
+            endpoint_url=endpoint_url,
+            cert_authority_data_pem=ca_data,
+            auth_type=auth_type,
+            auth_cert_path=self._environ.get("NP_NEURO_FLOW_API_K8S_AUTH_CERT_PATH"),
+            auth_cert_key_path=self._environ.get(
+                "NP_NEURO_FLOW_API_K8S_AUTH_CERT_KEY_PATH"
+            ),
+            token=token,
+            token_path=token_path,
+            namespace=self._environ.get("NP_NEURO_FLOW_API_K8S_NS")
+            or KubeConfig.model_fields["namespace"].default,
+            client_conn_timeout_s=int(
+                self._environ.get("NP_SECRETS_K8S_CLIENT_CONN_TIMEOUT")
+                or KubeConfig.model_fields["client_conn_timeout_s"].default
+            ),
+            client_read_timeout_s=int(
+                self._environ.get("NP_SECRETS_K8S_CLIENT_READ_TIMEOUT")
+                or KubeConfig.model_fields["client_read_timeout_s"].default
+            ),
+            client_conn_pool_size=int(
+                self._environ.get("NP_SECRETS_K8S_CLIENT_CONN_POOL_SIZE")
+                or KubeConfig.model_fields["client_conn_pool_size"].default
+            ),
+        )
 
 
 syncpg_schema = "postgresql"

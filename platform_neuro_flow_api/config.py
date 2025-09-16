@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from apolo_events_client import EventsClientConfig
+from apolo_kube_client import KubeConfig
 from yarl import URL
 
 from alembic.config import Config as AlembicConfig
@@ -53,5 +55,7 @@ class Config:
     platform_auth: PlatformAuthConfig
     platform_api: PlatformApiConfig
     postgres: PostgresConfig
+    kube: KubeConfig | None = None
     watchers: WatchersConfig = WatchersConfig()
+    events: EventsClientConfig | None = None
     enable_docs: bool = False

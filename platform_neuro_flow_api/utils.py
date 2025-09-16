@@ -34,7 +34,7 @@ T_contra = TypeVar("T_contra", contravariant=True)
 
 
 @asynccontextmanager
-async def auto_close(
+async def auto_close(  # noqa
     gen: AsyncGenerator[T_co, T_contra],
 ) -> AsyncIterator[AsyncGenerator[T_co, T_contra]]:
     try:

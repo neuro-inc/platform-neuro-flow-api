@@ -27,22 +27,12 @@ repos:
     files: |
       docs/spelling_wordlist.txt|
       .gitignore
-- repo: https://github.com/Zac-HD/shed
-  rev: 2025.6.1
-  hooks:
-  - id: shed
-    args:
-    - --refactor
-    types_or:
-    - python
-    - markdown
-    - rst
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.11.13
+  rev: v0.12.12
   hooks:
   - id: ruff-format
   - id: ruff
-    args: [--fix, --exit-non-zero-on-fix]
+    args: [--fix, --exit-non-zero-on-fix, --show-fixes]
 - repo: https://github.com/mrtazz/checkmake.git
   rev: 0.2.2
   hooks:
