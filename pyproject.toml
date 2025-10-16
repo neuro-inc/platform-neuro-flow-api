@@ -31,7 +31,7 @@ asyncpg = "0.30.0"
 sqlalchemy = "1.4.25"
 yarl = "1.22.0"
 greenlet = "3.2.4"
-apolo-events-client = "^25.8.0"
+apolo-events-client = "^25.10.0"
 apolo-kube-client = "^25.10.5"
 tenacity = "^9.1.2"
 
