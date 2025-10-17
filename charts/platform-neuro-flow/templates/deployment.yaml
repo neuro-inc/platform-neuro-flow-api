@@ -36,13 +36,13 @@ spec:
       containers:
       - name: platform-neuro-flow
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        {{- if .Values.securityContext.enabled }}
         securityContext:
-                   {{- if .Values.securityContext.enabled }}
           runAsUser: {{ .Values.securityContext.runAsUser }}
           runAsGroup: {{ .Values.securityContext.runAsGroup }}
           runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
           allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
-                   {{- end }}
+        {{- end }}
         {{- if .Values.command }}
         command: {{ toYaml .Values.command | nindent 8 }}
         {{- end }}
