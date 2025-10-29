@@ -28,7 +28,7 @@ repos:
       docs/spelling_wordlist.txt|
       .gitignore
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.14.1
+  rev: v0.14.2
   hooks:
   - id: ruff-format
   - id: ruff
