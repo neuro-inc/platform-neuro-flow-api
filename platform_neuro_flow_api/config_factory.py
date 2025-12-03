@@ -129,8 +129,6 @@ class EnvironConfigFactory:
             ),
             token=token,
             token_path=token_path,
-            namespace=self._environ.get("NP_NEURO_FLOW_API_K8S_NS")
-            or KubeConfig.model_fields["namespace"].default,
             client_conn_timeout_s=int(
                 self._environ.get("NP_SECRETS_K8S_CLIENT_CONN_TIMEOUT")
                 or KubeConfig.model_fields["client_conn_timeout_s"].default
