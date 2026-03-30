@@ -8,6 +8,7 @@ from platform_neuro_flow_api.config_factory import (
     EnvironConfigFactory,
     to_sync_postgres_dsn,
 )
+from platform_neuro_flow_api.storage.postgres import FlowTables
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -22,7 +23,7 @@ if sys.argv[0].endswith("alembic"):
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = FlowTables.create().metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
