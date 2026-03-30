@@ -81,6 +81,7 @@ class FlowTables:
     tasks: sa.Table
     cache_entries: sa.Table
     bake_images: sa.Table
+    metadata: sa.MetaData
 
     @classmethod
     def create(cls) -> FlowTables:
@@ -95,6 +96,22 @@ class FlowTables:
             sa.Column("project_name", sa.String(), nullable=False),
             sa.Column("org_name", sa.String(), nullable=True),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index(
+                "projects_name_project_cluster_org_uq",
+                "name",
+                "project_name",
+                "cluster",
+                "org_name",
+                unique=True,
+            ),
+            sa.Index(
+                "projects_name_project_cluster_org_null_uq",
+                "name",
+                "project_name",
+                "cluster",
+                unique=True,
+                postgresql_where=sa.text("org_name IS NULL"),
+            ),
         )
         live_jobs_table = sa.Table(
             "live_jobs",
@@ -104,11 +121,18 @@ class FlowTables:
             sa.Column(
                 "project_id",
                 sa.String(),
-                sa.ForeignKey(projects_table.c.id),
+                sa.ForeignKey(
+                    projects_table.c.id,
+                    name="live_jobs_project_id_fkey",
+                    ondelete="CASCADE",
+                ),
                 nullable=False,
             ),
             sa.Column("tags", sapg.JSONB(), nullable=False),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index(
+                "live_jobs_project_yaml_id_uq", "project_id", "yaml_id", unique=True
+            ),
         )
         bakes_table = sa.Table(
             "bakes",
@@ -117,7 +141,11 @@ class FlowTables:
             sa.Column(
                 "project_id",
                 sa.String(),
-                sa.ForeignKey(projects_table.c.id),
+                sa.ForeignKey(
+                    projects_table.c.id,
+                    name="bakes_project_id_fkey",
+                    ondelete="CASCADE",
+                ),
                 nullable=False,
             ),
             sa.Column("batch", sa.String(), nullable=False),
@@ -128,13 +156,32 @@ class FlowTables:
             sa.Column("status", sa.String(), nullable=False, server_default="pending"),
             sa.Column("tags", sapg.JSONB(), nullable=True),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index("bake_project_id_index", "project_id"),
+            sa.Index("bakes_name_index", "name"),
+            sa.Index("bakes_tags_index", "tags", postgresql_using="gin"),
+            sa.Index(
+                "bake_name_project_uq",
+                "name",
+                "project_id",
+                unique=True,
+                postgresql_where=sa.text(
+                    "status != 'succeeded' AND status != 'failed' AND status != 'cancelled'"  # noqa: E501
+                ),
+            ),
         )
         config_files_table = sa.Table(
             "config_files",
             metadata,
             sa.Column("id", sa.String(), primary_key=True),
             sa.Column(
-                "bake_id", sa.String(), sa.ForeignKey("bakes.id"), nullable=False
+                "bake_id",
+                sa.String(),
+                sa.ForeignKey(
+                    bakes_table.c.id,
+                    name="config_files_bake_id_fkey",
+                    ondelete="CASCADE",
+                ),
+                nullable=False,
             ),
             sa.Column("filename", sa.String(), nullable=False),
             sa.Column("content", sa.Text(), nullable=False),
@@ -145,7 +192,14 @@ class FlowTables:
             metadata,
             sa.Column("id", sa.String(), primary_key=True),
             sa.Column(
-                "bake_id", sa.String(), sa.ForeignKey(bakes_table.c.id), nullable=False
+                "bake_id",
+                sa.String(),
+                sa.ForeignKey(
+                    bakes_table.c.id,
+                    name="attempts_bake_id_fkey",
+                    ondelete="CASCADE",
+                ),
+                nullable=False,
             ),
             sa.Column("number", sa.Integer(), nullable=False),
             sa.Column(
@@ -153,6 +207,7 @@ class FlowTables:
             ),
             sa.Column("result", sa.String(), nullable=False),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index("attempts_bake_number_uq", "bake_id", "number", unique=True),
         )
         tasks_table = sa.Table(
             "tasks",
@@ -161,11 +216,17 @@ class FlowTables:
             sa.Column(
                 "attempt_id",
                 sa.String(),
-                sa.ForeignKey(attempts_table.c.id),
+                sa.ForeignKey(
+                    attempts_table.c.id,
+                    name="tasks_attempt_id_fkey",
+                    ondelete="CASCADE",
+                ),
                 nullable=False,
             ),
             sa.Column("yaml_id", sa.String(), nullable=False),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index("tasks_attempt_id", "attempt_id"),
+            sa.Index("tasks_attempt_yaml_id_uq", "attempt_id", "yaml_id", unique=True),
         )
         cache_entries_table = sa.Table(
             "cache_entries",
@@ -174,7 +235,11 @@ class FlowTables:
             sa.Column(
                 "project_id",
                 sa.String(),
-                sa.ForeignKey(projects_table.c.id),
+                sa.ForeignKey(
+                    projects_table.c.id,
+                    name="cache_entries_project_id_fkey",
+                    ondelete="CASCADE",
+                ),
                 nullable=False,
             ),
             sa.Column("batch", sa.String(), nullable=False),
@@ -184,17 +249,33 @@ class FlowTables:
                 "created_at", sapg.TIMESTAMP(timezone=True, precision=6), nullable=False
             ),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index(
+                "cache_entries_key_uq",
+                "project_id",
+                "batch",
+                "task_id",
+                "key",
+                unique=True,
+            ),
         )
         bake_images_table = sa.Table(
             "bake_images",
             metadata,
             sa.Column("id", sa.String(), primary_key=True),
             sa.Column(
-                "bake_id", sa.String(), sa.ForeignKey(bakes_table.c.id), nullable=False
+                "bake_id",
+                sa.String(),
+                sa.ForeignKey(
+                    bakes_table.c.id,
+                    name="bake_images_bake_id_fkey",
+                    ondelete="CASCADE",
+                ),
+                nullable=False,
             ),
             sa.Column("ref", sa.String(), nullable=False),
             sa.Column("status", sa.String(), nullable=False),
             sa.Column("payload", sapg.JSONB(), nullable=False),
+            sa.Index("bake_images_ref_uq", "bake_id", "ref", unique=True),
         )
         return cls(
             projects=projects_table,
@@ -205,6 +286,7 @@ class FlowTables:
             tasks=tasks_table,
             cache_entries=cache_entries_table,
             bake_images=bake_images_table,
+            metadata=metadata,
         )
 
 
