@@ -277,14 +277,14 @@ yarl = ">=1.10"
 
 [[package]]
 name = "apolo-events-client"
-version = "25.10.0"
+version = "26.9.0"
 description = "Apolo client for platform-events"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "apolo_events_client-25.10.0-py3-none-any.whl", hash = "sha256:1df8d7dc109325fa2b62cc69e6402ac01cd6cfce5eefca767c558f7e85bd2fc6"},
-    {file = "apolo_events_client-25.10.0.tar.gz", hash = "sha256:5c60ae49337a8d328bc2f351290694d938714b6250da40ddcfc41573df84befe"},
+    {file = "apolo_events_client-26.9.0-py3-none-any.whl", hash = "sha256:96ad185fa9f250663a18c0e0b2b3bd0a6683ebc8a3a7c984e70b62dae3982837"},
+    {file = "apolo_events_client-26.9.0.tar.gz", hash = "sha256:21b5c54fbcdae3ad76749940a9f1ee6d6d2eb5d76082ded747e8a8517ab22af4"},
 ]
 
 [package.dependencies]
@@ -3262,4 +3262,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "b17a345bc0bf22bbe4d140309b90c33f796f1c87b47750e67503a1c813f32bfb"
+content-hash = "42d7480f7b27be58850f77579f517296532385c4a03e4d67b177a13158d20a1d"
