@@ -1392,6 +1392,7 @@ description = "Mypyc runtime library"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
+markers = "platform_python_implementation != \"PyPy\""
 files = [
     {file = "librt-0.13.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:34e47058fcc69a313293d6dee94216a4f30c929ae6f2476e58c5ba635aa639d5"},
     {file = "librt-0.13.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:dbdd5b6509d0c2a8fe72cf494c299a61dbd58142a90a4190664ae159e4a7b547"},
@@ -1882,21 +1883,21 @@ python-jose = ">=3.0.1"
 
 [[package]]
 name = "neuro-logging"
-version = "25.11.0"
+version = "26.9.1"
 description = "Logging client for Neu.ro platform services"
 optional = false
 python-versions = ">=3.13"
 groups = ["main"]
 files = [
-    {file = "neuro_logging-25.11.0-py3-none-any.whl", hash = "sha256:4c8ace47a5f94d9786a97484869da32b9b3c894195e37a4477a619ad66bb1065"},
-    {file = "neuro_logging-25.11.0.tar.gz", hash = "sha256:86dfe64c9a65916fef4412a3c305f8f42c90a17febe80fb142f9a0680524f93d"},
+    {file = "neuro_logging-26.9.1-py3-none-any.whl", hash = "sha256:e21dd6b24b46ed492eab59db4b435214c87939f8973b17406734a51d0fc23c65"},
+    {file = "neuro_logging-26.9.1.tar.gz", hash = "sha256:c2f7bc7ba571d313a5fe182061ed9165dfd2861c286edc8f5b717231d23f0f68"},
 ]
 
 [package.dependencies]
 aiohttp = {version = ">=3.11.3", extras = ["speedups"]}
 orjson = ">=3.10.12"
 python-json-logger = ">=3.2.1"
-sentry-sdk = ">=2.19.2,<2.45"
+sentry-sdk = ">=2.19.2,<2.70"
 
 [[package]]
 name = "nodeenv"
@@ -3246,4 +3247,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "a83d72c283a63cb7124a38985f3028102dfef709da03f131517ab05d9e9b66fc"
+content-hash = "abca259ca584660af792af1a188a85f66c5f9d281fc7c179610ed8226b60010c"
