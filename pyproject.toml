@@ -18,7 +18,7 @@ packages = [{ include = "platform_neuro_flow_api" }]
 
 [tool.poetry.dependencies]
 python = ">=3.13,<4.0"
-aiohttp = "3.14.3"
+aiohttp = "3.14.5"
 apolo-api-client = "25.6.0"
 neuro-auth-client = "25.8.2"
 neuro-logging = ">=26.9,<27.0"
@@ -29,7 +29,7 @@ alembic = "1.19.2"
 psycopg2-binary = "2.9.13"
 asyncpg = "0.31.0"
 sqlalchemy = "1.4.25"
-yarl = "1.23.0"
+yarl = "1.25.1"
 greenlet = "3.5.6"
 apolo-events-client = ">=25.10,<27.0"
 apolo-kube-client = ">=25.12,<27.0"
