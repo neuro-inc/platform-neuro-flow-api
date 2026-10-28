@@ -17,18 +17,18 @@ classifiers = [
 packages = [{ include = "platform_neuro_flow_api" }]
 
 [tool.poetry.dependencies]
-python = ">=3.13,<4.0"
+python = ">=3.14,<3.15"
 aiohttp = "3.14.5"
 apolo-api-client = "25.6.0"
 neuro-auth-client = "25.8.2"
 neuro-logging = ">=26.9,<27.0"
-marshmallow = "3.20.1"
+marshmallow = ">=3.26.2,<4.0.0"
 aiohttp-swagger3 = "0.10.0"
-markupsafe = "3.0.3"
-alembic = "1.19.2"
+markupsafe = "3.0.4"
+alembic = ">=1.17.2,<1.18"
 psycopg2-binary = "2.9.13"
-asyncpg = "0.31.0"
-sqlalchemy = "1.4.25"
+asyncpg = "0.32.0"
+sqlalchemy = ">=1.4.54,<2.0"
 yarl = "1.25.1"
 greenlet = "3.5.6"
 apolo-events-client = ">=25.10,<27.0"
@@ -40,8 +40,8 @@ platform-neuro-flow-api = "platform_neuro_flow_api.api:main"
 
 [tool.poetry.group.dev.dependencies]
 docker = "7.2.0"
-pytest = "9.0.3"
-pytest-asyncio = "1.3.0"
+pytest = "9.2.0"
+pytest-asyncio = "1.4.1"
 pytest-cov = "7.1.0"
 mypy = "2.4.0"
 pre-commit = "4.7.0"
@@ -53,7 +53,7 @@ vcs = "git"
 
 [tool.ruff]
 line-length = 88
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -62,7 +62,7 @@ select = [
 ]
 ignore = [
     "A001", "A002", "A003", "N818", "PT006", "PT011", "EM101", "EM102", "B008",
-    "RET503", "PT012", "FBT001", "FBT002", "B904"
+    "RET503", "PT012", "FBT001", "FBT002", "B904", "ICN001", "UP042"
 ]
 
 [tool.pytest.ini_options]
@@ -72,7 +72,6 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:jose",
     "ignore::DeprecationWarning:.*",
-    "ignore::marshmallow.warnings.RemovedInMarshmallow4Warning:apispec.ext.marshmallow.field_converter",
     "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_swagger3",
     "ignore::aiohttp.web_exceptions.NotAppKeyWarning:aiohttp_security"
 ]
