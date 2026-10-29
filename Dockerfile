@@ -2,10 +2,6 @@ ARG PY_VERSION=3.14.10
 
 FROM python:${PY_VERSION}-slim-bookworm AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && python -c "from importlib.metadata import version; assert tuple(map(int, version('pip').split('.'))) >= (26, 2, 2)"
-
 ENV PATH=/root/.local/bin:$PATH
 
 # Copy to tmp folder to don't pollute home dir
@@ -18,10 +14,6 @@ RUN pip install --user --no-cache-dir --find-links /tmp/dist platform-neuro-flow
     rm -rf /tmp/dist
 
 FROM python:${PY_VERSION}-slim-bookworm AS runtime
-
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && python -c "from importlib.metadata import version; assert tuple(map(int, version('pip').split('.'))) >= (26, 2, 2)"
 
 LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/platform-neuro-flow-api"
 
