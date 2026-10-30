@@ -41,7 +41,7 @@ test_integration:
 .PHONY: docker_build
 docker_build: .python-version dist
 	PY_VERSION=$$(cat .python-version) && \
-	docker build \
+	docker build --pull \
 		-t platformneuroflowapi:latest \
 		--build-arg PY_VERSION=$$PY_VERSION \
 		.
