@@ -39,5 +39,4 @@ ENV PATH=/home/$SERVICE_NAME/.local/bin:$PATH
 ENV NP_NEURO_FLOW_API_PORT=8080
 EXPOSE $NP_NEURO_FLOW_API_PORT
 
-
 ENTRYPOINT [ "platform-neuro-flow-api" ]
